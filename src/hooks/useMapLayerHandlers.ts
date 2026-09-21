@@ -15,6 +15,7 @@ interface UseMapLayerHandlersProps {
   map: MaplibreMap | null;
   isLoaded: boolean;
   selection: Selection | null;
+  hoveredLoteamento: HoveredLoteamento | null;
   layerToggleBairro: boolean;
   onHoverBairro: (hovered: HoveredBairro | null) => void;
   onHoverLoteamento: (hovered: HoveredLoteamento | null) => void;
@@ -27,6 +28,7 @@ export function useMapLayerHandlers({
   map,
   isLoaded,
   selection,
+  hoveredLoteamento,
   layerToggleBairro,
   onHoverBairro,
   onHoverLoteamento,
@@ -137,18 +139,17 @@ export function useMapLayerHandlers({
     if (!map.getSource(LOTEAMENTO.sourceId)) return;
 
     const previous = hoveredLoteamentoIdRef.current;
-    if (previous !== undefined) {
-      // Buscar o featureId do hoveredLoteamento (do Props) para checar mudança
-      // Esse hook não recebe hoveredLoteamento direto; ele é disparado por
-      // onHoverLoteamento. A mudança de featureId é rastreada pelo ref.
-      // Atualizar o ref aqui é responsabilidade de quem chama onHoverLoteamento,
-      // portanto vamos receber hoveredLoteamento como prop ou dispensar esse controle...
-      // Na verdade, relendo o código original: o ref é atualizado DENTRO do callback
-      // de um outro lugar. Aqui mantemos simples: o ref rastreia qual bairro está
-      // hoveredLoteamentoIdRef.current é atualizado por quem chamou onHoverLoteamento.
+    if (previous !== undefined && previous !== hoveredLoteamento?.featureId) {
+      map.setFeatureState({ source: LOTEAMENTO.sourceId, id: previous }, { hover: false });
     }
-    hoveredLoteamentoIdRef.current = undefined;
-  }, [map, isLoaded]);
+    if (hoveredLoteamento) {
+      map.setFeatureState(
+        { source: LOTEAMENTO.sourceId, id: hoveredLoteamento.featureId },
+        { hover: true }
+      );
+    }
+    hoveredLoteamentoIdRef.current = hoveredLoteamento?.featureId;
+  }, [map, isLoaded, hoveredLoteamento]);
 
   // Clique no mapa = seleção. Handler único global, consultando loteamento antes
   // de bairro: um listener por layer faz o bairro roubar o clique — §2.

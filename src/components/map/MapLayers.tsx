@@ -104,6 +104,7 @@ export function MapLayers({
     map,
     isLoaded,
     selection,
+    hoveredLoteamento,
     layerToggleBairro: layerToggles.bairro,
     onHoverBairro,
     onHoverLoteamento,
