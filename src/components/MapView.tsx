@@ -18,7 +18,6 @@ import type {
 import { ensurePMTilesProtocol } from "@/lib/map/pmtilesProtocol";
 import { MapLayers } from "./map/MapLayers";
 import { Buildings3D } from "./map/Buildings3D";
-import { BuildingsNote } from "./panel/BuildingsNote";
 import { FloatingPolygonLabel } from "./map/FloatingPolygonLabel";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
@@ -235,15 +234,6 @@ export function MapView() {
               título centralizado sai de cena para não duplicar o nome. */}
           <FloatingTitle state={titleInPolygon ? null : floatingTitle} />
 
-          {/* Procedência das edificações 3D — centralizada, entre os controles
-              de camada (à esquerda) e os de zoom (à direita). */}
-          <div
-            className="absolute left-1/2 flex -translate-x-1/2 justify-center transition-[bottom] duration-300"
-            style={{ bottom: isMobile ? layerButtonBottom : "18px" }}
-          >
-            <BuildingsNote count={buildingCount} />
-          </div>
-
           <div
             className="pointer-events-auto absolute left-[18px] hidden items-end gap-2 transition-[bottom] duration-300 md:flex"
             style={{ bottom: "18px" }}
@@ -264,6 +254,7 @@ export function MapView() {
         <Sidebar
           selection={selection}
           loteamentos={loteamentos}
+          buildingCount={buildingCount}
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
@@ -274,6 +265,7 @@ export function MapView() {
         <BottomSheet
           selection={selection}
           loteamentos={loteamentos}
+          buildingCount={buildingCount}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
           onClose={handleClose}

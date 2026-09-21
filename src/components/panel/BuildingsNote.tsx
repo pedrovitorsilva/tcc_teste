@@ -7,12 +7,11 @@ export function BuildingsNote({ count }: { count: number }) {
   if (count === 0) return null;
 
   return (
-    <NoteCard className="pointer-events-none max-w-[min(420px,calc(100vw-36px))] px-3 py-2">
+    <NoteCard className="pointer-events-none max-w-[min(420px,calc(100vw-36px))] my-10 px-3 py-2">
       <p className="cv-note-body">
         <strong>{count.toLocaleString('pt-BR')} edificações</strong> por detecção
-        automática (Overture · Google Open Buildings · Microsoft ML). A altura
-        exibida é volume genérico derivado da área construída — não é altura
-        medida.
+        automática (Overture · Google Open Buildings · Microsoft ML). Altura
+        dos prédios não reflete necessariamente a realidade.
       </p>
     </NoteCard>
   );

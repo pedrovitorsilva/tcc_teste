@@ -9,6 +9,7 @@ import type { LevelId, Selection, SheetSnap } from '@/types/map';
 interface BottomSheetProps {
   selection: Selection | null;
   loteamentos: IndexedFeature[];
+  buildingCount: number;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
@@ -22,6 +23,7 @@ interface BottomSheetProps {
 export function BottomSheet({
   selection,
   loteamentos,
+  buildingCount,
   snap,
   onSnapChange,
   onClose,
@@ -102,6 +104,7 @@ export function BottomSheet({
           <FeatureDetails
             selection={selection}
             loteamentos={loteamentos}
+            buildingCount={buildingCount}
             onSelectLoteamento={(name) => onNavigate('loteamento', name)}
           />
         )}

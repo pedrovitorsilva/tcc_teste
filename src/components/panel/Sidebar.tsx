@@ -8,6 +8,7 @@ import type { LevelId, Selection } from '@/types/map';
 interface SidebarProps {
   selection: Selection | null;
   loteamentos: IndexedFeature[];
+  buildingCount: number;
   onClose: () => void;
   onNavigate: (level: LevelId, name: string) => void;
   /** Mirrors loteamento list hover to polygon on map. */
@@ -19,6 +20,7 @@ interface SidebarProps {
 export function Sidebar({
   selection,
   loteamentos,
+  buildingCount,
   onClose,
   onNavigate,
   onHoverLoteamento,
@@ -73,6 +75,7 @@ export function Sidebar({
             <FeatureDetails
               selection={selection}
               loteamentos={loteamentos}
+              buildingCount={buildingCount}
               onSelectLoteamento={(name) => onNavigate('loteamento', name)}
               onHoverLoteamento={onHoverLoteamento}
             />

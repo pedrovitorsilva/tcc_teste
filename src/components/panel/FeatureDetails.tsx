@@ -1,6 +1,7 @@
 "use client";
 
 import { CartographerNote } from "@/components/panel/CartographerNote";
+import { BuildingsNote } from "@/components/panel/BuildingsNote";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { LevelId, Selection } from "@/types/map";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ export interface FeatureBackLinkProps {
 interface FeatureDetailsProps {
   selection: Selection;
   loteamentos: IndexedFeature[];
+  buildingCount: number;
   onSelectLoteamento: (name: string) => void;
   /** Mirrors hover from search list to corresponding polygon on map.
    *
@@ -63,6 +65,7 @@ export function FeatureBackLink({
 export function FeatureDetails({
   selection,
   loteamentos,
+  buildingCount,
   onSelectLoteamento,
   onHoverLoteamento,
 }: FeatureDetailsProps) {
@@ -71,6 +74,7 @@ export function FeatureDetails({
       <BairroBody
         bairroName={selection.name}
         loteamentos={loteamentos}
+        buildingCount={buildingCount}
         onSelectLoteamento={onSelectLoteamento}
         onHoverLoteamento={onHoverLoteamento}
       />
@@ -82,11 +86,13 @@ export function FeatureDetails({
 function BairroBody({
   bairroName,
   loteamentos,
+  buildingCount,
   onSelectLoteamento,
   onHoverLoteamento,
 }: {
   bairroName: string;
   loteamentos: IndexedFeature[];
+  buildingCount: number;
   onSelectLoteamento: (name: string) => void;
   onHoverLoteamento?: (name: string | null) => void;
 }) {
@@ -100,7 +106,7 @@ function BairroBody({
         <span className="cv-rec-value">{children.length}</span>
       </div>
 
-      <div className="cv-sec-title">Loteamentos</div>
+      <div className="cv-sec-title my-2">Loteamentos</div>
       <div>
         {children.map((lot) => (
           <button
@@ -127,6 +133,9 @@ function BairroBody({
             </span>
           </button>
         ))}
+      </div>
+      <div>
+        <BuildingsNote count={buildingCount} />
       </div>
     </>
   );
