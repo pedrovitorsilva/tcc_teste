@@ -100,8 +100,6 @@ function BairroBody({
 
   return (
     <>
-      <BuildingsNote count={buildingCount} />
-
       <div className="cv-sec-title mt-0">Registro geral</div>
       <div className="cv-rec-row">
         <span className="cv-rec-label">Loteamentos mapeados</span>
@@ -135,6 +133,10 @@ function BairroBody({
             </span>
           </button>
         ))}
+      </div>
+
+      <div>
+        <BuildingsNote count={buildingCount} />
       </div>
     </>
   );
