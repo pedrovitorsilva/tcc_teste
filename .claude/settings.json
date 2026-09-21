@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(npm run dev*)",
+      "Bash(npm start*)",
+      "Bash(npm run start*)",
+      "Bash(npx next dev*)",
+      "Bash(npx next start*)",
+      "Bash(next dev*)",
+      "Bash(next start*)",
+      "Bash(yarn dev*)",
+      "Bash(yarn start*)",
+      "Bash(pnpm dev*)",
+      "Bash(pnpm start*)",
+      "Bash(bun dev*)",
+      "Bash(docker-compose up*)",
+      "Bash(docker compose up*)",
+      "PowerShell(npm run dev*)",
+      "PowerShell(npm start*)",
+      "PowerShell(npm run start*)",
+      "PowerShell(npx next dev*)",
+      "PowerShell(npx next start*)",
+      "PowerShell(next dev*)",
+      "PowerShell(next start*)",
+      "PowerShell(yarn dev*)",
+      "PowerShell(pnpm dev*)",
+      "PowerShell(docker-compose up*)",
+      "PowerShell(docker compose up*)"
+    ]
+  }
+}

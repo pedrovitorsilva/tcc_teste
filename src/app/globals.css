@@ -1,0 +1,281 @@
+@import 'tailwindcss';
+@import 'maplibre-gl/dist/maplibre-gl.css';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Liga o variante `dark:` à classe `.dark` no <html> (escrita por
+   lib/color/theme.ts), e não ao `prefers-color-scheme`, que segue o SO. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+/* Tokens dos três temas — mesmos nomes em todos. Token que não varia por tema
+   não entra aqui: vai em @theme inline ou @layer components.
+
+   Cada tema segue uma referência cartográfica e as camadas formam uma rampa de
+   lightness num matiz só, não quatro matizes.*/
+
+   :root,
+[data-theme="light"] {
+  --page: #f7f8fa;
+  --panel: #ffffff;
+  --panel-2: #eef0f4;
+  --ink: #1a1f2b;
+  --ink-soft: #545c6b;
+  --ink-faint: #6d7585;
+  --border: rgba(26, 31, 43, .14);
+  --border-soft: rgba(26, 31, 43, .07);
+  --bairro: #303d58;
+  --loteamento: #475676;
+  --setor: #607195;
+  --building: #798eb6;
+  --uncertain: #55565a;
+  --accent-wash: rgba(48, 61, 88, .06);
+  --map-land: #ffffff;
+  --map-water: #e3e9f2;
+  --map-ink: #2b3242;
+}
+
+/* Escuro = cidade à noite.
+   Rampa invertida em relação aos outros temas: a unidade menor é a que brilha
+   mais. `--uncertain` é o topo da rampa e se separa de `--ink` por temperatura.
+*/
+[data-theme="dark"] {
+  --page: #0c1626;
+  --panel: #101c30;
+  --panel-2: #18263c;
+  --ink: #e3e6ea;
+  --ink-soft: #a4acb6;
+  --ink-faint: #7d8792;
+  --border: rgba(227, 230, 234, .14);
+  --border-soft: rgba(227, 230, 234, .07);
+  --bairro: #9e7500;
+  --loteamento: #c89711;
+  --setor: #ecb841;
+  --building: #ffd47c;
+  --uncertain: #fff0d2;
+  --accent-wash: rgba(158, 117, 0, .07);
+  --map-land: #0c1626;
+  --map-water: #081120;
+  --map-ink: #876b2f;
+}
+
+/* Tema Antigo 
+  A hachura cruzada (exclusiva deste tema) é o sinal primário da incerteza. */
+[data-theme="vintage"] {
+  --page: #fae2c9;
+  --panel: #fdeeda;
+  --panel-2: #f2d6b8;
+  --ink: #3d211d;
+  --ink-soft: #6b4a40;
+  --ink-faint: #856052;
+  --border: rgba(61, 33, 29, .24);
+  --border-soft: rgba(61, 33, 29, .11);
+  --bairro: #660c0f;
+  --loteamento: #832b28;
+  --setor: #a04540;
+  --uncertain: #544b4a;
+  --building: #311a16;
+  --accent-wash: rgba(102, 12, 15, .07);
+  --map-land: #f7dcc0;
+  --map-water: #d3aa99;
+  --map-ink: #7b2321;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-cv-border: var(--border);
+  --color-cv-border-soft: var(--border-soft);
+  --color-bairro: var(--bairro);
+  --color-loteamento: var(--loteamento);
+  --color-setor: var(--setor);
+  --color-uncertain: var(--uncertain);
+  --color-building: var(--building);
+  --color-accent-wash: var(--accent-wash);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  :root {
+    /* Remapeia a paleta do shadcn para os tokens do projeto, para os componentes
+       dele herdarem os 3 temas em vez de usar a escala neutra própria. */
+    --background: var(--page);
+    --foreground: var(--ink);
+    --card: var(--panel);
+    --card-foreground: var(--ink);
+    --popover: var(--panel);
+    --popover-foreground: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: var(--page);
+    --secondary: var(--panel-2);
+    --secondary-foreground: var(--ink);
+    --muted: var(--panel-2);
+    --muted-foreground: var(--ink-soft);
+    --accent: var(--panel-2);
+    --accent-foreground: var(--ink);
+    --destructive: var(--uncertain);
+    --input: var(--border);
+    --ring: var(--ink-soft);
+    --chart-1: var(--bairro);
+    --chart-2: var(--loteamento);
+    --chart-3: var(--setor);
+    --chart-4: var(--uncertain);
+    --chart-5: var(--ink-soft);
+    --radius: 0.625rem;
+    --sidebar: var(--panel);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--ink);
+    --sidebar-primary-foreground: var(--page);
+    --sidebar-accent: var(--panel-2);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ink-soft);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-page text-ink;
+    font-family: var(--font-body), 'EB Garamond', serif;
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
+  }
+}
+
+/* Typography scale: reusable classes so components don't repeat
+   font-family and letter-spacing by hand. */
+@layer components {
+  .cv-title,
+  .cv-h2,
+  .cv-sec-title,
+  .cv-note-title {
+    font-family: var(--font-display), 'Cormorant Garamond', serif;
+    font-weight: 600;
+  }
+
+  /* Título flutuante — nome principal */
+  .cv-title {
+    font-size: clamp(28px, 6vw, 96px);
+  }
+
+  /* Título flutuante — breadcrumb */
+  .cv-crumb {
+    font-size: clamp(10px, 1vw, 16px);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--ink-soft);
+  }
+
+  /* <h2> da sidebar / bottom sheet */
+  .cv-h2 {
+    font-size: 25px;
+  }
+
+  /* Kicker itálico acima dos títulos */
+  .cv-kicker {
+    font-family: var(--font-body), 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* Linha de dado (rótulo + valor) */
+  .cv-rec-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--border);
+    font-size: 14.5px;
+  }
+  .cv-rec-row .cv-rec-label {
+    color: var(--ink-soft);
+  }
+  .cv-rec-row .cv-rec-value {
+    font-weight: 500;
+  }
+
+  /* Rótulo de seção — versalete gravado */
+  .cv-sec-title {
+    font-size: 13.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* Nota do Cartógrafo */
+  .cv-note-title {
+    font-size: 14.5px;
+    color: var(--uncertain);
+  }
+  .cv-note-body {
+    font-family: var(--font-body), 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+}
