@@ -9,7 +9,6 @@ import {
   Moon,
   Palette,
   ScrollText,
-  CaseSensitive,
   Building2,
 } from 'lucide-react';
 
@@ -33,5 +32,4 @@ export const SunIcon = createIcon(Sun);
 export const MoonIcon = createIcon(Moon);
 export const PaletteIcon = createIcon(Palette);
 export const ScrollIcon = createIcon(ScrollText);
-export const LabelIcon = createIcon(CaseSensitive);
 export const BuildingIcon = createIcon(Building2);

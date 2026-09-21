@@ -96,10 +96,3 @@ export interface FloatingTitleState {
   crumb: string;
   main: string;
 }
-
-/** Target for the label drawn inside the geometry. Requires the polygon: anchor and size come from it. */
-export interface MapLabelTarget {
-  name: string;
-  geometry: GeoJSON.Geometry;
-  colorToken: 'bairro' | 'loteamento' | 'uncertain';
-}

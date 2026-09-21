@@ -13,12 +13,10 @@ import { DEFAULT_LAYER_TOGGLES } from "@/config/levels";
 import type {
   FloatingTitleState,
   LayerToggles,
-  MapLabelTarget,
 } from "@/types/map";
 import { ensurePMTilesProtocol } from "@/lib/map/pmtilesProtocol";
 import { MapLayers } from "./map/MapLayers";
 import { Buildings3D } from "./map/Buildings3D";
-import { FloatingPolygonLabel } from "./map/FloatingPolygonLabel";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
@@ -55,7 +53,6 @@ export function MapView() {
   );
   const [buildingCount, setBuildingCount] = useState(0);
   const [buildingsEnabled, setBuildingsEnabled] = useState(false);
-  const [titleInPolygon, setTitleInPolygon] = useState(false);
 
   const {
     selection,
@@ -80,8 +77,6 @@ export function MapView() {
         : { crumb: previewTarget.parentBairro ?? "", main: previewTarget.name };
     }
     if (selection) {
-      // On mobile, the name is already in the sheet header.
-      if (isMobile) return null;
       return selection.level === "bairro"
         ? { crumb: "bairro selecionado", main: selection.name }
         : { crumb: selection.parentBairro ?? "", main: selection.name };
@@ -97,54 +92,7 @@ export function MapView() {
       return { crumb: "bairro", main: hoveredBairro.name };
     }
     return null;
-  }, [previewTarget, selection, hoveredLoteamento, hoveredBairro, isMobile]);
-
-  /**
-   * Alvo do rótulo desenhado no polígono. Mesma precedência do título flutuante,
-   * mas exige a geometria completa (vem do índice, não do estado) — daí ser um
-   * memo próprio. Aparece também no mobile, onde o título flutuante não aparece.
-   */
-  const mapLabelTarget: MapLabelTarget | null = useMemo(() => {
-    if (!titleInPolygon) return null;
-
-    const active = previewTarget ?? selection ?? null;
-    let level = active?.level ?? null;
-    let featureId = active?.featureId ?? null;
-
-    if (!level && hoveredLoteamento) {
-      level = "loteamento";
-      featureId = hoveredLoteamento.featureId;
-    }
-    if (!level && hoveredBairro) {
-      level = "bairro";
-      featureId = hoveredBairro.featureId;
-    }
-    if (!level || featureId === null) return null;
-
-    const isLoteamento = level === "loteamento";
-    const feature = (isLoteamento ? loteamentos : bairros).find(
-      (f) => f.featureId === featureId,
-    );
-    if (!feature?.geometry) return null;
-
-    return {
-      name: feature.name,
-      geometry: feature.geometry,
-      colorToken: !isLoteamento
-        ? "bairro"
-        : feature.isReliable === false
-          ? "uncertain"
-          : "loteamento",
-    };
-  }, [
-    titleInPolygon,
-    previewTarget,
-    selection,
-    hoveredLoteamento,
-    hoveredBairro,
-    bairros,
-    loteamentos,
-  ]);
+  }, [previewTarget, selection, hoveredLoteamento, hoveredBairro]);
 
   // Padding assimétrico no mobile, para a seleção ficar acima da folha. Depende
   // só do breakpoint: a folha sempre reabre em "prévia" numa seleção nova.
@@ -170,8 +118,6 @@ export function MapView() {
     onLayerTogglesChange: setLayerToggles,
     buildingsEnabled,
     onBuildingsChange: setBuildingsEnabled,
-    titleInPolygon,
-    onTitleChange: setTitleInPolygon,
   };
 
   return (
@@ -210,29 +156,28 @@ export function MapView() {
             loteamentos={loteamentos}
             onCountChange={setBuildingCount}
           />
-          <FloatingPolygonLabel target={mapLabelTarget} tokens={tokens} />
         </Map>
 
         <div className="pointer-events-none absolute inset-0 z-10">
-          <div className="pointer-events-auto absolute top-[18px] left-[18px] w-[280px] max-md:right-[62px] max-md:w-auto">
-            <SearchBox
-              bairros={bairros}
-              loteamentos={loteamentos}
-              onPreview={handlePreview}
-              onSelect={handleNavigate}
-            />
-          </div>
+          <div className="pointer-events-auto absolute top-[18px] left-[18px] right-[18px] flex items-center gap-2">
+            <div className="w-[280px] max-md:w-[140px] shrink-0">
+              <SearchBox
+                bairros={bairros}
+                loteamentos={loteamentos}
+                onPreview={handlePreview}
+                onSelect={handleNavigate}
+              />
+            </div>
 
-          <div className="pointer-events-auto absolute top-[18px] right-[18px] hidden md:block">
-            <ThemeSwitcher />
-          </div>
-          <div className="pointer-events-auto absolute top-[18px] right-[18px] md:hidden">
-            <ThemeSwitcherPopoverButton />
-          </div>
+            <FloatingTitle state={floatingTitle} />
 
-          {/* Os dois modos são exclusivos: com o rótulo dentro da geometria, o
-              título centralizado sai de cena para não duplicar o nome. */}
-          <FloatingTitle state={titleInPolygon ? null : floatingTitle} />
+            <div className="hidden shrink-0 md:block">
+              <ThemeSwitcher />
+            </div>
+            <div className="shrink-0 md:hidden">
+              <ThemeSwitcherPopoverButton />
+            </div>
+          </div>
 
           <div
             className="pointer-events-auto absolute left-[18px] hidden items-end gap-2 transition-[bottom] duration-300 md:flex"
