@@ -1,24 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { StyleSpecification } from "maplibre-gl";
+import { useMemo, useState } from "react";
 import { Map, MapControls } from "@/components/ui/map";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { useThemeTokens, type ThemeTokens } from "@/hooks/useThemeTokens";
-import type { ThemeName } from "@/lib/color/theme";
-import { loadTintedStyle } from "@/lib/map/tint";
-import { useGeoIndex, type IndexedFeature } from "@/hooks/useGeoIndex";
+import { useThemeTokens } from "@/hooks/useThemeTokens";
+import { useMapStyles } from "@/hooks/useMapStyles";
+import { useGeoIndex } from "@/hooks/useGeoIndex";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useMapInteraction } from "@/hooks/useMapInteraction";
+import { PREVIEW_FRACTION, EXPANDED_FRACTION } from "@/hooks/useBottomSheetDrag";
 import { DEFAULT_LAYER_TOGGLES } from "@/config/levels";
 import type {
   FloatingTitleState,
-  HoveredBairro,
-  HoveredLoteamento,
   LayerToggles,
   MapLabelTarget,
-  LevelId,
-  PreviewTarget,
-  Selection,
 } from "@/types/map";
 import { ensurePMTilesProtocol } from "@/lib/map/pmtilesProtocol";
 import { MapLayers } from "./map/MapLayers";
@@ -31,7 +26,7 @@ import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
 import { ThemeSwitcherPopoverButton } from "./buttons/themeSwitcher/ThemeSwitcherPopoverButton";
 import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./panel/Sidebar";
-import { BottomSheet, type SheetSnap } from "./panel/BottomSheet";
+import { BottomSheet } from "./panel/BottomSheet";
 
 const CENTER: [number, number] = [-40.84, -14.86];
 const ZOOM = 11;
@@ -42,85 +37,6 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
   [-42.331167, -16.748426],
   [-39.42805, -13.48232],
 ];
-// Variantes "nolabels": o basemap entra só como geometria, sem rótulos próprios
-// competindo com os nomes que a aplicação desenha. Por prop, porque
-// components/ui/map.tsx é de terceiros e não pode ser editado.
-const MAP_STYLES = {
-  light:
-    "https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json",
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",
-};
-const PREVIEW_FRACTION = 0.35;
-const EXPANDED_FRACTION = 0.85;
-
-/**
- * Basemaps tingidos: os três temas repintam a geometria da CARTO a partir dos
- * tokens `--map-*`, em vez de servirem um style próprio (docs/DECISOES-TECNICAS.md §1).
- *
- * O componente de mapa só resolve "light" e "dark" (vintage entra como light,
- * ver lib/color/theme.ts), então o style tingido vai nas duas chaves. Enquanto a
- * busca não resolve — ou se falhar — vale o basemap cru da CARTO.
- */
-function useMapStyles(theme: ThemeName, tokens: ThemeTokens) {
-  const [tinted, setTinted] = useState<StyleSpecification | null>(null);
-  const { mapLand, mapWater, mapInk } = tokens;
-
-  useEffect(() => {
-    // Cada tema define de qual style parte e para onde cada extremo da faixa de
-    // lightness é puxado.
-    const recipe =
-      theme === "vintage"
-        ? {
-            source: MAP_STYLES.light,
-            target: { land: mapLand, water: mapWater, ink: mapInk },
-          }
-        : theme === "dark"
-          ? {
-              source: MAP_STYLES.dark,
-              target: {
-                background: mapLand,
-                // Invertido: a via mais clara vira o âmbar aceso, a mais escura
-                // se dissolve no fundo. Só a malha principal fica acesa.
-                land: mapInk,
-                ink: mapLand,
-                water: mapWater,
-                contrast: 0.85,
-              },
-            }
-          : {
-              source: MAP_STYLES.light,
-              // 0.55 dá a leitura de gravura sem chegar ao preto, que competiria
-              // com os dados (o Positron cru desenha as vias em #ddd).
-              target: {
-                land: mapLand,
-                water: mapWater,
-                ink: mapInk,
-                contrast: 0.55,
-              },
-            };
-
-    // Limpa antes de buscar: senão o style do tema anterior segue pintado até a
-    // nova busca resolver. O basemap cru no intervalo é o estado errado certo.
-    setTinted(null);
-
-    let cancelled = false;
-    loadTintedStyle(recipe.source, recipe.target)
-      .then((style) => {
-        if (!cancelled) setTinted(style);
-      })
-      .catch(() => {
-        if (!cancelled) setTinted(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [theme, mapLand, mapWater, mapInk]);
-
-  return useMemo(
-    () => (tinted ? { light: tinted, dark: tinted } : MAP_STYLES),
-    [tinted],
-  );
-}
 
 // Escopo do módulo, não efeito: precisa rodar antes do `new maplibregl.Map()`
 // que o <Map> dispara na montagem — ver docs/DECISOES-TECNICAS.md §6.
@@ -138,96 +54,25 @@ export function MapView() {
   const [layerToggles, setLayerToggles] = useState<LayerToggles>(
     DEFAULT_LAYER_TOGGLES,
   );
-  const [selection, setSelection] = useState<Selection | null>(null);
-  const [hoveredBairro, setHoveredBairro] = useState<HoveredBairro | null>(
-    null,
-  );
-  const [hoveredLoteamento, setHoveredLoteamento] =
-    useState<HoveredLoteamento | null>(null);
-  const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(
-    null,
-  );
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("preview");
   const [buildingCount, setBuildingCount] = useState(0);
   const [buildingsEnabled, setBuildingsEnabled] = useState(false);
   const [titleInPolygon, setTitleInPolygon] = useState(false);
 
-  const handleSelect = useCallback((next: Selection) => {
-    setSelection(next);
-    setHoveredBairro(null);
-    setHoveredLoteamento(null);
-  }, []);
-
-  /** Hover vindo da lista da ficha, que só sabe o nome. Casa nome + bairro-pai porque há homônimos no dataset. */
-  const handleHoverLoteamentoByName = useCallback(
-    (name: string | null) => {
-      if (!name || selection?.level !== "bairro") {
-        setHoveredLoteamento(null);
-        return;
-      }
-      const feature = loteamentos.find(
-        (f) => f.name === name && f.parentBairro === selection.name,
-      );
-      setHoveredLoteamento(
-        feature
-          ? {
-              featureId: feature.featureId,
-              name: feature.name,
-              parentBairro: feature.parentBairro,
-            }
-          : null,
-      );
-    },
-    [loteamentos, selection],
-  );
-
-  // Every new selection reopens the sheet in "preview" mode.
-  useEffect(() => {
-    if (selection) setSheetSnap("preview");
-  }, [selection?.featureId, selection?.level]);
-
-  const handleClose = useCallback(() => {
-    setSelection(null);
-  }, []);
-
-  useEffect(() => {
-    if (!selection) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [selection, handleClose]);
-
-  const handleNavigate = useCallback(
-    (level: LevelId, name: string) => {
-      const pool = level === "bairro" ? bairros : loteamentos;
-      const feature = pool.find((f) => f.name === name);
-      if (!feature) return;
-      handleSelect({
-        level,
-        featureId: feature.featureId,
-        name: feature.name,
-        properties: feature.properties,
-        parentBairro: feature.parentBairro,
-        bbox: feature.bbox,
-      });
-    },
-    [bairros, loteamentos, handleSelect],
-  );
-
-  const handlePreview = useCallback((feature: IndexedFeature | null) => {
-    setPreviewTarget(
-      feature
-        ? {
-            level: feature.level,
-            featureId: feature.featureId,
-            name: feature.name,
-            parentBairro: feature.parentBairro,
-          }
-        : null,
-    );
-  }, []);
+  const {
+    selection,
+    hoveredBairro,
+    hoveredLoteamento,
+    previewTarget,
+    sheetSnap,
+    setHoveredBairro,
+    setHoveredLoteamento,
+    setSheetSnap,
+    handleSelect,
+    handleClose,
+    handleNavigate,
+    handlePreview,
+    handleHoverLoteamentoByName,
+  } = useMapInteraction(bairros, loteamentos);
 
   const floatingTitle: FloatingTitleState | null = useMemo(() => {
     if (previewTarget) {

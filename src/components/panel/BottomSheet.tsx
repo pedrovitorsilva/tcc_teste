@@ -1,16 +1,10 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
 import { CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
-import type { LevelId, Selection } from '@/types/map';
-
-export type SheetSnap = 'preview' | 'expanded';
-
-const PREVIEW_FRACTION = 0.35;
-const EXPANDED_FRACTION = 0.85;
-const CLOSE_THRESHOLD_FRACTION = PREVIEW_FRACTION - 0.1;
+import { useBottomSheetDrag } from '@/hooks/useBottomSheetDrag';
+import type { LevelId, Selection, SheetSnap } from '@/types/map';
 
 interface BottomSheetProps {
   selection: Selection | null;
@@ -33,67 +27,17 @@ export function BottomSheet({
   onClose,
   onNavigate,
 }: BottomSheetProps) {
-  const isOpen = selection !== null;
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffsetPx, setDragOffsetPx] = useState(0);
-  const dragStartYRef = useRef(0);
-  const baseHeightPxRef = useRef(0);
-  const didDragRef = useRef(false);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  // Altura "expandida" clampeada ao conteúdo real — evita a folha abrir a
-  // 85% da tela com um vazio grande quando a ficha só tem 1-2 linhas.
-  const [expandedHeightPx, setExpandedHeightPx] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const HANDLE_HEIGHT = 44;
-    const BREATHING_ROOM = 24;
-    const header = headerRef.current?.offsetHeight ?? 0;
-    const content = contentRef.current?.scrollHeight ?? 0;
-    const natural = HANDLE_HEIGHT + header + content + BREATHING_ROOM;
-    const cap = window.innerHeight * EXPANDED_FRACTION;
-    setExpandedHeightPx(Math.min(natural, cap));
-  }, [isOpen, selection]);
-
-  const targetHeightPx = isOpen
-    ? snap === 'preview'
-      ? window.innerHeight * PREVIEW_FRACTION
-      : (expandedHeightPx ?? window.innerHeight * EXPANDED_FRACTION)
-    : 0;
-
-  function handlePointerDown(e: React.PointerEvent) {
-    setIsDragging(true);
-    didDragRef.current = false;
-    dragStartYRef.current = e.clientY;
-    baseHeightPxRef.current = targetHeightPx;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function handlePointerMove(e: React.PointerEvent) {
-    if (!isDragging) return;
-    const dy = e.clientY - dragStartYRef.current;
-    if (Math.abs(dy) > 4) didDragRef.current = true;
-    // Arrastar para baixo (dy > 0) encolhe a folha.
-    setDragOffsetPx(dy);
-  }
-
-  function endDrag() {
-    if (!isDragging) return;
-    setIsDragging(false);
-    const finalHeightPx = baseHeightPxRef.current - dragOffsetPx;
-    const finalFraction = finalHeightPx / window.innerHeight;
-    setDragOffsetPx(0);
-
-    if (finalFraction < CLOSE_THRESHOLD_FRACTION) {
-      onClose();
-      return;
-    }
-    const midpoint = (PREVIEW_FRACTION + EXPANDED_FRACTION) / 2;
-    onSnapChange(finalFraction >= midpoint ? 'expanded' : 'preview');
-  }
-
-  const heightStyle = isOpen ? `${targetHeightPx - dragOffsetPx}px` : '0px';
+  const {
+    isOpen,
+    isDragging,
+    heightStyle,
+    headerRef,
+    contentRef,
+    handlePointerDown,
+    handlePointerMove,
+    endDrag,
+    onDragHandleClick,
+  } = useBottomSheetDrag(selection, snap, onSnapChange, onClose);
 
   return (
     <div
@@ -112,13 +56,7 @@ export function BottomSheet({
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onClick={() => {
-          // pointerup já resolveu o snap via endDrag() para um arraste real;
-          // só um clique/toque sem deslocamento (ou ativação por teclado)
-          // deve alternar aqui.
-          if (didDragRef.current) return;
-          onSnapChange(snap === 'preview' ? 'expanded' : 'preview');
-        }}
+        onClick={onDragHandleClick}
         aria-label={snap === 'preview' ? 'Expandir ficha' : 'Recolher ficha'}
         className="flex h-11 w-full shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ink"
       >

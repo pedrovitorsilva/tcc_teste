@@ -88,6 +88,9 @@ export interface PreviewTarget {
   parentBairro?: string;
 }
 
+/** Modo de encaixe da folha (mobile): "preview" mostra uma prévia baixa, "expanded" ocupa quase a tela. */
+export type SheetSnap = 'preview' | 'expanded';
+
 // --- Label / title -------------------------------------------------------
 export interface FloatingTitleState {
   crumb: string;

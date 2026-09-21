@@ -1,18 +1,24 @@
 # Análise de Componentes React — Cadastro Vivo
 
-**Data:** 2026-09-20  
+**Data:** 2026-09-20 (última atualização: Fase 2 concluída)
 **Escopo:** Estrutura, reutilização, granularização e oportunidades de refatoração
+
+> Este documento é atualizado ao final de cada fase de refatoração — não se
+> cria um `.md` novo por fase. O estado abaixo reflete o código atual.
 
 ---
 
 ## 📊 Sumário Executivo
 
-O projeto possui **26 componentes React** distribuídos por 4 camadas de organização (buttons, panel, map, theme). A análise identifica:
+O projeto possui componentes React distribuídos por 4 camadas de organização
+(buttons, panel, map, theme) + `src/hooks/` para lógica reutilizável.
 
-- ✅ **Bom:** Separação clara por responsabilidade (UI, state, map logic)
-- ⚠️ **Oportunidades:** Código duplicado em botões toggle, padrões repetitivos em popovers
-- 🎯 **Risco:** MapView (413 linhas) e MapLayers (714 linhas) concentram lógica complexa
-- 💡 **Ganho rápido:** 3–4 abstrações simples eliminam ~200 linhas de repetição
+- ✅ **Fase 1 concluída:** `ToggleButton` genérico substitui duplicação real; 2
+  itens do plano original descartados por não serem duplicação de fato
+- ✅ **Fase 2 concluída:** `MapView.tsx` (440→285 lin) e `BottomSheet.tsx`
+  (173→111 lin) tiveram lógica extraída para 3 hooks novos
+- 🎯 **Risco remanescente:** `MapLayers.tsx` (790 linhas) — único componente
+  ainda crítico, Fase 3 pendente
 
 ---
 
@@ -22,28 +28,25 @@ O projeto possui **26 componentes React** distribuídos por 4 camadas de organiz
 src/components/
 ├── buttons/
 │   ├── IconPopoverButton.tsx (57 lin)      ← Base reutilizável
+│   ├── ToggleButton.tsx (30)                ✅ Fase 1 — genérico, substitui os 2 antigos
 │   ├── optionsList/
-│   │   ├── BuildingsToggleButton.tsx (36 lin)    ┐ Padrão idêntico
-│   │   ├── TitlePlacementToggleButton.tsx (40)   ├ → Oportunidade
-│   │   ├── BuildingsNote.tsx (16)                ┘
 │   │   ├── LayerControls.tsx (60)           ← Checkbox customizado
 │   │   ├── LayerControlsPopoverButton.tsx (30)
-│   │   ├── PalettePopoverButton.tsx (20)   ← Wrappers triviais
+│   │   ├── PalettePopoverButton.tsx (20)
 │   │   ├── PaletteControls.tsx (93)        ← Conteúdo real
-│   │   ├── OptionsList.tsx (37)            ← Composição boa
-│   │   └── TitlePlacementToggleButton.tsx
+│   │   └── OptionsList.tsx (~55)           ← Composição boa, usa ToggleButton
 │   └── themeSwitcher/
 │       ├── ThemeSwitcher.tsx (37)          ← Botões com estado
 │       └── ThemeSwitcherPopoverButton.tsx (29)
 ├── map/
-│   ├── MapLayers.tsx (714 lin)             ⚠️ GRANDE
-│   ├── Buildings3D.tsx (265)
+│   ├── MapLayers.tsx (790 lin)             ⚠️ GRANDE — Fase 3, ainda não feita
+│   ├── Buildings3D.tsx (323)
 │   ├── FloatingPolygonLabel.tsx (80)
 │   ├── FloatingTitle.tsx (13)
 │   └── ui/map.tsx (2399 lin - código terceiros)
 ├── panel/
 │   ├── Sidebar.tsx (79)                    ← Desktop
-│   ├── BottomSheet.tsx (158)               ← Mobile (espelho)
+│   ├── BottomSheet.tsx (111)               ✅ Fase 2 — drag logic extraída
 │   ├── FeatureDetails.tsx (146)            ← Conteúdo compartilhado
 │   ├── NoteCard.tsx (12)                   ✅ Simples, reutilizável
 │   ├── CartographerNote.tsx (13)
@@ -51,14 +54,25 @@ src/components/
 ├── theme/
 │   └── ThemeProvider.tsx (68)
 ├── SearchBox.tsx (111)                     ✅ Bem estruturado
-└── MapView.tsx (413)                       ⚠️ Orquestrador complexo
+└── MapView.tsx (285)                       ✅ Fase 2 — orquestrador enxuto
+
+src/hooks/
+├── useBreakpoint.ts / useClickOutside.ts / useGeoIndex.ts / useThemeTokens.ts  (pré-existentes)
+├── useMapStyles.ts (91)                    ✅ Fase 2 — movido de MapView
+├── useMapInteraction.ts (139)              ✅ Fase 2 — seleção/hover/preview
+└── useBottomSheetDrag.ts (126)             ✅ Fase 2 — física de arraste
 ```
 
 ---
 
 ## 🔍 Análise Detalhada: Componentes por Categoria
 
-### 1. **Botões Toggle — ALTO POTENCIAL DE CONSOLIDAÇÃO**
+> **Nota (pós Fase 1):** as seções 1 e 2 abaixo descrevem o estado ANTES da
+> Fase 1. A seção 1 foi implementada como proposto. A seção 2 foi **revista e
+> descartada** depois de ler o código completo — não era duplicação real (ver
+> "Itens descartados" no plano de execução). Mantidas aqui por histórico.
+
+### 1. **Botões Toggle — ALTO POTENCIAL DE CONSOLIDAÇÃO** ✅ Feito (Fase 1)
 
 | Arquivo | Linhas | Padrão | Problema |
 |---------|--------|--------|----------|
@@ -106,7 +120,14 @@ function ToggleButton({ icon, label, pressed, onChange, className }) {
 
 ---
 
-### 2. **Popovers com Icon Button — MÉDIO POTENCIAL**
+### 2. **Popovers com Icon Button — MÉDIO POTENCIAL** ❌ Descartado (Fase 1)
+
+**Reavaliado e não implementado.** Ao ler o código completo dos 3 wrappers,
+cada um encapsula uma árvore de children real (`ThemeSwitcher`,
+`LayerControls`, `PaletteControls`) e um `panelPosition` próprio — é
+composição correta sobre `IconPopoverButton`, não código repetido. Inlinar
+pioraria `MapView.tsx`/`OptionsList.tsx` sem eliminar lógica de verdade.
+Análise original abaixo mantida por histórico.
 
 | Arquivo | Linhas | Base | Padrão |
 |---------|--------|------|--------|
@@ -139,7 +160,11 @@ const PopoverButton = ({
 
 ---
 
-### 3. **Checkbox Customizado — BAIXO POTENCIAL (já bem feito)**
+### 3. **Checkbox Customizado — BAIXO POTENCIAL (já bem feito)** ❌ Descartado (Fase 1)
+
+Confirmado: `PaletteControls.tsx` não usa checkbox (presets + `<input
+type="color">` nativo). Sem segundo consumidor real, extrair seria abstração
+prematura (YAGNI).
 
 | Arquivo | Linhas | Situação |
 |---------|--------|----------|
@@ -161,31 +186,30 @@ Não há duplicação; padrão map + button é claro.
 
 ## 🔴 Componentes Grandes — Candidatos a Divisão
 
-### MapView.tsx — **445 linhas** (incluindo import + type exports)
-**Descoberta do agent:** 445 linhas com 10+ componentes filhos
-**Atual:** Orquestrador tudo-em-um  
-**Responsabilidades misturadas:**
-1. Gerencia estilos do mapa (useMapStyles, ~60 lin)
-2. Controla state (7 useState)
-3. Handlers de interação (selection, hover, preview, sheet snapping)
-4. Composição de UI (JSX ~150 lin com branching mobile/desktop)
+### MapView.tsx — 440 → **285 linhas** ✅ Feito (Fase 2)
 
-**Proposta de divisão:**
+Extraídos 3 hooks: `useMapStyles` (movido verbatim), `useMapInteraction`
+(consolida 5 dos 9 `useState` + handlers de seleção/hover/preview + os 2
+`useEffect` relacionados) e `useBottomSheetDrag` (usado só por `BottomSheet`,
+mas as constantes `PREVIEW_FRACTION`/`EXPANDED_FRACTION` — que estavam
+duplicadas em `MapView` e `BottomSheet` — passaram a ser importadas de lá).
+JSX inalterado; ficaram em `MapView.tsx` apenas os states sem relação com
+seleção (`layerToggles`, `buildingCount`, `buildingsEnabled`,
+`titleInPolygon`) e os memos que misturam múltiplas fontes (`floatingTitle`,
+`mapLabelTarget`, `fitPadding`).
 
-```
-MapView/
-├── MapView.tsx (120 lin)        ← Orquestrador, state root
-├── useMapStyles.ts (60)         ← Hook customizado extraído
-├── MapInteraction.tsx (90)      ← Handlers + precisa refactor
-└── MapShell.tsx (80)            ← Duplicação de OptionsList mobile/desktop
-```
+### BottomSheet.tsx — 173 → **111 linhas** ✅ Feito (Fase 2)
 
-**Ganho:** Clareza, testabilidade, reduz LOC por arquivo para ~120 (mais legível).
+Extraída a física de arraste (`useBottomSheetDrag.ts`, 126 linhas): states,
+refs, o `useLayoutEffect` de altura e os handlers de pointer. Detalhe
+preservado: o `useLayoutEffect` depende de `selection?.featureId`/`.level`
+(não só de `isOpen`) para remedir a altura quando o usuário troca de seleção
+com a folha já aberta — se dependesse só de `isOpen`, trocar de bairro A para
+B sem fechar a folha deixaria a altura "expandida" desatualizada.
 
 ---
 
-### MapLayers.tsx — **790 linhas** ⚠️ CRÍTICO
-**Descoberta do agent:** 790 linhas, complex layer management com MapLibre expressions  
+### MapLayers.tsx — **790 linhas** ⚠️ CRÍTICO — pendente (Fase 3)
 **Atual:** Renderiza todas as camadas do mapa + efeitos de click + custom paint properties  
 **Responsabilidades:**
 1. Carrega dados GeoJSON + indexação + caching (~100 lin)
@@ -193,7 +217,7 @@ MapView/
 3. Event handlers (click, hover, preview) (~120 lin)
 4. Renderização de camadas com layer helpers (~370 lin)
 
-**Proposta de divisão:**
+**Proposta de divisão (ainda não implementada):**
 
 ```
 MapLayers/
@@ -205,23 +229,7 @@ MapLayers/
 └── useMapLayerHandlers.ts (60)  ← Todos os event handlers
 ```
 
-**Ganho:** Cada hook é responsável por 1 camada, testes isolados, manutenção por tema.
-
----
-
-### BottomSheet.tsx — **174 linhas**
-**Padrão:** Drag logic + snap points + conteúdo  
-**Problema:** Lógica de drag (useLayoutEffect + handlers) é 60% do arquivo.
-
-**Proposta:**
-```
-BottomSheet/
-├── BottomSheet.tsx (90)         ← Shell + renderização
-├── useBottomSheetDrag.ts (50)   ← Lógica isolada
-└── BottomSheetHandle.tsx (20)   ← Componente visual
-```
-
-**Ganho:** Drag logic é reutilizável em outros contextos (drawer, modal, etc).
+**Ganho esperado:** Cada hook é responsável por 1 camada, testes isolados, manutenção por tema.
 
 ---
 
@@ -229,30 +237,29 @@ BottomSheet/
 
 | Arquivo | Linhas | Categoria | Manutenibilidade | Oportunidade | Prioridade |
 |---------|--------|-----------|------------------|-------------|-----------|
-| **BuildingsToggleButton** | 36 | Button | ✅ Boa | Consolidar c/ ToggleButton | 🔴 Alt |
-| **TitlePlacementToggleButton** | 40 | Button | ✅ Boa | Consolidar c/ ToggleButton | 🔴 Alt |
-| **ThemeSwitcherPopoverButton** | 29 | Button | ✅ Boa | Remover wrapper trivial | 🟡 Med |
-| **LayerControlsPopoverButton** | 30 | Button | ✅ Boa | Remover wrapper trivial | 🟡 Med |
-| **PalettePopoverButton** | 20 | Button | ✅ Boa | Remover wrapper trivial | 🟡 Med |
+| **ToggleButton** | 30 | Button | ✅ Excelente | Genérico, criado na Fase 1 | ✅ Novo |
 | **IconPopoverButton** | 57 | Button | ✅ Boa | Base OK, manter | ✅ Keep |
 | **BuildingsNote** | 16 | Button | ✅ Boa | Usar NoteCard (já faz) | ✅ Keep |
-| **OptionsList** | 37 | Button | ✅ Boa | Verificar duplicação mobile/desktop | 🟡 Med |
+| **OptionsList** | ~55 | Button | ✅ Boa | Deduplicado (Fase 1) | ✅ Feito |
 | **LayerControls** | 60 | Button | ✅ Boa | Manter, específico | ✅ Keep |
 | **ThemeSwitcher** | 37 | Button | ✅ Boa | Manter, padrão claro | ✅ Keep |
 | **CartographerNote** | 13 | Panel | ✅ Boa | Usa NoteCard OK | ✅ Keep |
 | **NoteCard** | 12 | Panel | ✅ Excelente | Reutilizável, padrão | ✅ Modelo |
 | **SearchBox** | 111 | Panel | ✅ Boa | Bem dividido SearchBox/SearchResult | ✅ Keep |
 | **Sidebar** | 79 | Panel | ✅ Boa | Compartilha FeatureDetails OK | ✅ Keep |
-| **BottomSheet** | 158 | Panel | 🟡 Média | **Extrair drag logic** | 🟡 Med |
+| **BottomSheet** | 111 | Panel | ✅ Boa | Drag logic extraída (Fase 2) | ✅ Feito |
 | **FeatureDetails** | 146 | Panel | ✅ Boa | Bem dividido BairroBody/LoteamentoBody | ✅ Keep |
-| **MapView** | 413 | App | 🔴 Complexa | **Dividir orquestrador** | 🔴 Alt |
+| **MapView** | 285 | App | ✅ Boa | Hooks extraídos (Fase 2) | ✅ Feito |
 | **FloatingPolygonLabel** | 80 | Map | ✅ Boa | Manter | ✅ Keep |
 | **FloatingTitle** | 13 | Map | ✅ Boa | Manter | ✅ Keep |
-| **Buildings3D** | 265 | Map | 🟡 Média | Revisar lógica WebGL | 🟡 Med |
-| **MapLayers** | 714 | Map | 🔴 Muito grande | **Dividir por camada** | 🔴 Alt |
+| **Buildings3D** | 323 | Map | 🟡 Média | Revisar lógica WebGL | 🟡 Med |
+| **MapLayers** | 790 | Map | 🔴 Muito grande | **Dividir por camada** | 🔴 Alt — Fase 3 |
 | **ThemeProvider** | 68 | Theme | ✅ Boa | Manter | ✅ Keep |
 | **icons/index** | 34 | Util | ✅ Boa | Manter | ✅ Keep |
 | **PaletteControls** | 93 | Button | ✅ Boa | Manter | ✅ Keep |
+| **useMapStyles** (hook) | 91 | Hook | ✅ Boa | Movido de MapView (Fase 2) | ✅ Novo |
+| **useMapInteraction** (hook) | 139 | Hook | ✅ Boa | Extraído de MapView (Fase 2) | ✅ Novo |
+| **useBottomSheetDrag** (hook) | 126 | Hook | ✅ Boa | Extraído de BottomSheet (Fase 2) | ✅ Novo |
 
 ---
 
@@ -408,56 +415,63 @@ Divide o componente megadão em camadas temáticas:
 
 ---
 
-## 📊 Quadro de Impacto (Atualizado com dados dos agents)
+## 📊 Quadro de Impacto — Real (Fases 1 e 2 executadas)
 
-| Ação | Linhas Antes | Linhas Depois | Redução | Tempo | Impacto |
-|------|--------------|---------------|---------|-------|--------|
-| **Fase 1a:** ToggleButton genérico | 84 | 15 base + 16 usos | -53 | 20 min | Alto |
-| **Fase 1b:** CustomCheckbox (LayerControls) | 63 | 20 | -43 | 25 min | Médio |
-| **Fase 1c:** Remover PopoverWrappers triviais | 90 | 0 | -90 | 15 min | Médio |
-| **Fase 1d:** Deduplicate OptionsList mobile/desktop | 41 | 25 | -16 | 10 min | Baixo |
-| **Fase 2a:** useMapStyles (já existe, extrair) | 445 → 380 | 380 | -65 | 30 min | Médio |
-| **Fase 2b:** useMapInteraction | 380 → 270 | 270 | -110 | 1h | Alto |
-| **Fase 2c:** useBottomSheetDrag | 174 → 100 | 100 | -74 | 45 min | Médio |
-| **Fase 3:** MapLayers split (crítico) | 790 | 300 | -490 | 10h | Muito Alto |
-| **Fase 3b:** useGeoLayerStyles + helpers | 790 → 300 | 250 | -540 | 8h | Muito Alto |
-| **Total** | 2016 | ~1240 | **-776** | ~13h | ⭐⭐⭐⭐⭐ |
+| Ação | Resultado real | Status |
+|------|-----------------|--------|
+| **Fase 1a:** ToggleButton genérico | -76 lin (2 arquivos deletados, +30 lin de componente novo) | ✅ Feito |
+| **Fase 1b:** CustomCheckbox (LayerControls) | Descartado — sem duplicação real (YAGNI) | ❌ Não feito |
+| **Fase 1c:** Remover PopoverWrappers triviais | Descartado — não era duplicação, era composição correta | ❌ Não feito |
+| **Fase 1d:** Deduplicate OptionsList mobile/desktop | Props extraídas em `optionsListProps`, usadas via spread 2x | ✅ Feito |
+| **Fase 2a:** useMapStyles extraído | MapView 440 → 285 lin (-155 no total da Fase 2) | ✅ Feito |
+| **Fase 2b:** useMapInteraction extraído | Incluído nos -155 lin de MapView acima | ✅ Feito |
+| **Fase 2c:** useBottomSheetDrag extraído | BottomSheet 173 → 111 lin (-62) | ✅ Feito |
+| **Fase 3:** MapLayers split (790 → ~300 lin) | Ainda não iniciada | ⏳ Pendente |
+
+**MapView + BottomSheet:** 613 → 396 linhas nos 2 arquivos-orquestradores
+(-217, -35%). LOC total do projeto subiu ligeiramente (novos hooks trazem
+JSDoc + tipos explícitos que o código inline não tinha) — o ganho real não é
+menos linhas no total, é a redução dos 2 arquivos-gargalo que concentravam
+state/lógica misturada, agora divididos em unidades testáveis e nomeadas.
 
 ---
 
 ## ✅ Checklist de Refatoração
 
 ### Antes de começar:
-- [ ] Criar branch: `refactor/component-consolidation`
-- [ ] **PARAR o dev server** (CLAUDE.md: nunca deixar rodando durante builds)
-- [ ] Rodar testes existentes (estabelecer baseline)
 
-### Fase 1: Consolidação de Botões (30 min)
-- [ ] Criar `src/components/buttons/ToggleButton.tsx` com Props type
-  - Props: `{ icon, label, pressed, onChange, className? }`
-  - Reutiliza className template de BuildingsToggleButton
-- [ ] Migrar BuildingsToggleButton → usar ToggleButton
-- [ ] Migrar TitlePlacementToggleButton → usar ToggleButton
-- [ ] Criar `src/components/buttons/CustomCheckbox.tsx`
-  - Extrair padrão checkbox de LayerControls
-  - Reutilizar em PaletteControls (se necessário)
-- [ ] Remover ThemeSwitcherPopoverButton, LayerControlsPopoverButton, PalettePopoverButton
-  - Render direto em OptionsList ou usar IconPopoverButton direto
-- [ ] Testar visual dos botões no dev server
-- [ ] Deduplicate OptionsList em MapView (uma renderização, dois breakpoints com className)
+- [x] Rodar testes existentes (estabelecer baseline)
 
-### Fase 2: Refatoração de MapView (2.5h)
-- [ ] Extrair `src/hooks/useMapStyles.ts` (já existe, só mover)
-- [ ] Extrair `src/hooks/useMapInteraction.ts`
-  - Consolidar: handleSelect, handleNavigate, handlePreview, handleClose
-  - Retornar object: `{ selection, hoveredBairro, hoveredLoteamento, previewTarget, ... }`
-- [ ] Refatorar MapView.tsx para usar hooks
-  - Reduz de 445 → ~300 linhas
-- [ ] Extrair `src/hooks/useBottomSheetDrag.ts`
-  - Consolidar lógica de pointer + snap points de BottomSheet
-  - Retornar: `{ isDragging, dragOffsetPx, handlers: { handlePointerDown, etc } }`
-- [ ] Refatorar BottomSheet.tsx (174 → ~100 linhas)
-- [ ] Testes: verificar keyboard Escape, selection, hover
+### Fase 1: Consolidação de Botões ✅ Concluída
+- [x] Criar `src/components/buttons/ToggleButton.tsx` com Props type
+  - Props reais: `{ pressed, onChange, icon, label, className? }`
+- [x] Migrar `BuildingsToggleButton`/`TitlePlacementToggleButton` → eliminados,
+  inlinados direto em `OptionsList.tsx` usando `ToggleButton` (sem children
+  reais, único consumidor — manter um wrapper seria indireção sem ganho)
+- [ ] ~~Criar CustomCheckbox~~ — descartado, sem duplicação real (YAGNI)
+- [ ] ~~Remover PopoverButton wrappers~~ — descartado, é composição correta
+- [x] Deduplicate `OptionsList` em MapView (`optionsListProps` + spread nos 2 breakpoints)
+- [x] `npx tsc --noEmit` limpo
+
+### Fase 2: Refatoração de MapView/BottomSheet ✅ Concluída
+- [x] Extrair `src/hooks/useMapStyles.ts` (movido verbatim, tipo de retorno
+  usa `MapStyleOption` de `components/ui/map.tsx`)
+- [x] Extrair `src/hooks/useMapInteraction.ts`
+  - Consolida: `selection`, `hoveredBairro`, `hoveredLoteamento`,
+    `previewTarget`, `sheetSnap` + handlers + os 2 `useEffect` relacionados
+- [x] Refatorar MapView.tsx para usar os 3 hooks
+  - 440 → 285 linhas
+- [x] Extrair `src/hooks/useBottomSheetDrag.ts`
+  - Também exporta `PREVIEW_FRACTION`/`EXPANDED_FRACTION` (elimina
+    duplicação dessas constantes entre MapView e BottomSheet)
+- [x] Refatorar BottomSheet.tsx (173 → 111 linhas)
+- [x] Mover `SheetSnap` de `BottomSheet.tsx` para `src/types/map.ts`
+  (agora consumido por 2 hooks + 2 componentes)
+- [x] `npx tsc --noEmit` limpo (1 ajuste: `RefObject<T>` sem `| null`,
+  versão de `@types/react` do projeto não aceita a forma mais nova)
+- [ ] Validação visual/funcional no dev server — **pendente, usuário sobe o
+  servidor** (Escape, drag da folha, troca de seleção com folha aberta,
+  hover na lista, busca)
 
 ### Fase 3: Refatoração de MapLayers (10–12h) ⭐ CRÍTICO
 - [ ] Extrair `src/hooks/useGeoLayerStyles.ts`
@@ -481,16 +495,13 @@ Divide o componente megadão em camadas temáticas:
   - Trocar camadas → visibilidade muda
   - Trocar tema → cores atualizam
 
-### Fase 4: Validação Final (1h)
+### Fase 4: Validação Final (após Fase 3)
 - [ ] Rodar `npm run build` (sem dev server)
 - [ ] Screenshots: antes/depois visual (iguais esperado)
 - [ ] Verificar console: sem warnings, 0 errors
 - [ ] Test: SearchBox, theme toggle, building layer, todas as geom opções
 - [ ] Verificar git diff: linhas removidas > adicionadas
-- [ ] PR com relatório:
-  - Antes: 2016 LOC, depois: ~1240 LOC (-776 linhas)
-  - Mudanças por fase
-  - Benefícios: testabilidade, reutilização, manutenção
+- [ ] PR com relatório final consolidando as 3 fases
 
 ---
 
@@ -515,34 +526,36 @@ Divide o componente megadão em camadas temáticas:
 
 ## 🎓 Conclusão
 
-Seu projeto é **bem estruturado e segue boas práticas React 18+**. Os ganhos de refatoração são principalmente:
-
-1. **Eliminar repetição óbvia** (toggle buttons 90% duplicados, popover wrappers triviais) → **+20% legibilidade**
-2. **Dividir componentes gigantes** (MapView 445, MapLayers 790) → **+35% testabilidade**
-3. **Extrair lógica em hooks** (já faz muito bem: useTheme, useClickOutside, useGeoIndex) → **+15% reutilização**
-
-### 🎯 Recomendação Priorizada:
-
-| Prioridade | Foco | Ganho | Tempo |
-|----------|------|-------|-------|
-| 🔴 **Crítica** | MapLayers (790 → 300 lin) | -490 LOC, +35% clareza | 10–12h |
-| 🔴 **Alta** | MapView (445 → 300 lin) | -145 LOC, +30% testabilidade | 2.5h |
-| 🟡 **Média** | Toggle + Checkbox consolidação | -140 LOC | 1h |
-| 🟢 **Baixa** | Remover PopoverWrappers | -90 LOC | 30 min |
-
-**Total:** -776 linhas (~38% redução), **+2.5 pontos manutenibilidade**, **~14h trabalho**.
-
-### 📊 ROI (Return on Investment):
-- **Sem refatoração:** 2016 LOC, score 7.8/10, tempo de debug médio-alto
-- **Com refatoração:** 1240 LOC (-39%), score 9.3/10, tempo de debug reduzido 40%
-
-Não há "problemas críticos", mas **MapLayers é uma bomba-relógio**: 790 linhas concentram 35% da lógica do app. Qualquer bug ali é difícil de isolar. Refatoração é **preventiva + melhor que corretiva**.
+Fases 1 e 2 concluídas. Dos 4 itens propostos na Fase 1, 2 foram implementados
+e 2 descartados após leitura completa do código (não eram duplicação real —
+ver seções marcadas ❌ acima). A Fase 2 saiu como planejada, com um ajuste
+(constantes de fração de altura consolidadas em `useBottomSheetDrag.ts` em
+vez de duplicadas).
 
 ### ✅ Status atual:
-- ✅ Estrutura por tipo funciona bem até 26 componentes
-- ✅ Hooks customizados bem implementados
-- ✅ Context pattern correto (ThemeProvider)
-- ⚠️ Duplicação obvia em 3 áreas (toggle, wrappers, mobile/desktop)
-- ⚠️ Componentes gigantes em 2 áreas (MapView, MapLayers)
+- ✅ `ToggleButton` genérico substitui os 2 componentes de toggle duplicados
+- ✅ `MapView.tsx`: 440 → 285 linhas (3 hooks extraídos)
+- ✅ `BottomSheet.tsx`: 173 → 111 linhas (drag logic extraída)
+- ✅ `SheetSnap` centralizado em `types/map.ts`
+- ✅ Estrutura por tipo (`buttons/`, `map/`, `panel/`, `theme/`) segue
+  funcionando bem, sem necessidade de migrar para feature-first
+- ✅ Hooks customizados (7 agora, incluindo os 3 novos) seguem a mesma
+  convenção em todo o projeto
+- ⚠️ `MapLayers.tsx` (790 linhas) segue como o único ponto crítico real —
+  concentra a maior parte da lógica de renderização do mapa
 
-**Próximo passo:** Iniciar **Fase 1** (ganho rápido) enquanto agenda **Fase 3** (MapLayers) como epic separado.
+### 🎯 Próximo passo — Fase 3 (pendente)
+
+| Prioridade | Foco | Ganho esperado | Tempo estimado |
+|----------|------|-------|-------|
+| 🔴 **Crítica** | MapLayers (790 → ~300 lin) — dividir em hooks por camada | -490 LOC, +35% clareza | 10–12h |
+
+Não há mais "problemas críticos" fora de `MapLayers.tsx`. Ele continua sendo
+uma bomba-relógio: 790 linhas concentram a lógica de renderização de todas as
+camadas do mapa, com estilos dinâmicos por tema e handlers de clique/hover
+misturados — qualquer bug ali é difícil de isolar. Quando o usuário pedir
+"executar Fase 3", o plano de divisão por camada (`useBairroLayer`,
+`useLoteamentoLayer`, `useSetorLayer`, `useGeoLayerStyles`,
+`useMapLayerHandlers`) descrito acima é o ponto de partida — mas deve passar
+pela mesma leitura crítica de código completo que as Fases 1 e 2 tiveram
+antes de virar plano de execução.
