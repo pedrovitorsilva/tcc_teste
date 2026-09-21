@@ -58,17 +58,7 @@ export function MapLayers({
 }: MapLayersProps) {
   const { map, isLoaded } = useMap();
 
-  // Hook de dados + cores por tema
-  useGeoLayerStyles({
-    map,
-    isLoaded,
-    theme,
-    tokens,
-    bairroData,
-    loteamentoData,
-  });
-
-  // Hooks de criação e visibilidade per-camada
+  // Hooks de criação e visibilidade per-camada (deve rodarem ANTES de dados/estilos)
   useBairroLayer({
     map,
     isLoaded,
@@ -97,6 +87,16 @@ export function MapLayers({
     theme,
     layerToggleLoteamento: layerToggles.loteamento,
     layerToggleSetor: layerToggles.setor,
+  });
+
+  // Hook de dados + cores por tema (cria-se depois que as layers existem)
+  useGeoLayerStyles({
+    map,
+    isLoaded,
+    theme,
+    tokens,
+    bairroData,
+    loteamentoData,
   });
 
   // Hook consolidado de handlers (hover + clique)
