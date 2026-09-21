@@ -321,6 +321,15 @@ export function MapView() {
       ? `calc(${sheetHeightFraction * 100}vh + 12px)`
       : "18px";
 
+  const optionsListProps = {
+    layerToggles,
+    onLayerTogglesChange: setLayerToggles,
+    buildingsEnabled,
+    onBuildingsChange: setBuildingsEnabled,
+    titleInPolygon,
+    onTitleChange: setTitleInPolygon,
+  };
+
   return (
     <div className="flex h-full w-full">
       <div className="relative min-w-0 flex-1 overflow-hidden bg-page">
@@ -394,27 +403,13 @@ export function MapView() {
             className="pointer-events-auto absolute left-[18px] hidden items-end gap-2 transition-[bottom] duration-300 md:flex"
             style={{ bottom: "18px" }}
           >
-            <OptionsList
-              layerToggles={layerToggles}
-              onLayerTogglesChange={setLayerToggles}
-              buildingsEnabled={buildingsEnabled}
-              onBuildingsChange={setBuildingsEnabled}
-              titleInPolygon={titleInPolygon}
-              onTitleChange={setTitleInPolygon}
-            />
+            <OptionsList {...optionsListProps} />
           </div>
           <div
             className="pointer-events-auto absolute left-[18px] flex gap-2 transition-[bottom] duration-300 md:hidden"
             style={{ bottom: layerButtonBottom }}
           >
-            <OptionsList
-              layerToggles={layerToggles}
-              onLayerTogglesChange={setLayerToggles}
-              buildingsEnabled={buildingsEnabled}
-              onBuildingsChange={setBuildingsEnabled}
-              titleInPolygon={titleInPolygon}
-              onTitleChange={setTitleInPolygon}
-            />
+            <OptionsList {...optionsListProps} />
           </div>
         </div>
       </div>
