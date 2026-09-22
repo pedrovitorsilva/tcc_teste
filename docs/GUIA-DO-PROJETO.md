@@ -111,15 +111,27 @@ src/
 ├── components/           Tudo que aparece na tela
 │   ├── MapView.tsx         O orquestrador (ver seção 2)
 │   ├── SearchBox.tsx       A busca por nome
-│   ├── IconPopoverButton.tsx  Botão redondo que abre um menu (usado por vários)
+│   ├── buttons/            Controles flutuantes (refatorados em Fase 3)
+│   │   ├── ToggleButton.tsx
+│   │   ├── IconPopoverButton.tsx
+│   │   ├── optionsList/    Paleta e camadas
+│   │   └── themeSwitcher/  Troca de tema
 │   ├── map/                O que é desenhado no mapa
+│   │   ├── MapLayers.tsx   Criação de camadas (refatorado em Fase 3)
+│   │   ├── Buildings3D.tsx Prédios 3D
+│   │   └── FloatingTitle.tsx Rótulo no topo
 │   ├── panel/              A ficha lateral (desktop) e a folha inferior (mobile)
-│   ├── theme/              Troca de tema e paleta de cores
-│   ├── layers/             Liga/desliga bairros, loteamentos e setores
-│   ├── icons/              Ícones
+│   ├── theme/              Tema (ThemeProvider)
+│   ├── icons/              Ícones (lucide-react)
 │   └── ui/                 ⚠️ Biblioteca externa de mapas — não editar
 │
 ├── hooks/                Lógica reutilizável (buscar dados, ler o tema, etc.)
+│   ├── useGeoIndex.ts    Índice de busca + dados brutos (4.2 ✅)
+│   ├── useThemeTokens.ts Cores do tema
+│   ├── useMapStyles.ts   Estilo do basemap
+│   ├── useMapInteraction.ts Seleção/hover/preview (novo em Fase 3)
+│   ├── map/              Hooks de camadas do mapa (novo em Fase 3)
+│   └── ... (mais utilitários)
 ├── lib/                  Funções de apoio, sem tela
 │   ├── color/              Tema, paletas e conversão de cores
 │   └── map/                Contas e utilidades de mapa
@@ -148,9 +160,11 @@ sequenceDiagram
     S->>N: HTML da página (a casca, ainda sem mapa)
     N->>N: script de tema roda antes de tudo
     N->>N: React assume a página e o MapView monta
+    N->>N: useGeoIndex busca os dados + índice
     N->>M: cria a instância do mapa
     M-->>N: avisa que carregou (load + style.load)
-    N->>M: MapLayers cria as camadas de bairro/loteamento/setor
+    N->>M: Camadas de bairro/loteamento/setor são criadas
+    N->>M: Dados já buscados são aplicados via setData (4.2 ✅)
     N->>M: Buildings3D prepara os prédios
 ```
 
@@ -165,6 +179,10 @@ Por isso a ordem acima importa: tentar criar uma camada antes disso simplesmente
 falha. O mesmo vale toda vez que o usuário troca de tema, porque trocar o tema
 recarrega o mapa de fundo inteiro e apaga as camadas — que são recriadas em seguida.
 
+**Mudança em Fase 3:** A lógica de `MapLayers` foi distribuída em 4 hooks especializados
+(`useBairroLayer`, `useLoteamentoLayer`, `useSetorLayer`, `useGeoLayerStyles`), separando
+criação de camadas (estrutura) de aplicação de dados/cores (semântica).
+
 ---
 
 ## 5. De onde vêm os dados
@@ -173,24 +191,26 @@ recarrega o mapa de fundo inteiro e apaga as camadas — que são recriadas em s
 flowchart LR
     subgraph prep["Preparação — roda à mão, fora do site"]
         raw["neatogeo_*.geojson<br/>dado bruto de origem"] --> script["scripts/prepare-data.mjs"]
-        script --> pub["public/data/*.geojson"]
+        script --> pub["public/data/*.geojson<br/>(com MOCK: is_reliable)"]
     end
-    pub --> hook["useGeoIndex<br/>busca os arquivos"]
-    hook --> mv["MapView"]
-    mv --> ml["MapLayers<br/>desenha as formas"]
+    pub --> hook["useGeoIndex<br/>fetch único + índice"]
+    hook --> mv["MapView<br/>índice + dados brutos"]
+    mv --> ml["useGeoLayerStyles<br/>desenha via setData (4.2 ✅)"]
     mv --> busca["SearchBox<br/>busca por nome"]
 ```
 
 O comando `npm run prepare-data` pega os arquivos brutos, faz duas coisas — descobre
-a qual bairro cada loteamento pertence e marca alguns como "geometria não
-confirmada" — e grava o resultado em `public/data/`. Isso **não** roda junto com o
+a qual bairro cada loteamento pertence e marca alguns com `is_reliable` (campo MOCK)
+— e grava o resultado em `public/data/`. Isso **não** roda junto com o
 site: é um passo manual, feito quando o dado de origem muda.
 
 **Isso é feito para mockar os dados. Quando houver banco de dados, esse passo não será necessário.**
 
-No navegador, o hook `useGeoIndex` busca esses arquivos uma única vez e entrega o
-resultado ao `MapView`, que repassa para quem precisa. O mesmo dado serve para
-desenhar as formas no mapa e para a busca por nome.
+No navegador, o hook `useGeoIndex` busca esses arquivos **uma única vez** e entrega
+o resultado ao `MapView`: tanto o índice (para busca) quanto os dados brutos
+(para desenhar no mapa). **Fase 3 (4.2):** eliminou a duplicação — `useGeoLayerStyles`
+aplica os dados já fetchados ao MapLibre via `setData()`, em vez de deixar o MapLibre
+rebuscar a URL.
 
 Além desses arquivos locais, duas coisas vêm de fora, prontas:
 
@@ -200,10 +220,11 @@ flowchart LR
     overture["Overture Maps<br/>contorno dos prédios"] --> app
 ```
 
-**O que é inventado (e por quê).** Sendo um MVP, a marca
-de "geometria não confirmada" nos loteamentos também é mockado. 
-Marcados no código com o comentário `MOCK (MVP)`, e saem quando existir
-uma fonte real.
+**O que é inventado (e por quê).** Sendo um MVP:
+- Campo `is_reliable` nos loteamentos é **MOCK explícito** (4.4 ✅)
+- Altura dos prédios é **MOCK explícito** (4.4 ✅)
+
+Marcados no código com comentário `MOCK (MVP)`, saem quando existir fonte real.
 
 ---
 
@@ -325,17 +346,22 @@ a altura, como dito na seção 6, é estimada a partir da área.
 | Mudar quais camadas começam ligadas | `src/config/levels.ts` (`DEFAULT_LAYER_TOGGLES`) |
 | Ajustar altura, zoom mínimo ou fonte dos prédios | `src/config/buildings.ts` |
 | Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
-| Mudar o comportamento de clique/hover no mapa | `src/components/map/MapLayers.tsx` |
+| Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
 | Mudar como os dados são preparados | `scripts/prepare-data.mjs` (e rodar `npm run prepare-data`) |
+| Mudar visibilidade de camadas (bairro/loteamento/setor) | `src/hooks/map/use*Layer.ts` (Fase 3) |
 | Adicionar um novo controle flutuante | `src/components/MapView.tsx` (é ele que posiciona todos) |
 
 > ⚠️ **Nunca edite `src/components/ui/map.tsx`.** É código padrão da lib map-cn e MapLibre, baixado de um registro externo, e é sobrescrito quando reinstalado. 
 > Toda customização do mapa é feita passando propriedades a partir do `MapView`.
 
----
+**Nota sobre Fase 3 (refatoração de MapLayers):** A lógica que costumava estar toda em `MapLayers.tsx`
+foi distribuída em hooks especializados. Para hooks de estado/interação, veja `useMapInteraction` e
+`useMapLayerHandlers`. Para criação/visibilidade de camadas, veja `src/hooks/map/`.
 
+---
 ## 11. Para saber mais
 
 | Documento | Para quê |
 |---|---|
 | [`DECISOES-TECNICAS.md`](./DECISOES-TECNICAS.md) | O "porquê" das decisões: por que tal alternativa foi rejeitada, teoria de cor dos temas, armadilhas de manutenção |
+

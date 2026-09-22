@@ -1,130 +1,94 @@
-# Decisões Técnicas — Cadastro Vivo
+# Decisões Técnicas — Mapa de Vitória da Conquista
 
-> O **porquê** por trás do código: alternativas rejeitadas e o motivo, bugs já
-> corrigidos que justificam a forma atual, números medidos que sustentam constantes,
-> e armadilhas de manutenção.
+> O **porquê** por trás do código: alternativas rejeitadas e seus motivos, bugs já
+> corrigidos que explicam a implementação atual, números medidos que sustentam
+> constantes e pontos que exigem atenção na manutenção.
 >
-> Este documento existe para que o código possa ser lido rápido. Onde houver uma
-> decisão não óbvia, o comentário no código diz **o quê** em uma linha e aponta para
-> a seção correspondente aqui.
+> Este documento existe para facilitar a leitura do código. Quando houver uma
+> decisão não óbvia, o comentário no código explica **o quê** em uma linha e aponta
+> para a seção correspondente aqui.
 >
-> Para entender a aplicação antes de mergulhar aqui, comece pelo
+> Para entender a aplicação antes de entrar nestes detalhes, comece pelo
 > [`GUIA-DO-PROJETO.md`](./GUIA-DO-PROJETO.md).
 
 **Índice**
 
-- [§1 — Cor e temas](#1--cor-e-temas)
-- [§2 — O mapa e suas camadas](#2--o-mapa-e-suas-camadas)
-- [§3 — Prédios 3D](#3--prédios-3d)
-- [§4 — Rótulos dentro do polígono](#4--rótulos-dentro-do-polígono)
-- [§5 — Dependências evitadas](#5--dependências-evitadas)
-- [§6 — Armadilhas de manutenção](#6--armadilhas-de-manutenção)
+* [§1 — Cor e temas](#1--cor-e-temas)
+* [§2 — O mapa e suas camadas](#2--o-mapa-e-suas-camadas)
+* [§3 — Prédios 3D](#3--prédios-3d)
+* [§4 — Dependências evitadas](#4--dependências-evitadas)
+* [§5 — Armadilhas de manutenção](#5--armadilhas-de-manutenção)
 
 ---
 
 ## §1 — Cor e temas
 
 *Código relacionado: `src/app/globals.css`, `src/lib/color/palette.ts`,
-`src/lib/color/oklab.ts`, `src/lib/map/tint.ts`, blocos de tema em
+`src/lib/color/oklab.ts`, `src/lib/map/tint.ts` e blocos de tema em
 `src/components/map/MapLayers.tsx`.*
 
-### As camadas são um matiz só, em lightness diferentes
+### As camadas usam um único hue, em diferentes valores de lightness
 
-A decisão estrutural mais importante: **os níveis não se distinguem por matiz**. Cada
-tema usa um único matiz em quatro ou cinco claridades, formando uma rampa. Isso
-sobrevive intacto a qualquer dicromacia, porque lightness é o canal que o daltonismo
-preserva.
+A decisão estrutural principal é: **os níveis não se distinguem por hue**. Cada tema
+usa um único hue em quatro ou cinco valores de lightness, formando uma rampa. Isso
+também ajuda na acessibilidade, inclusive para pessoas com daltonismo.
 
-O que muda entre os temas é a **direção** da rampa e o que ela significa:
+O que muda entre os temas é a **direção** da rampa e o significado dessa ordem:
 
-- **Claro e Antigo** (fundo claro): a unidade menor é a mais clara. Sobre papel
-  branco, mais claro é menos peso — o bairro ancora a leitura e o detalhe fino recua.
-  O croma do tema Claro é baixo de propósito (0.050 a 0.065): de relance o mapa lê
-  como uma gravura em cinza, e o azul só se revela na comparação entre níveis.
-  O tema Antigo fixa o croma em 0.122 no matiz 26° (OKLCH) do cartaz de referência.
-- **Escuro** (fundo escuro): a unidade menor **brilha mais**. O bairro é o clarão
-  difuso de fundo e a edificação é o ponto de luz concentrado. A ordem vira o próprio
-  significado: mais claro é mais fino. O dourado de referência (`#efbe52`, H=84°)
-  define o matiz de toda a rampa, e cai entre `--setor` e `--building` — a referência
-  está literalmente dentro da rampa.
+* **Claro e Antigo** (fundo claro): a unidade menor é a mais clara. Em um fundo
+  branco, maior lightness tem menos peso visual; o bairro mantém o foco e os detalhes
+  mais finos recuam.
 
-`--uncertain` (geometria não confirmada) segue a mesma lógica em cada tema: nos temas
-de fundo claro é o mesmo matiz com croma quase zerado, na lightness exata do
-loteamento — "mesmo nível, sem cor". No tema escuro ele é o topo da rampa, luz
-estourada. Como ele também pinta o título da Nota do Cartógrafo, precisa se distinguir
-de `--ink` no painel: daí `--ink` ser um branco neutro-frio e `--uncertain` um branco
-quente — os dois se separam por temperatura, não por lightness.
+* **Escuro** (fundo escuro): a unidade menor tem maior lightness. O bairro forma
+  o fundo e a edificação concentra o destaque. Assim, maior lightness representa
+  um nível mais detalhado.
 
-Nos prédios do tema Antigo, `--building` foge do matiz 26° dos outros três níveis e
-usa marrom (55° OKLCH, croma reduzido para 0.10): na mesma lightness da rampa, mas
-lendo como marrom e não como "vermelho mais claro".
+`--uncertain` (geometria não confirmada) segue a mesma lógica de cada tema. Nos
+temas claros, seu chroma é próximo de zero. No tema escuro, ele ocupa o topo da
+rampa, com alta lightness. Como também é usado no título da Nota do Cartógrafo,
+precisa se diferenciar de `--ink` no painel. Por isso, `--ink` usa um branco
+neutro-frio e `--uncertain` um branco quente: a diferença vem da temperatura, não
+da lightness.
 
-### Alpha mistura luz — a escada precisa ser remedida depois da composição
+### Por que trocar variáveis CSS, e não alterar o mapa diretamente
 
-No tema escuro as opacidades de preenchimento não são questão de gosto. A rampa tem
-que continuar ascendente **depois** de composta sobre o fundo, e alpha mistura luz.
-Medido sobre `--page`: o par que vinha dos outros temas (loteamento 0.28, setor 0.14)
-**inverte a escada** — o setor, que é a cor mais clara, chega à tela mais escuro que o
-loteamento. Por isso, à noite, o setor recebe mais opacidade que o loteamento, o
-oposto dos outros temas.
+O exemplo do MapLibre ("change a layer's color with buttons") usa
+`setPaintProperty` diretamente na layer. Aqui isso seria menos adequado: o
+design system — layers do mapa, extrusions, swatches da sidebar e borda da Nota
+do Cartógrafo — já usa `--bairro`, `--loteamento`, `--setor` e `--building`.
+O `useThemeTokens` converte essas variáveis para os valores que o MapLibre precisa.
 
-A incerteza inverte pelo mesmo motivo: nos temas Claro e Antigo ela é mais apagada que
-um loteamento normal, para ler como "menos firme"; à noite, sendo o topo da rampa, é
-mais opaca.
-
-### As paletas guardam uma variante por tema
-
-`PALETTES` (`lib/color/palette.ts`) não é um conjunto único de hexadecimais por
-preset: é uma variante por tema. Uma paleta calibrada sobre o modo claro 
-fica ilegível sobre o modo escuro — o que separa as camadas ali é contraste
-contra um fundo claro, e esse contraste some quando o fundo inverte.
-
-A variante escura tem uma restrição a mais: como o tema escuro separa as camadas por
-lightness e não por matiz, um preset que trocasse as três por matizes de mesma
-lightness destruiria o gradiente de granularidade. Por isso cada variante escura é
-uma rampa, e **o preset muda a cor da luz, não a estrutura dela**.
-
-### Por que trocar variáveis CSS, e não pintar o mapa direto
-
-O exemplo do MapLibre ("change a layer's color with buttons") chama `setPaintProperty`
-direto na camada. Aqui isso seria um retrocesso: todo o design system — camadas do
-mapa, extrusões, swatches da sidebar, borda da nota do cartógrafo — já lê `--bairro` /
-`--loteamento` / `--setor` / `--building`, e `useThemeTokens` já converte essas
-variáveis no que o MapLibre precisa. Escrevendo nas variáveis, **mapa e interface
-mudam juntos**, a partir de uma fonte só.
+Ao alterar as variáveis, **mapa e interface mudam juntos**, usando uma única fonte
+de configuração.
 
 ### Por que OKLab e não HSL
 
-A tintura do basemap depende de *preservar a lightness percebida* ao trocar matiz e
-croma. É precisamente o que o HSL não oferece: o `L` dele é uma média aritmética de
-canais, não uma medida perceptual, e a mesma operação em HSL embaralha a ordem de
-lightness do original — que é quase tudo o que distingue uma via de uma quadra no
-Positron.
+A recoloração do basemap precisa **preservar a lightness percebida** ao trocar
+hue e chroma. O HSL não oferece isso: seu `L` é uma média dos canais, não uma
+medida perceptual. Uma mesma alteração em HSL pode mudar a ordem de lightness
+das cores originais, que é importante para diferenciar vias, quadras e outras
+feições do mapa.
 
-### A tintura do basemap é transferência de tom, não tabela de-para
+### A recoloração do basemap usa a lightness, não uma tabela fixa de cores
 
-`lib/map/tint.ts` remapeia **qualquer** cor de entrada pela sua lightness percebida,
-em vez de traduzir cores conhecidas uma a uma. O motivo é de manutenção: o style vem
-de uma URL remota da CARTO e pode mudar sem aviso. Uma tabela fixa quebraria em
-silêncio no dia em que eles reajustassem um cinza, deixando camadas soltas na cor
-errada.
+`lib/map/tint.ts` remapeia **qualquer** cor de entrada com base na sua lightness
+percebida, em vez de converter cores específicas uma a uma. Isso facilita a
+manutenção: o style vem de uma URL remota da CARTO e pode mudar sem aviso.
 
-Quatro detalhes do algoritmo que não são óbvios:
+Uma tabela fixa poderia parar de funcionar sem erro aparente caso a CARTO alterasse
+um tom de cinza, deixando algumas layers com cores incorretas.
 
-1. **A faixa de lightness é medida, não assumida como 0..1.** Sem isso o resultado sai
-   lavado: o Positron inteiro vive entre L≈0.80 e L≈1.00, então um mapeamento absoluto
-   espreme as feições nos 20% mais claros da rampa e o traçado de vias desaparece no
-   pergaminho. Normalizando pela faixa observada, o contraste *relativo* é reexpandido.
-2. **Água entra como cor chapada**, sem passar pelo remapeamento. No mapa de
-   referência a água é um cinza-esverdeado uniforme; remapear produziria um bege
-   levemente mais escuro que o continente, que lê como sombra, não como água.
-3. **`background` é separado de `land`.** Num style claro os dois papéis coincidem (o
-   papel é o fundo e o alvo da feição mais clara). Num style escuro eles se separam: o
-   fundo é quase preto, mas a feição mais clara — as vias — é justamente o que precisa
-   acender. Sem esse campo a tintura inverteria o traçado e as vias sumiriam.
-4. **`contrast` não é 1 de propósito** (padrão 0.7). O basemap é substrato; levá-lo até
-   a tinta cheia faz o traçado de vias competir com os dados desenhados por cima.
+Quatro detalhes do algoritmo não são óbvios:
 
+1. **`background` é separado de `land`.** Em um style claro, os dois papéis
+   coincidem: o papel é o fundo e também representa a feição com menor lightness.
+   Em um style escuro, eles são diferentes: o fundo é quase preto, enquanto a
+   feição mais clara — as vias — precisa permanecer destacada. Sem essa separação,
+   a recoloração inverteria o contraste e as vias desapareceriam.
+
+2. **`contrast` não é 1 de propósito** (padrão 0.7). O basemap funciona como
+   base visual; usar a cor no valor máximo faria as vias competirem com os dados
+   desenhados por cima.
 
 ---
 
@@ -132,266 +96,253 @@ Quatro detalhes do algoritmo que não são óbvios:
 
 *Código relacionado: `src/components/map/MapLayers.tsx`.*
 
-### Um único handler de clique, global — não um por camada
+### Um único handler de clique, global — não um por layer
 
-Com um bairro selecionado, o polígono do bairro cobre toda a área por baixo dos
-loteamentos destacados. Dois listeners por camada (`map.on('click', layerId, …)`)
-disputam o mesmo clique, e o bairro sempre "ganhava" — era impossível selecionar um
-loteamento dentro dele. A solução é um handler global que consulta explicitamente as
-camadas de loteamento primeiro (mais específicas, visualmente por cima) e só depois a
-de bairro, tornando a prioridade determinística.
+Quando um bairro está selecionado, seu polígono cobre a área abaixo dos loteamentos
+destacados. Dois listeners por layer (`map.on('click', layerId, …)`) disputavam o
+mesmo clique, e o bairro acabava sendo selecionado. Assim, não era possível
+selecionar um loteamento dentro dele.
 
-### Hierarquia: o clique nunca entra num loteamento sem contexto
+A solução é um handler global que verifica primeiro as layers de loteamento
+(mais específicas e visualmente acima) e depois a de bairro. A prioridade fica,
+assim, definida de forma explícita.
 
-O primeiro clique seleciona o bairro; só com o bairro em contexto o clique desce para
-um loteamento. Isso vale **apenas para o clique no mapa** — a busca por texto salta
-direto para um loteamento, porque ali o usuário nomeou o alvo.
+### Hierarquia: o clique só entra em um loteamento com contexto
 
-Exceção: com o toggle "Bairros" desligado, a hierarquia não se aplica. Não existe um
-"primeiro clique no bairro" possível, e o usuário desligou a camada de propósito para
-navegar só por loteamentos.
+O primeiro clique seleciona o bairro. Somente com um bairro em contexto o clique
+pode selecionar um loteamento. Isso vale **apenas para cliques no mapa**.
+
+A busca por texto pode ir direto para um loteamento, pois nesse caso o usuário
+já informou qual é o alvo.
+
+Exceção: com o toggle **Bairros** desligado, essa hierarquia não se aplica.
+Não existe um primeiro clique no bairro, e o usuário desativou a layer para
+navegar apenas pelos loteamentos.
 
 ### Casar por id, não por nome
 
-Realce e seleção são casados pelo id gerado pelo MapLibre sempre que possível. O nome
-só é usado quando é a única informação disponível (`selection.parentBairro`, que vem
-do dado como string, sem id associado). O motivo é concreto: **"Boa Vista" existe como
-bairro e como loteamento** no dataset — casar por nome produz realce ambíguo.
+Realce e seleção usam, sempre que possível, o id gerado pelo MapLibre. O nome só é
+usado quando é a única informação disponível (`selection.parentBairro`, que vem
+do dado como string, sem id associado).
 
-### O halo noturno
+Isso evita ambiguidades, pois existem bairros com o mesmo nome de loteamentos.
 
-O tema escuro é o único com halo, e é o que separa "polígonos âmbar sobre fundo preto"
-do efeito de cidade iluminada das referências. O MapLibre não tem glow, mas uma linha
-larga e borrada (`line-blur`) por baixo da linha nítida produz halo real.
+### O brilho noturno - halo (auréola)
 
-A intensidade é modulada por estado porque **a malha inteira acesa vira ruído** — é o
-mesmo problema de um mapa de logística onde todas as rotas brilham: nada se destaca.
-O repouso é discreto, a seleção é que acende, e o estado "outra coisa está
-selecionada" fica quase apagado para o alvo ativo ficar sozinho na tela.
+O tema escuro é o único com brilho. Ele ajuda a separar os "polígonos âmbar sobre
+fundo preto" do efeito de cidade iluminada usado como referência visual.
 
-Dois efeitos colaterais dessa lógica:
+O MapLibre não possui glow. A solução é usar uma linha mais larga e com `line-blur`
+abaixo da linha nítida, criando o efeito.
 
-- **À noite o bairro selecionado engrossa**, em vez de afinar como nos outros temas.
-  Ali o preenchimento é quase nada de propósito, então quem carrega o foco é o
-  contorno — e um contorno mais fino leria como "menos selecionado".
-- **O preenchimento não segue a atenuação do contorno.** Ele é presença, não foco;
-  atenuá-lo junto faria o bairro sumir por inteiro quando outro estivesse selecionado.
+A intensidade varia conforme o estado porque **uma malha inteira acesa vira
+ruído visual**. Em vez disso, o estado normal é discreto, a seleção recebe mais
+destaque e um alvo diferente do selecionado fica quase apagado.
+
+Isso gera dois efeitos importantes:
+
+* **À noite o bairro selecionado fica mais espesso**, em vez de ficar mais fino
+  como nos outros temas. Como o preenchimento é quase invisível de propósito,
+  o contorno carrega o foco. Um contorno mais fino passaria a parecer menos
+  selecionado.
+
+* **O preenchimento não acompanha a atenuação do contorno.** Ele indica presença,
+  não foco. Atenuá-lo junto faria o bairro praticamente desaparecer quando outro
+  elemento fosse selecionado.
 
 ### Traço tracejado em zoom de cidade
 
-Loteamentos não confiáveis usam espessura mínima maior em zoom baixo. No traço padrão
-(1px) o tracejado `[6, 4]` fica fino demais para "ler" como tracejado, deixando só a
-cor do preenchimento como sinal perceptível — e o design system pede que a distinção
-nunca dependa só de cor.
+Loteamentos não confiáveis usam uma espessura mínima maior em zoom baixo. No traço
+padrão de 1 px, o padrão `[6, 4]` fica fino demais para parecer tracejado. Nesse
+caso, apenas a cor do preenchimento seria percebida, mas o design system exige que
+a distinção não dependa somente de cor.
 
 ### Enquadramento e inclinação da câmera
 
-O `fitBounds` usa a bbox que já vem pronta na seleção (do evento do mapa, no clique, ou
-do índice do GeoJSON completo, na busca), e **não** consulta a source. A source só
-enxerga tiles já renderizados e devolveria a geometria recortada em fragmentos.
+O `fitBounds` usa a bbox que já vem pronta na seleção: do evento do mapa, no clique,
+ou do índice do GeoJSON completo, na busca. Ele **não** consulta a source.
 
-O pitch de 50° entra junto porque as extrusões de edificação só leem como volume num
-ângulo oblíquo — de cima elas viram preenchimento chapado. Fechar a seleção devolve o
-mapa à vista de topo, que é a leitura cartográfica padrão do projeto.
+A source conhece apenas tiles já renderizados e poderia devolver a geometria
+recortada em vários fragmentos.
 
-### Toda camada é recriável
+O pitch de 50° é aplicado junto porque as extrusions das edificações só aparecem
+como volume em um ângulo inclinado. De cima, elas parecem apenas um preenchimento
+plano. Ao fechar a seleção, o mapa volta para a vista superior, que é a leitura
+cartográfica padrão do projeto.
 
-Trocar de tema recarrega o style inteiro do MapLibre, o que apaga sources e camadas
-que não vieram dele. Por isso todo efeito de criação é idempotente (checa
-`getSource`/`getLayer` antes de adicionar) e roda de novo quando `isLoaded` oscila.
+### Toda layer é recriável
 
-Sobre as sources de bairro e loteamento receberem o GeoJSON já carregado em vez de uma
-URL, veja [`ARQUITETURA-CODIGO-E-MELHORIAS.md`](./ARQUITETURA-CODIGO-E-MELHORIAS.md)
-§4.2.
+Trocar o tema recarrega o style inteiro do MapLibre. Isso remove sources e layers
+que não fazem parte do style original.
+
+Por isso, toda criação é idempotente: verifica `getSource` e `getLayer` antes de
+adicionar cada elemento e pode ser executada novamente quando `isLoaded` muda.
 
 ---
 
 ## §3 — Prédios 3D
 
-*Código relacionado: `src/components/map/Buildings3D.tsx`, `src/lib/map/buildingClip.ts`,
-`src/config/buildings.ts`.*
+*Código relacionado: `src/components/map/Buildings3D.tsx`,
+`src/lib/map/buildingClip.ts` e `src/config/buildings.ts`.*
 
 ### Por que Overture, e não o basemap ou o OSM
 
-Medido nos tiles reais z14 do centro de Vitória da Conquista:
+Exemplo medido no centro de Vitória da Conquista:
 
-| Fonte | Edificações no tile |
-|---|---|
-| CARTO (`carto.streets`) | 9 |
-| OpenFreeMap (OSM) | 14 |
-| **Overture** | **8.188** |
+| Fonte                   | Edificações |
+| ----------------------- | ----------: |
+| CARTO (`carto.streets`) |           9 |
+| OpenFreeMap (OSM)       |          14 |
+| **Overture**            |   **8.188** |
 
-O tileset do CARTO até tem uma source-layer `building` com `render_height`, mas é
-agregado em maxzoom 14 e descarta quase toda edificação pequena. O OSM bruto tem só
-~9,7 mil edificações na cidade inteira. O Overture cobre a cidade via detecção
-automática (Google Open Buildings + Microsoft ML + OSM), que é o que dá o "tapete" de
-footprints da referência visual.
+O tileset da CARTO possui uma source-layer `building` com `render_height`, mas ela
+é agregada em maxzoom 14 e descarta grande parte das edificações pequenas.
 
-Nada disso é armazenado no projeto: o arquivo tem ~180 GB e fica na AWS. O protocolo
-PMTiles busca só os bytes dos tiles em vista, por range request.
+O OSM bruto possui cerca de 9,7 mil edificações na cidade inteira. Overture cobre
+a cidade por meio de detecção automática, combinando Google Open Buildings,
+Microsoft ML e OSM. Isso fornece a grande quantidade de footprints usada como
+referência visual.
+
+Nada disso é armazenado no projeto: o arquivo tem cerca de 180 GB e fica na AWS.
+O protocolo PMTiles busca somente os bytes dos tiles necessários por range request.
 
 ### Por que o recorte é feito em JavaScript
 
-O MapLibre não tem predicado espacial em expressão de estilo: a expressão `within` só
-avalia features `Point` e `LineString`, **nunca polígonos**. Não há como filtrar
-footprints "dentro do bairro X" pelo `filter` de uma layer — o caminho é consultar as
-features e recortar em JS, ponto a ponto.
+O MapLibre não possui um predicado espacial em expressions de style:
+`within` avalia apenas features `Point` e `LineString`, não polígonos.
 
-A geometria do alvo vem do índice do GeoJSON completo, não do evento do mapa: essa
-última chega recortada por tile e deixaria buracos no resultado.
+Por isso, não é possível filtrar pelo `filter` de uma layer para obter apenas
+os footprints "dentro do bairro X". O caminho é consultar as features e fazer
+o recorte em JavaScript.
 
-### A altura é sintética — `MOCK (MVP)`
+A geometria usada no recorte vem do índice do GeoJSON completo. A geometria do
+evento do mapa é evitada porque vem recortada por tile e poderia deixar buracos
+no resultado.
 
-As footprints do Overture vêm de detecção automática e praticamente não trazem altura:
-no tile z14 do centro, **10 de 8.188 features** têm `height`. Em vez de inventar
-andares, usa-se um volume genérico que cresce suavemente com a raiz da área da
-footprint — assim um galpão não fica do mesmo tamanho de uma casa, sem alegar altura
-medida. O divisor é calibrado para que uma casa (~100 m², lado ~10 m) fique perto da
-base e um galpão grande (~2500 m², lado ~50 m) chegue perto do teto.
+### A altura é sintética
 
-A fórmula é **determinística** de propósito: mesma footprint, mesma altura, sempre. O
-recorte é recalculado a cada hover, e alturas instáveis fariam a cidade tremular.
+Os footprints do Overture vêm de detecção automática e quase não possuem altura:
+no tile z14 do centro, **10 de 8.188 features** têm `height`.
+
+Em vez de inventar andares, o projeto usa uma altura genérica que cresce de forma
+suave com a raiz da área do footprint. Assim, um galpão não fica com o mesmo
+tamanho de uma casa sem afirmar que a altura foi medida.
+
+O divisor é calibrado para que uma casa de cerca de 100 m² (lado próximo de 10 m)
+fique perto da base e um galpão de cerca de 2.500 m² (lado próximo de 50 m) chegue
+perto do teto.
+
+A fórmula é **determinística**: a mesma footprint sempre gera a mesma altura.
+O recorte é recalculado a cada hover, e alturas instáveis fariam a cidade
+"tremer".
 
 ### Zoom mínimo e cache
 
-Abaixo do zoom 13, nenhum prédio: no zoom de cidade inteira (11) seriam dezenas de
-milhares de extrusões ilegíveis, e cada tile z14 custa ~500 KB comprimido. O
-`fitBounds` de uma seleção já leva o mapa acima desse limite.
+Abaixo do zoom 13, nenhum prédio é exibido. No zoom de cidade inteira (11), seriam
+dezenas de milhares de extrusions pouco legíveis, e cada tile z14 custa cerca de
+500 KB comprimido. O `fitBounds` de uma seleção já leva o mapa para acima desse
+limite.
 
-Os recortes já calculados ficam em cache por alvo, para que re-hover no mesmo bairro
-não refaça a varredura. **Só entram no cache resultados calculados com a source
-inteiramente carregada** — um recorte parcial em cache ficaria parcial para sempre.
+Os recortes já calculados ficam em cache por alvo, para que um novo hover no mesmo
+bairro não repita a varredura.
 
-### Frustum culling — só o que está na tela
+**Só entram no cache resultados calculados quando a source está totalmente
+carregada**. Um recorte parcial armazenado em cache continuaria parcial nas próximas
+execuções.
 
-Mesmo dentro de um bairro grande, se o usuário deu pan/zoom pra ver só um canto dele,
-não vale a pena testar point-in-polygon (o teste mais caro do recorte) contra prédios
-que nem aparecem na tela. `compute()` descarta pelo centroide contra `map.getBounds()`
-**antes** do point-in-polygon — um teste O(1) de retângulo eliminando o trabalho
-O(vértices) do teste de polígono para tudo que está fora do viewport. Como `compute()`
-roda do zero a cada `moveend`, o corte já reflete a posição atual do mapa sem
-precisar invalidar cache nem reestruturar a publicação.
+### Frustum culling — somente o que está na tela
+
+Mesmo dentro de um bairro grande, se o usuário fez pan/zoom e está vendo apenas
+uma parte dele, não é necessário executar point-in-polygon nos prédios que estão
+fora da tela.
+
+O `compute()` primeiro elimina features pelo centroide usando `map.getBounds()`.
+Esse teste de retângulo é O(1) e evita o teste O(vértices) do point-in-polygon
+para tudo que está fora do viewport.
+
+Como `compute()` roda novamente a cada `moveend`, o recorte acompanha a posição
+atual do mapa sem invalidar o cache ou alterar a forma como os dados são publicados.
 
 ### LOD (level of detail) por área — prédios pequenos somem em zoom baixo
 
-`lodMinAreaM2(zoom)` (`src/lib/map/buildingClip.ts`) decai linearmente de
-`LOD_MIN_AREA_M2` (60 m²) no `BUILDINGS_MIN_ZOOM` (13) até 0 no `LOD_FULL_DETAIL_ZOOM`
-(16). Um prédio minúsculo custa a mesma tesselação 3D que um grande, mas é
-imperceptível de longe — no zoom mínimo, só prédios com pelo menos ~60 m² de
-footprint ganham extrusão; a partir do zoom 16, todos aparecem, mesmo os pequenos.
+`lodMinAreaM2(zoom)` (`src/lib/map/buildingClip.ts`) diminui linearmente de
+`LOD_MIN_AREA_M2` (60 m²) no `BUILDINGS_MIN_ZOOM` (13) até 0 no
+`LOD_FULL_DETAIL_ZOOM` (16).
 
-### A camada-sonda invisível
+Um prédio muito pequeno custa praticamente a mesma tessellation 3D que um grande,
+mas não é perceptível de longe. No zoom mínimo, apenas footprints com pelo menos
+cerca de 60 m² recebem extrusão. A partir do zoom 16, todos aparecem, inclusive
+os pequenos.
 
-O MapLibre só baixa os tiles de uma source referenciada por alguma camada, e camadas
-com `visibility: none` não baixam nada — mas `fill-opacity: 0` baixa. Daí existir uma
-camada "sonda" invisível cuja única função é forçar o download dos tiles.
+### A layer-sonda invisível
 
-### A cor das extrusões
+O MapLibre só baixa os tiles de uma source quando alguma layer a referencia.
+Layers com `visibility: none` não baixam os tiles, mas uma layer com
+`fill-opacity: 0` continua baixando.
 
-As extrusões usam sempre `--building`, o último degrau da rampa de granularidade do
-tema ativo. Antes elas herdavam a cor do nível selecionado, o que funcionava quando
-cada nível era um matiz distinto; com os três temas convertidos em rampas
-monocromáticas (§1) isso **inverteria o gradiente** — dentro de um bairro as
-edificações sairiam no degrau mais escuro, e elas são o elemento mais fino de todos.
+Por isso existe uma layer "sonda" invisível, cuja única função é forçar o download
+dos tiles.
 
-### Por que mora fora de `MapLayers`
+### A cor das extrusions
 
-`MapLayers.tsx` já concentra as três camadas administrativas e passa de 900 linhas.
-`Buildings3D` tem uma responsabilidade só: fonte de edificações, recorte ao alvo e
-extrusão.
+As extrusions usam sempre `--building`, o último nível da rampa de granularidade
+do tema ativo.
 
----
+Antes, elas herdavam a cor do nível selecionado. Isso funcionava quando cada nível
+usava um hue diferente. Com os três temas convertidos em rampas de um único hue
+(§1), esse comportamento **inverteria a ordem visual**: dentro de um bairro, as
+edificações ficariam no nível mais escuro, embora sejam o elemento mais detalhado.
 
-## §4 — Rótulos dentro do polígono
+### Por que fica fora de `MapLayers`
 
-*Código relacionado: `src/lib/map/polygonLabel.ts`,
-`src/components/map/FloatingPolygonLabel.tsx`.*
+`MapLayers.tsx` já concentra as três layers administrativas e passa de 900 linhas.
 
-### O centroide não serve
-
-Em bairros côncavos — e há vários no dataset, além dos `MultiPolygon` — o centroide
-cai **fora** da própria geometria. O que se quer é o ponto interior mais distante de
-qualquer borda, o "polo de inacessibilidade", porque a distância até a borda é
-exatamente o raio disponível para o texto.
-
-A implementação é uma busca em grade com refinamento, e não o algoritmo exato
-(polylabel) nem o turf: são polígonos de dezenas de vértices, calculados uma vez por
-alvo, e a precisão de um refinamento já é muito maior que a necessária para posicionar
-texto. Num `MultiPolygon`, rotula-se a maior parte — as demais costumam ser fragmentos
-de fronteira, pequenos demais para caber texto.
-
-### Correção de Mercator
-
-A distância é medida num espaço escalado, onde a latitude é comprimida para o mesmo
-passo de tela da longitude. No Mercator, um grau de latitude ocupa 1/cos(lat) vezes
-mais pixels que um grau de longitude; sem essa correção o raio sairia enviesado no
-eixo vertical.
-
-### O tamanho trava o rótulo ao terreno
-
-O corpo ideal do texto é `K · 2^zoom`. Como o tamanho cresce com `2^zoom`, o rótulo
-ocupa sempre a mesma fração do polígono em qualquer nível de zoom — que é o que
-"tamanho proporcional" pede. `K` sai do raio de cada polígono, então um loteamento
-pequeno recebe um rótulo proporcionalmente pequeno, sem precisar projetar a bbox a
-cada frame. Abaixo de um corpo mínimo o rótulo some, em vez de encolher além do ponto
-de leitura.
-
-> 📌 **Pendência:** o teto de tamanho (`FLOAT_MAX_SIZE`, 240px) foi herdado do texto
-> nativo. Reavaliar em inspeção visual se o efeito ampliado bate no teto com
-> frequência.
-
-### Overlay HTML, não texto nativo do mapa
-
-O rótulo é um cartão HTML por cima do mapa, e não uma `symbol` layer do MapLibre,
-porque o efeito pedido era de profundidade real ("voando acima do bairro"): sombra CSS
-de verdade e a mesma tipografia de display do título flutuante — coisas que uma
-`symbol` layer não oferece.
+`Buildings3D` tem uma responsabilidade única: fonte de edificações, recorte para
+o alvo e extrusão.
 
 ---
 
-## §5 — Dependências evitadas
+## §4 — Dependências evitadas
 
-Duas funções deste projeto existem escritas à mão em vez de virem de uma biblioteca
-conhecida. O critério, nos dois casos, foi o mesmo: **a dependência de runtime só entra
+Duas funções deste projeto foram escritas à mão em vez de usar bibliotecas conhecidas.
+Nos dois casos, o critério foi o mesmo: **a dependência de runtime só deve ser adicionada
 quando custa menos que o código que ela substitui.**
 
-| Escrito à mão | Alternativa recusada | Motivo |
-|---|---|---|
-| `lib/color/oklab.ts` | Culori | O projeto precisa de duas conversões e um parser de cor CSS. A biblioteca inteira custaria mais que as ~60 linhas. |
-| `lib/map/buildingClip.ts` | `@turf/*` | Turf já existe no projeto, mas como **devDependency**, usado só pelo script de preparação de dados. Promovê-lo a dependência de runtime por causa de duas funções (ponto-em-polígono e área aproximada) sairia caro. |
+| Escrito à mão             | Alternativa recusada | Motivo                                                                                                                                                                                                                                               |
+| ------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/color/oklab.ts`      | Culori               | O projeto precisa de duas conversões e de um parser de cor CSS. A biblioteca inteira custaria mais que as cerca de 60 linhas necessárias.                                                                                                            |
+| `lib/map/buildingClip.ts` | `@turf/*`            | Turf já existe no projeto, mas como **devDependency** e é usado apenas no script de preparação de dados. Torná-lo uma dependência de runtime por causa de duas funções (point-in-polygon e área aproximada) adicionaria mais custo do que benefício. |
 
-A área do polígono usa uma aproximação equirretangular — mais que suficiente para uma
-footprint de dezenas de metros, e muito mais barata que uma projeção de verdade.
+A área do polígono usa uma aproximação equirretangular. Ela é suficiente para
+footprints de algumas dezenas de metros e é muito mais barata que uma projeção
+geográfica completa.
 
 ---
 
-## §6 — Armadilhas de manutenção
+## §5 — Armadilhas de manutenção
 
-**A release do Overture é pinada de propósito.** Releases antigas saem do bucket com o
-tempo. Quando os prédios sumirem, atualizar a string em `config/buildings.ts` é a
-manutenção esperada — o índice de releases fica em
-<https://docs.overturemaps.org/examples/overture-tiles/>.
+**A release do Overture é pinada de propósito.** Releases antigas saem do bucket
+com o tempo. Quando os prédios deixarem de aparecer, a manutenção esperada é
+atualizar a string em `config/buildings.ts`. O índice de releases está
+[nesse link](https://docs.overturemaps.org/examples/overture-tiles/).
 
-**Registrar o protocolo PMTiles duas vezes é erro no MapLibre.** O Fast Refresh do
-Next reexecuta módulos, então `ensurePMTilesProtocol()` é idempotente por necessidade,
-não por elegância.
+**Registrar o protocolo PMTiles duas vezes é um erro no MapLibre.** O Fast Refresh
+do Next.js reexecuta módulos, então `ensurePMTilesProtocol()` precisa ser idempotente.
 
-**Esse registro precisa acontecer antes de `new maplibregl.Map(...)`.** Por isso a
-chamada fica no escopo do módulo em `MapView.tsx`, e não dentro de um efeito — o
-componente `<Map>` de terceiros constrói a instância no próprio efeito de montagem, e
-a source de prédios falharia ao resolver a URL.
+**Esse registro deve acontecer antes de `new maplibregl.Map(...)`.** Por isso,
+a chamada fica no escopo do módulo em `MapView.tsx`, e não dentro de um effect.
+O componente `<Map>` de terceiros cria a instância durante o effect de montagem,
+e a source de prédios falharia ao resolver a URL se o protocolo ainda não estivesse
+registrado.
 
 **O MapLibre não resolve `var()` em propriedades de `paint`.** As cores precisam
-chegar como hex/rgba literal. É a razão de existir o hook `useThemeTokens`, que lê a
-variável CSS já calculada pelo navegador e devolve o valor final (§1).
+chegar como valores hex/rgba. Essa é a razão de existir o hook `useThemeTokens`:
+ele lê a variável CSS já calculada pelo navegador e retorna o valor final (§1).
 
-**Não edite `src/components/ui/map.tsx`.** É código de terceiros vindo do registry
-`mapcn` e é sobrescrito ao reinstalar. Toda customização é feita por props a partir do
-`MapView`. Ver `CLAUDE.md`.
+**Não edite `src/components/ui/map.tsx`.** O arquivo vem do registry `mapcn` e
+pode ser sobrescrito durante uma reinstalação. Toda customização deve ser feita
+por props a partir de `MapView`.
 
-**As referências a `design_system/§N` espalhadas pelo código apontam para um documento
-que não está neste checkout.** Foram preservadas por serem ponteiros baratos e úteis
-caso o arquivo reapareça, mas hoje não é possível segui-las.
-
-**`temp/` é área descartável.** Nada permanente deve referenciar arquivos de lá — as
-imagens usadas pela documentação foram copiadas para `docs/imagens/` por esse motivo.
+O `mapcn`, por padrão, fornece um código que permite usar elementos do MapLibre
+e Mapbox React. Ele não é uma biblioteca de mapas independente; por isso, o
+arquivo não deve ser editado diretamente.
