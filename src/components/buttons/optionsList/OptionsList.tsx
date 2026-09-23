@@ -3,7 +3,7 @@
 import { LayerControlsPopoverButton } from './LayerControlsPopoverButton';
 import { PalettePopoverButton } from './PalettePopoverButton';
 import { ToggleButton } from '../ToggleButton';
-import { BuildingIcon, VegetationIcon, WaterIcon } from '@/components/icons';
+import { BuildingIcon, VegetationIcon, WaterIcon, CarIcon } from '@/components/icons';
 import type { LayerToggles } from '@/types/map';
 
 interface OptionsListProps {
@@ -15,6 +15,8 @@ interface OptionsListProps {
   onVegetationChange: (enabled: boolean) => void;
   waterEnabled: boolean;
   onWaterChange: (enabled: boolean) => void;
+  carsEnabled: boolean;
+  onCarsChange: (enabled: boolean) => void;
 }
 
 /** Agrupa camadas, paleta e as camadas 3D (prédios, vegetação, água) — sempre
@@ -28,6 +30,8 @@ export function OptionsList({
   onVegetationChange,
   waterEnabled,
   onWaterChange,
+  carsEnabled,
+  onCarsChange,
 }: OptionsListProps) {
   return (
     <>
@@ -65,6 +69,16 @@ export function OptionsList({
           waterEnabled
             ? 'Água 3D ativa — desativar'
             : 'Água 3D desativada — ativar'
+        }
+      />
+      <ToggleButton
+        pressed={carsEnabled}
+        onChange={onCarsChange}
+        icon={<CarIcon className="h-4 w-4" />}
+        label={
+          carsEnabled
+            ? 'Carros 3D ativos — desativar'
+            : 'Carros 3D desativados — ativar'
         }
       />
     </>

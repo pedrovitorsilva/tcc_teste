@@ -101,7 +101,7 @@ export function pointInPolygon(point: [number, number], geometry: Geometry): boo
  * `moveend`, e árvores reamostradas aleatoriamente a cada pan "tremeriam"
  * (mesma preocupação documentada para `syntheticHeight`).
  */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -111,8 +111,10 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Seed estável a partir das coordenadas do anel — mesmo anel sempre gera o mesmo seed. */
-function seedFromRing(ring: Position[]): number {
+/** Seed estável a partir das coordenadas do anel (ou de qualquer polyline —
+ * não depende do anel ser fechado) — a mesma sequência de pontos sempre gera
+ * o mesmo seed. Reaproveitado por Cars3D para as vias (LineString). */
+export function seedFromRing(ring: Position[]): number {
   let seed = 0;
   for (const [x, y] of ring) {
     seed = (seed * 31 + Math.round(x * 1e6) + Math.round(y * 1e6) * 7) | 0;
