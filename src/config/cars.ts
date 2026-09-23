@@ -42,6 +42,46 @@ export const CAR_WHEEL_POSITIONS = [
 /** Velocidade média dos carros (m/s) — ~25 km/h, trânsito de bairro. */
 export const CAR_SPEED_MPS = 15;
 
+/** Largura aproximada (m) por `class` do Overture; desconhecida cai em `ROAD_WIDTH_DEFAULT_M`. */
+export const ROAD_WIDTH_M: Record<string, number> = {
+  motorway: 14,
+  trunk: 12,
+  primary: 10,
+  secondary: 8,
+  tertiary: 8,
+  residential: 6,
+  unclassified: 6,
+  living_street: 5,
+  service: 4,
+};
+export const ROAD_WIDTH_DEFAULT_M = 6;
+
+/**
+ * Layer do basemap (CARTO) que desenha cada `class` — a largura em pixels dela
+ * (`line-width`) no zoom atual dá a largura "desenhada" da via.
+ */
+export const ROAD_STYLE_LAYER: Record<string, string> = {
+  motorway: 'road_mot_fill_noramp',
+  trunk: 'road_trunk_fill_noramp',
+  primary: 'road_pri_fill_noramp',
+  secondary: 'road_sec_fill_noramp',
+  tertiary: 'road_sec_fill_noramp',
+  residential: 'road_minor_fill',
+  unclassified: 'road_minor_fill',
+  living_street: 'road_minor_fill',
+  service: 'road_service_fill',
+};
+
+/** Largura de referência (m) em que o carro tem `CAR_MODEL_SCALE`; escala limitada a [MIN, MAX]. */
+export const ROAD_WIDTH_REF_M = 7;
+export const CAR_SCALE_FACTOR_MIN = 0.3;
+export const CAR_SCALE_FACTOR_MAX = 2.5;
+
+/** Classes sem carro (calçadas, ciclovias, trilhas). */
+export const NON_CAR_CLASSES = new Set([
+  'footway', 'pedestrian', 'steps', 'path', 'cycleway', 'bridleway', 'track',
+]);
+
 /** Comprimento mínimo de via (m) por carro — evita amontoar carros num segmento curto. */
 export const CAR_MIN_SPACING_M = 15;
 

@@ -15,7 +15,7 @@
 // o custo de manter ~20 InstancedMesh sincronizadas.
 import { useEffect, useRef } from "react";
 import type { Geometry, Position } from "geojson";
-import type { CustomLayerInterface, MapSourceDataEvent } from "maplibre-gl";
+import type { CustomLayerInterface, Map as MapLibreMap, MapSourceDataEvent } from "maplibre-gl";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useMap } from "@/components/ui/map";
@@ -24,8 +24,15 @@ import {
   CAR_MIN_SPACING_M,
   CAR_MODEL_FORWARD_OFFSET,
   CAR_MODEL_SCALE,
+  CAR_SCALE_FACTOR_MAX,
+  CAR_SCALE_FACTOR_MIN,
   CAR_SPEED_MPS,
   CAR_TYPES,
+  NON_CAR_CLASSES,
+  ROAD_WIDTH_DEFAULT_M,
+  ROAD_STYLE_LAYER,
+  ROAD_WIDTH_M,
+  ROAD_WIDTH_REF_M,
   CAR_WHEEL_POSITIONS,
   CARS_ATTRIBUTION,
   CARS_MIN_ZOOM,
@@ -72,7 +79,18 @@ interface ClipTarget {
   bbox?: [number, number, number, number];
 }
 
+interface Road {
+  /** Id estável (classe + extremos) — permite manter os carros ao recalcular vias. */
+  id: string;
+  coordinates: Position[];
+  roadClass: string;
+}
+
 interface ActiveCar {
+  roadId: string;
+  roadClass: string;
+  /** Deslocamento lateral (m) do eixo da via, mão direita — recalculado com o zoom. */
+  laneOffset: number;
   group: THREE.Group;
   measure: PathMeasure;
   /** Fração (0..1) do ciclo "ida e volta" em que o carro nasce — evita todos saírem sincronizados. */
@@ -162,6 +180,39 @@ function disposeObject3D(root: THREE.Object3D): void {
   });
 }
 
+/** Pixels por metro no zoom/latitude (tiles de 512 px do MapLibre). */
+function pixelsPerMeter(zoom: number, lat: number): number {
+  return (512 * 2 ** zoom) / (40075016.686 * Math.cos((lat * Math.PI) / 180));
+}
+
+const stopsCache = new Map<string, [number, number][] | null>();
+
+/** `line-width` (px) da layer do basemap que desenha `roadClass` em `zoom`; `null` se não achar. */
+function drawnWidthPx(map: MapLibreMap, roadClass: string, zoom: number): number | null {
+  const layerId = ROAD_STYLE_LAYER[roadClass];
+  if (!layerId || !map.getLayer(layerId)) return null;
+  let stops = stopsCache.get(layerId);
+  if (stops === undefined) {
+    const width = map.getPaintProperty(layerId, "line-width") as
+      | number
+      | { stops?: [number, number][] }
+      | undefined;
+    stops = typeof width === "object" && width?.stops ? width.stops : null;
+    // ponytail: só o formato legado `stops` do CARTO; expressões `interpolate` caem no fallback em metros.
+    stopsCache.set(layerId, stops);
+  }
+  if (!stops || stops.length === 0) return null;
+  if (zoom <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i += 1) {
+    if (zoom <= stops[i][0]) {
+      const [z0, w0] = stops[i - 1];
+      const [z1, w1] = stops[i];
+      return w0 + ((w1 - w0) * (zoom - z0)) / (z1 - z0);
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
 /** Fração 0..1 de um ciclo "ida e volta" (triangular) no instante `elapsedS`. */
 function triangleWave(elapsedS: number, phase: number, cycleS: number): { fraction: number; reverse: boolean } {
   if (cycleS <= 0) return { fraction: 0, reverse: false };
@@ -181,11 +232,14 @@ function triangleWave(elapsedS: number, phase: number, cycleS: number): { fracti
 export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos }: Cars3DProps) {
   const { map, isLoaded } = useMap();
 
-  const cacheRef = useRef(new Map<string, Position[][]>());
-  const lastRoadsRef = useRef<Position[][]>([]);
+  const cacheRef = useRef(new Map<string, Road[]>());
+  const lastRoadsRef = useRef<Road[]>([]);
   const sceneRef = useRef<CarScene | null>(null);
   const rafRef = useRef<number | null>(null);
-  const publishCarsRef = useRef<((roads: Position[][]) => void) | null>(null);
+  const publishCarsRef = useRef<((roads: Road[]) => void) | null>(null);
+  // Relógio único: reiniciar o loop de animação não pode teletransportar os carros.
+  const clockStartRef = useRef(performance.now());
+  const targetRef = useRef<ClipTarget | null>(null);
 
   const target: ClipTarget | null = enabled
     ? selection
@@ -212,26 +266,31 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
         : null
     : null;
 
-  const publishCars = (roads: Position[][]) => {
+  // Incremental: carros de vias que continuam presentes são mantidos (senão
+  // todo pan/zoom os recriaria e eles "pulariam").
+  const publishCars = (roads: Road[]) => {
     const refs = sceneRef.current;
     if (!refs || !map) return;
-
-    for (const car of refs.active) refs.scene.remove(car.group);
-    refs.active = [];
-
     if (!refs.prefabs) return; // reexecutado via publishCarsRef quando o glTF terminar de carregar
 
-    let totalCars = 0;
-    for (const coordinates of roads) {
-      if (totalCars >= MAX_CARS_TOTAL) break;
+    const wanted = new Set(roads.map((road) => road.id));
+    refs.active = refs.active.filter((car) => {
+      if (wanted.has(car.roadId)) return true;
+      refs.scene.remove(car.group);
+      return false;
+    });
+    const present = new Set(refs.active.map((car) => car.roadId));
 
-      const measure = measurePath(coordinates, refs.origin);
+    for (const road of roads) {
+      if (refs.active.length >= MAX_CARS_TOTAL) break;
+      if (present.has(road.id)) continue;
+
+      const measure = measurePath(road.coordinates, refs.origin);
       if (measure.total < CAR_MIN_SPACING_M) continue;
 
-      const rand = mulberry32(seedFromRing(coordinates));
+      const rand = mulberry32(seedFromRing(road.coordinates));
       const count = Math.min(MAX_CARS_PER_SEGMENT, Math.floor(measure.total / CAR_MIN_SPACING_M));
-
-      for (let i = 0; i < count && totalCars < MAX_CARS_TOTAL; i += 1) {
+      for (let i = 0; i < count && refs.active.length < MAX_CARS_TOTAL; i += 1) {
         const type = CAR_TYPES[Math.floor(rand() * CAR_TYPES.length)];
         const prefab = refs.prefabs.get(type);
         if (!prefab) continue;
@@ -239,18 +298,21 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
         const group = prefab.clone(true);
         refs.scene.add(group);
         refs.active.push({
+          roadId: road.id,
+          roadClass: road.roadClass,
+          laneOffset: 0, // 0 = ainda sem escala; o tick calcula
           group,
           measure,
           phase: rand(),
           speedFactor: 0.8 + rand() * 0.4,
         });
-        totalCars += 1;
       }
     }
 
     map.triggerRepaint();
   };
   publishCarsRef.current = publishCars;
+  targetRef.current = target;
 
   const stopAnimation = () => {
     if (rafRef.current !== null) {
@@ -262,17 +324,38 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
   const startAnimation = () => {
     if (rafRef.current !== null || !map) return;
 
-    const start = performance.now();
+    let lastZoom = NaN;
     const tick = (now: number) => {
       const refs = sceneRef.current;
       if (refs && refs.active.length > 0) {
-        const elapsedS = (now - start) / 1000;
+        const elapsedS = (now - clockStartRef.current) / 1000;
+        const zoom = map.getZoom();
+        const rescale = zoom !== lastZoom;
+        lastZoom = zoom;
+        const pxPerMeter = pixelsPerMeter(zoom, map.getCenter().lat);
         for (const car of refs.active) {
           const cycleS = (2 * car.measure.total) / (CAR_SPEED_MPS * car.speedFactor);
           const { fraction, reverse } = triangleWave(elapsedS, car.phase, cycleS);
+          if (rescale || car.laneOffset === 0) {
+            // Largura desenhada da via (px) → metros no zoom atual: o carro
+            // acompanha a via como ela aparece, não a largura real.
+            const px = drawnWidthPx(map, car.roadClass, zoom);
+            const widthM = px === null ? (ROAD_WIDTH_M[car.roadClass] ?? ROAD_WIDTH_DEFAULT_M) : px / pxPerMeter;
+            const factor = Math.min(CAR_SCALE_FACTOR_MAX, Math.max(CAR_SCALE_FACTOR_MIN, widthM / ROAD_WIDTH_REF_M));
+            car.group.scale.setScalar(CAR_MODEL_SCALE * factor);
+            car.laneOffset = widthM / 4;
+          }
           const point = positionAtFraction(car.measure, fraction);
-          car.group.position.set(point.x, 0, point.z);
-          car.group.rotation.set(0, point.heading + (reverse ? Math.PI : 0) + CAR_MODEL_FORWARD_OFFSET, 0);
+          const heading = point.heading + (reverse ? Math.PI : 0);
+          // Mão direita: normal à direita do sentido de marcha (x=leste, z=sul).
+          const dx = Math.sin(heading);
+          const dz = Math.cos(heading);
+          car.group.position.set(
+            point.x - dz * car.laneOffset,
+            0,
+            point.z + dx * car.laneOffset,
+          );
+          car.group.rotation.set(0, heading + CAR_MODEL_FORWARD_OFFSET, 0);
         }
         map.triggerRepaint();
       }
@@ -391,6 +474,8 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const compute = () => {
+      const target = targetRef.current;
+      if (!target) return;
       if (map.getZoom() < CARS_MIN_ZOOM) {
         publishCars([]);
         return;
@@ -409,9 +494,13 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
       });
 
       const { bbox } = target;
-      const roads: Position[][] = [];
+      const roads: Road[] = [];
+      const seen = new Set<string>();
 
       for (const feature of features) {
+        const roadClass = String(feature.properties?.class ?? "");
+        if (NON_CAR_CLASSES.has(roadClass)) continue;
+
         const geometry = feature.geometry;
         const coordinates: Position[] | null =
           geometry.type === "LineString"
@@ -428,7 +517,17 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
         const midpoint = coordinates[Math.floor(coordinates.length / 2)] as [number, number];
         if (!pointInPolygon(midpoint, target.geometry)) continue;
 
-        roads.push(coordinates);
+        const first = coordinates[0];
+        const last = coordinates[coordinates.length - 1];
+        const id = `${roadClass}:${first[0]},${first[1]}:${last[0]},${last[1]}`;
+        if (seen.has(id)) continue; // tiles vizinhos repetem a mesma via
+        seen.add(id);
+
+        roads.push({
+          id,
+          coordinates,
+          roadClass,
+        });
       }
 
       lastRoadsRef.current = roads;
@@ -467,8 +566,9 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
       map.off("sourcedata", handleSourceData);
       map.off("moveend", schedule);
     };
+    // `target` é recriado a cada render (hover); só a chave importa.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, target]);
+  }, [map, isLoaded, target?.key]);
 
   return null;
 }
