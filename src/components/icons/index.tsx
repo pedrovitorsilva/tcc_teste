@@ -10,6 +10,8 @@ import {
   Palette,
   ScrollText,
   Building2,
+  Trees,
+  Waves,
 } from 'lucide-react';
 
 /** Envolve um ícone lucide-react com o stroke fino padrão do projeto. */
@@ -33,3 +35,5 @@ export const MoonIcon = createIcon(Moon);
 export const PaletteIcon = createIcon(Palette);
 export const ScrollIcon = createIcon(ScrollText);
 export const BuildingIcon = createIcon(Building2);
+export const VegetationIcon = createIcon(Trees);
+export const WaterIcon = createIcon(Waves);

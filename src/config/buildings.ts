@@ -3,10 +3,11 @@
 // Chosen dynamic requests by area — nothing is stored in the project as the file is ~180 GB. 
 
 /**
- * Overture Maps release used as the source for buildings.
- * Must be updated when the release is no longer available.
+ * Overture Maps release used as the source for buildings, vegetation and water
+ * (`src/config/vegetation.ts`, `src/config/water.ts` reuse this — one release
+ * pinned in one place). Must be updated when the release is no longer available.
  */
-const OVERTURE_RELEASE = '2026-08-19.0';
+export const OVERTURE_RELEASE = '2026-08-19.0';
 
 /**
  * URL of the Overture Maps PMTiles file for buildings.

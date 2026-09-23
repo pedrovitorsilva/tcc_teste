@@ -40,6 +40,14 @@ adicionada) no `.gitignore`. Apague os arquivos de dentro de `temp/` que não
 forem mais necessários ao final da tarefa, mas a pasta em si pode continuar
 existindo vazia.
 
+## Branch para implementações grandes
+
+Antes de começar uma implementação grande (nova feature, troca de fonte de
+dados, refatoração ampla), **pergunte ao usuário se ele quer trabalhar numa
+branch separada** antes de tocar em código — não assuma nem `master` nem uma
+branch nova por conta própria. Tarefas pequenas (fix pontual, ajuste de texto,
+um componente isolado) não precisam dessa pergunta.
+
 ## Notas rápidas do projeto
 
 - Next.js 14 (App Router) + React 18 + TypeScript + Tailwind v4 (CSS-first, sem `tailwind.config`).

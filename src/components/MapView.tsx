@@ -17,6 +17,8 @@ import type {
 import { ensurePMTilesProtocol } from "@/lib/map/pmtilesProtocol";
 import { MapLayers } from "./map/MapLayers";
 import { Buildings3D } from "./map/Buildings3D";
+import { Trees3D } from "./map/Trees3D";
+import { Water3D } from "./map/Water3D";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
@@ -53,6 +55,8 @@ export function MapView() {
   );
   const [buildingCount, setBuildingCount] = useState(0);
   const [buildingsEnabled, setBuildingsEnabled] = useState(false);
+  const [vegetationEnabled, setVegetationEnabled] = useState(false);
+  const [waterEnabled, setWaterEnabled] = useState(false);
 
   const {
     selection,
@@ -118,6 +122,10 @@ export function MapView() {
     onLayerTogglesChange: setLayerToggles,
     buildingsEnabled,
     onBuildingsChange: setBuildingsEnabled,
+    vegetationEnabled,
+    onVegetationChange: setVegetationEnabled,
+    waterEnabled,
+    onWaterChange: setWaterEnabled,
   };
 
   return (
@@ -155,6 +163,20 @@ export function MapView() {
             bairros={bairros}
             loteamentos={loteamentos}
             onCountChange={setBuildingCount}
+          />
+          <Trees3D
+            enabled={vegetationEnabled}
+            selection={selection}
+            hoveredBairro={hoveredBairro}
+            bairros={bairros}
+            loteamentos={loteamentos}
+          />
+          <Water3D
+            enabled={waterEnabled}
+            selection={selection}
+            hoveredBairro={hoveredBairro}
+            bairros={bairros}
+            loteamentos={loteamentos}
           />
         </Map>
 

@@ -3,7 +3,7 @@
 import { LayerControlsPopoverButton } from './LayerControlsPopoverButton';
 import { PalettePopoverButton } from './PalettePopoverButton';
 import { ToggleButton } from '../ToggleButton';
-import { BuildingIcon } from '@/components/icons';
+import { BuildingIcon, VegetationIcon, WaterIcon } from '@/components/icons';
 import type { LayerToggles } from '@/types/map';
 
 interface OptionsListProps {
@@ -11,15 +11,23 @@ interface OptionsListProps {
   onLayerTogglesChange: (toggles: LayerToggles) => void;
   buildingsEnabled: boolean;
   onBuildingsChange: (enabled: boolean) => void;
+  vegetationEnabled: boolean;
+  onVegetationChange: (enabled: boolean) => void;
+  waterEnabled: boolean;
+  onWaterChange: (enabled: boolean) => void;
 }
 
-/** Agrupa camadas, paleta e prédios 3D — sempre juntos,
- * idênticos no cluster de opções desktop e mobile de MapView.tsx. */
+/** Agrupa camadas, paleta e as camadas 3D (prédios, vegetação, água) — sempre
+ * juntos, idênticos no cluster de opções desktop e mobile de MapView.tsx. */
 export function OptionsList({
   layerToggles,
   onLayerTogglesChange,
   buildingsEnabled,
   onBuildingsChange,
+  vegetationEnabled,
+  onVegetationChange,
+  waterEnabled,
+  onWaterChange,
 }: OptionsListProps) {
   return (
     <>
@@ -37,6 +45,26 @@ export function OptionsList({
           buildingsEnabled
             ? 'Edificações 3D ativas — desativar'
             : 'Edificações 3D desativadas — ativar'
+        }
+      />
+      <ToggleButton
+        pressed={vegetationEnabled}
+        onChange={onVegetationChange}
+        icon={<VegetationIcon className="h-4 w-4" />}
+        label={
+          vegetationEnabled
+            ? 'Vegetação 3D ativa — desativar'
+            : 'Vegetação 3D desativada — ativar'
+        }
+      />
+      <ToggleButton
+        pressed={waterEnabled}
+        onChange={onWaterChange}
+        icon={<WaterIcon className="h-4 w-4" />}
+        label={
+          waterEnabled
+            ? 'Água 3D ativa — desativar'
+            : 'Água 3D desativada — ativar'
         }
       />
     </>

@@ -27,6 +27,33 @@ export function ringCentroid(ring: Position[]): [number, number] {
   return [x / count, y / count];
 }
 
+/**
+ * Bbox `[minX, minY, maxX, maxY]` do anel. Ao contrário do centroide, serve
+ * pra testar interseção com o viewport mesmo quando o polígono é bem maior
+ * que a tela — necessário pra `land_cover` (uma mancha de floresta pode
+ * cobrir o viewport inteiro sem que seu centroide esteja nele). Prédios não
+ * precisam disso porque o footprint já é pequeno o bastante pro centroide
+ * bastar.
+ */
+export function ringBBox(ring: Position[]): [number, number, number, number] {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
+}
+
+/** `true` se os dois bboxes `[minX, minY, maxX, maxY]` se sobrepõem. */
+export function bboxIntersects(
+  a: [number, number, number, number],
+  b: [number, number, number, number],
+): boolean {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+}
+
 /** First outer ring of a polygon geometry. `null` for everything else. */
 export function outerRing(geometry: Geometry): Position[] | null {
   if (geometry.type === 'Polygon') return geometry.coordinates[0] ?? null;
@@ -66,6 +93,67 @@ export function pointInPolygon(point: [number, number], geometry: Geometry): boo
     return geometry.coordinates.some((rings) => pointInPolygonRings(point, rings));
   }
   return false;
+}
+
+/**
+ * PRNG determinístico (mulberry32) a partir de um seed numérico — não
+ * `Math.random()` de propósito: o recorte de `Trees3D` roda de novo a cada
+ * `moveend`, e árvores reamostradas aleatoriamente a cada pan "tremeriam"
+ * (mesma preocupação documentada para `syntheticHeight`).
+ */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Seed estável a partir das coordenadas do anel — mesmo anel sempre gera o mesmo seed. */
+function seedFromRing(ring: Position[]): number {
+  let seed = 0;
+  for (const [x, y] of ring) {
+    seed = (seed * 31 + Math.round(x * 1e6) + Math.round(y * 1e6) * 7) | 0;
+  }
+  return seed;
+}
+
+/**
+ * Amostra `count` pontos dentro do anel externo por rejeição (ponto
+ * pseudo-aleatório determinístico no bbox, mantém se cair dentro do
+ * polígono). Usado por `Trees3D` para espalhar árvores dentro de um
+ * polígono de vegetação — não é específico de prédio, só reaproveita
+ * `pointInRing` já existente aqui. `maxAttempts` evita loop infinito em
+ * anéis degenerados (área ~0).
+ */
+export function randomPointsInRing(ring: Position[], count: number): [number, number][] {
+  if (ring.length < 4 || count <= 0) return [];
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  const rand = mulberry32(seedFromRing(ring));
+  const points: [number, number][] = [];
+  const maxAttempts = count * 20;
+  let attempts = 0;
+
+  while (points.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    const candidate: [number, number] = [
+      minX + rand() * (maxX - minX),
+      minY + rand() * (maxY - minY),
+    ];
+    if (pointInRing(candidate, ring)) points.push(candidate);
+  }
+
+  return points;
 }
 
 const METERS_PER_DEGREE_LAT = 111_320;
