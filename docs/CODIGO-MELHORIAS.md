@@ -1,6 +1,13 @@
 # Mapa — Pontos de melhoria
 
-### 1 Buscar o GeoJSON em Server Component, não em `useEffect`/hook client
+### Agrupar elementos 3D .tsx em codigo central
+
+Diminuir tamanho dos arquivos Buildings3D.tsx, Cars3D.tsx, Trees3D.tsx e Water3D.tsx, agrupando logica em arquivo .tsx ou .ts generico na medida do possivel.
+
+### Modo noturno com luzes em postes e luzes nos carros
+
+
+### Buscar o GeoJSON em Server Component, não em `useEffect`/hook client
 
 > **Veredito: 🔴 Adiado.** Ganho real, mas estreito e não urgente
 > — ver seção 6.
@@ -19,7 +26,7 @@ banco de verdade (seção 4.3) — aí a diferença entre disco local e rede pas
 a ter latência real para justificar o cuidado extra, e a decisão de
 renderização dinâmica pode ser tomada junto, documentada na mesma mudança.
 
-### 2 Introduzir uma camada de acesso a dados explícita
+### Introduzir uma camada de acesso a dados explícita
 
 > **Veredito pós-debate: 🟡 Carona, não autônomo.** Só faz sentido junto/depois
 > de 1 acontecer — não como mudança isolada hoje.
@@ -32,8 +39,7 @@ separadamente.
 *quando* 1 acontecer (quem passar a possuir a leitura do arquivo é o
 dono natural dessas funções) — não como tarefa isolada com a estrutura atual.
 
-
-### 3 Suspense/loading como preparação
+### Suspense/loading como preparação
 
 > **Veredito pós-debate: ⛔ Descartado por ora** — mais forte que a proposta
 > original de "baixa prioridade, só registrar".
@@ -43,4 +49,6 @@ dono natural dessas funções) — não como tarefa isolada com a estrutura atua
 
 **Quando reconsiderar:** só quando existir latência real (de rede ou de
 banco de dados) para testar o fallback contra ela.
+
+
 

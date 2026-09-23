@@ -94,9 +94,70 @@ interface ActiveCar {
   laneOffset: number;
   group: THREE.Group;
   measure: PathMeasure;
-  /** Fração (0..1) do ciclo "ida e volta" em que o carro nasce — evita todos saírem sincronizados. */
-  phase: number;
+  startKey: string;
+  endKey: string;
+  /** Sentido de marcha na via atual: +1 = início→fim, -1 = fim→início. */
+  dir: 1 | -1;
+  /** Distância (m) percorrida desde o início da via atual. */
+  dist: number;
   speedFactor: number;
+}
+
+/** Grafo de vias: nó (ponta compartilhada) → pontas de via que nele terminam. */
+interface RoadGraph {
+  roads: Map<string, { road: Road; measure: PathMeasure }>;
+  nodes: Map<string, { roadId: string; atStart: boolean }[]>;
+}
+
+const nodeKey = (position: Position) => `${position[0].toFixed(6)},${position[1].toFixed(6)}`;
+
+/** Menor diferença angular assinada em (-π, π]. */
+function angleDiff(a: number, b: number): number {
+  let d = (b - a) % (2 * Math.PI);
+  if (d > Math.PI) d -= 2 * Math.PI;
+  if (d <= -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+/**
+ * Ao chegar à ponta de uma via, o carro sempre vira à direita: entre as vias
+ * que saem do nó (exceto retorno pela mesma), pega a de menor ângulo relativo
+ * (negativo = direita; reto vale 0). Sem saída (ponta de via / fim da área
+ * carregada) faz retorno na própria via.
+ */
+function advanceAtEnd(car: ActiveCar, graph: RoadGraph): void {
+  const { measure } = car;
+  const atEnd = car.dir > 0;
+  const nodePos = atEnd ? car.endKey : car.startKey;
+  const incoming = positionAtFraction(measure, atEnd ? 1 : 0).heading + (atEnd ? 0 : Math.PI);
+
+  let best: { roadId: string; atStart: boolean; rel: number } | null = null;
+  for (const end of graph.nodes.get(nodePos) ?? []) {
+    if (end.roadId === car.roadId && end.atStart === !atEnd) continue;
+    const entry = graph.roads.get(end.roadId);
+    if (!entry || entry.measure.total < 1) continue;
+    const outgoing =
+      positionAtFraction(entry.measure, end.atStart ? 0 : 1).heading + (end.atStart ? 0 : Math.PI);
+    const rel = angleDiff(incoming, outgoing);
+    if (Math.abs(rel) > Math.PI - 0.15) continue; // retorno colado: não é curva
+    if (!best || rel < best.rel) best = { roadId: end.roadId, atStart: end.atStart, rel };
+  }
+
+  if (!best) {
+    car.dir = atEnd ? -1 : 1;
+    car.dist = atEnd ? measure.total : 0;
+    return;
+  }
+
+  const next = graph.roads.get(best.roadId)!;
+  car.roadId = best.roadId;
+  car.roadClass = next.road.roadClass;
+  car.measure = next.measure;
+  car.startKey = nodeKey(next.road.coordinates[0]);
+  car.endKey = nodeKey(next.road.coordinates[next.road.coordinates.length - 1]);
+  car.dir = best.atStart ? 1 : -1;
+  car.dist = best.atStart ? 0 : next.measure.total;
+  car.laneOffset = 0; // reescala pela nova classe de via
 }
 
 interface CarScene {
@@ -214,16 +275,7 @@ function drawnWidthPx(map: MapLibreMap, roadClass: string, zoom: number): number
   return stops[stops.length - 1][1];
 }
 
-/** Fração 0..1 de um ciclo "ida e volta" (triangular) no instante `elapsedS`. */
-function triangleWave(elapsedS: number, phase: number, cycleS: number): { fraction: number; reverse: boolean } {
-  if (cycleS <= 0) return { fraction: 0, reverse: false };
-  const half = cycleS / 2;
-  const t = (((elapsedS + phase * cycleS) % cycleS) + cycleS) % cycleS;
-  if (t <= half) return { fraction: t / half, reverse: false };
-  return { fraction: 1 - (t - half) / half, reverse: true };
-}
-
-/** Exibe carros 3D andando ida-e-volta pelas vias do bairro ou loteamento em foco.
+/** Exibe carros 3D andando pelas vias (sempre virando à direita nos cruzamentos) do bairro ou loteamento em foco.
  *
  * Fonte: Overture Maps (tema `transportation`, layer `segment`), fonte
  * vetorial remota. Modelos: pack glTF local. Animada: mantém um
@@ -238,8 +290,9 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
   const sceneRef = useRef<CarScene | null>(null);
   const rafRef = useRef<number | null>(null);
   const publishCarsRef = useRef<((roads: Road[]) => void) | null>(null);
-  // Relógio único: reiniciar o loop de animação não pode teletransportar os carros.
-  const clockStartRef = useRef(performance.now());
+  const graphRef = useRef<RoadGraph>({ roads: new Map(), nodes: new Map() });
+  /** Vias que já receberam carros — carros migram entre vias, então "tem carro agora" não serve. */
+  const spawnedRef = useRef(new Set<string>());
   const targetRef = useRef<ClipTarget | null>(null);
 
   const target: ClipTarget | null = enabled
@@ -274,20 +327,38 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
     if (!refs || !map) return;
     if (!refs.prefabs) return; // reexecutado via publishCarsRef quando o glTF terminar de carregar
 
-    const wanted = new Set(roads.map((road) => road.id));
+    const graph: RoadGraph = { roads: new Map(), nodes: new Map() };
+    for (const road of roads) {
+      const measure = measurePath(road.coordinates, refs.origin);
+      graph.roads.set(road.id, { road, measure });
+      const ends: [string, boolean][] = [
+        [nodeKey(road.coordinates[0]), true],
+        [nodeKey(road.coordinates[road.coordinates.length - 1]), false],
+      ];
+      for (const [key, atStart] of ends) {
+        const list = graph.nodes.get(key);
+        if (list) list.push({ roadId: road.id, atStart });
+        else graph.nodes.set(key, [{ roadId: road.id, atStart }]);
+      }
+    }
+    graphRef.current = graph;
+
+    // Carros cuja via saiu da área carregada somem; os demais seguem.
     refs.active = refs.active.filter((car) => {
-      if (wanted.has(car.roadId)) return true;
+      if (graph.roads.has(car.roadId)) return true;
       refs.scene.remove(car.group);
       return false;
     });
-    const present = new Set(refs.active.map((car) => car.roadId));
+    const spawned = spawnedRef.current;
+    for (const id of spawned) if (!graph.roads.has(id)) spawned.delete(id);
 
     for (const road of roads) {
       if (refs.active.length >= MAX_CARS_TOTAL) break;
-      if (present.has(road.id)) continue;
+      if (spawned.has(road.id)) continue;
 
-      const measure = measurePath(road.coordinates, refs.origin);
+      const { measure } = graph.roads.get(road.id)!;
       if (measure.total < CAR_MIN_SPACING_M) continue;
+      spawned.add(road.id);
 
       const rand = mulberry32(seedFromRing(road.coordinates));
       const count = Math.min(MAX_CARS_PER_SEGMENT, Math.floor(measure.total / CAR_MIN_SPACING_M));
@@ -304,7 +375,10 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
           laneOffset: 0, // 0 = ainda sem escala; o tick calcula
           group,
           measure,
-          phase: rand(),
+          startKey: nodeKey(road.coordinates[0]),
+          endKey: nodeKey(road.coordinates[road.coordinates.length - 1]),
+          dir: rand() < 0.5 ? 1 : -1,
+          dist: rand() * measure.total,
           speedFactor: 0.8 + rand() * 0.4,
         });
       }
@@ -326,17 +400,23 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
     if (rafRef.current !== null || !map) return;
 
     let lastZoom = NaN;
+    let lastNow = performance.now();
     const tick = (now: number) => {
+      const dtS = Math.min(0.1, Math.max(0, (now - lastNow) / 1000)); // teto: aba em background não catapulta carros
+      lastNow = now;
       const refs = sceneRef.current;
       if (refs && refs.active.length > 0) {
-        const elapsedS = (now - clockStartRef.current) / 1000;
         const zoom = map.getZoom();
         const rescale = zoom !== lastZoom;
         lastZoom = zoom;
         const pxPerMeter = pixelsPerMeter(zoom, map.getCenter().lat);
         for (const car of refs.active) {
-          const cycleS = (2 * car.measure.total) / (CAR_SPEED_MPS * car.speedFactor);
-          const { fraction, reverse } = triangleWave(elapsedS, car.phase, cycleS);
+          car.dist += car.dir * CAR_SPEED_MPS * car.speedFactor * dtS;
+          if (car.dir > 0 ? car.dist >= car.measure.total : car.dist <= 0) {
+            advanceAtEnd(car, graphRef.current);
+          }
+          const fraction = car.measure.total > 0 ? Math.min(1, Math.max(0, car.dist / car.measure.total)) : 0;
+          const reverse = car.dir < 0;
           if (rescale || car.laneOffset === 0) {
             // Largura desenhada da via (px) → metros no zoom atual: o carro
             // acompanha a via como ela aparece, não a largura real.
