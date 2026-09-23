@@ -206,6 +206,33 @@ referência visual.
 Nada disso é armazenado no projeto: o arquivo tem cerca de 180 GB e fica na AWS.
 O protocolo PMTiles busca somente os bytes dos tiles necessários por range request.
 
+### Fonte alternativa avaliada e rejeitada: Global Building Atlas
+
+Chegou a existir uma branch (`replace_overture_gba`) trocando o Overture pelo
+**Global Building Atlas** (`GBA.ODbLPolygon`, TUM), buscando um contorno de
+prédios versionado localmente em vez de dependente de um bucket remoto de
+180 GB. A troca funcionou tecnicamente (pipeline de preparo, reprojeção
+EPSG:3857→WGS84, recorte por bairro — tudo certo), mas foi revertida por um
+motivo mais simples: **cobertura**.
+
+Medido diretamente no bairro Centro (mesma área da tabela acima):
+
+| Fonte                    | Edificações |
+| ------------------------ | ----------: |
+| **Overture**              |   **8.188** (tile z14 do centro, área comparável) |
+| **Global Building Atlas** |      **45** (bairro Centro inteiro) |
+
+100% das features do GBA nessa região vêm de `properties.source == "ms"`
+(Microsoft Building Footprints) — o componente OSM do GBA não tem nenhuma
+contribuição aqui, e a cobertura do Microsoft ML sozinho é muito mais rala
+que a combinação de três fontes que o Overture já faz (Google Open Buildings
++ Microsoft ML + OSM). Não é um problema de reprojeção ou de recorte: os
+footprints têm tamanho e posição plausíveis, só existem poucos deles.
+
+Se o GBA for reavaliado no futuro, o próximo passo não é mexer no código —
+é conferir se a cobertura melhorou para o Brasil/Bahia antes de repetir a
+troca.
+
 ### Por que o recorte é feito em JavaScript
 
 O MapLibre não possui um predicado espacial em expressions de style:
