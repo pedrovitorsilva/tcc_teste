@@ -94,7 +94,14 @@ export const MAX_CARS_TOTAL = 150;
  * ~1,57 m de comprimento em escala 1 — pequeno demais pra um carro real
  * (~4,5 m), por isso o fator ~2,9 abaixo. Reajustar se trocar o pack.
  */
-export const CAR_MODEL_SCALE = 0.25;
+export const CAR_MODEL_SCALE = 0.4;
+
+/** Destaque extra (multiplicador) para carros nas rodovias. */
+export const CAR_CLASS_BOOST: Record<string, number> = {
+  motorway: 1.6,
+  trunk: 1.5,
+  primary: 1.3,
+};
 
 /**
  * Offset de rotação (radianos) somado ao heading calculado — compensa o

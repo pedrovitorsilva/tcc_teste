@@ -23,6 +23,7 @@ import {
   CAR_GLTF_URL,
   CAR_MIN_SPACING_M,
   CAR_MODEL_FORWARD_OFFSET,
+  CAR_CLASS_BOOST,
   CAR_MODEL_SCALE,
   CAR_SCALE_FACTOR_MAX,
   CAR_SCALE_FACTOR_MIN,
@@ -342,7 +343,7 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
             const px = drawnWidthPx(map, car.roadClass, zoom);
             const widthM = px === null ? (ROAD_WIDTH_M[car.roadClass] ?? ROAD_WIDTH_DEFAULT_M) : px / pxPerMeter;
             const factor = Math.min(CAR_SCALE_FACTOR_MAX, Math.max(CAR_SCALE_FACTOR_MIN, widthM / ROAD_WIDTH_REF_M));
-            car.group.scale.setScalar(CAR_MODEL_SCALE * factor);
+            car.group.scale.setScalar(CAR_MODEL_SCALE * factor * (CAR_CLASS_BOOST[car.roadClass] ?? 1));
             car.laneOffset = widthM / 4;
           }
           const point = positionAtFraction(car.measure, fraction);
