@@ -28,8 +28,12 @@ export const WATER_WAVE_AMPLITUDE = 0.12;
 /** Velocidade da animação da onda. */
 export const WATER_WAVE_SPEED = 0.6;
 
-/** Comprimento de onda espacial, em metros. */
-export const WATER_WAVE_LENGTH = 6;
+/**
+ * Comprimento de onda espacial, em metros. Precisa ser grande o bastante
+ * pra não virar um padrão de listras finas num lago de centenas de metros
+ * (`sin((x+z)/waveLength)` forma retas diagonais espaçadas por esse valor).
+ */
+export const WATER_WAVE_LENGTH = 45;
 
 export const WATER_OPACITY = 0.85;
 

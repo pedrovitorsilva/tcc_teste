@@ -83,7 +83,12 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uSpeed;
   uniform float uOpacity;
   void main() {
-    float wave = sin((vXz.x + vXz.y) / uWaveLength + uTime * uSpeed);
+    // Duas ondas em direções diferentes (x+z e x-z), pra não formar um
+    // padrão de listras retas perfeitas — um só seno numa lagoa de centenas
+    // de metros gera dezenas de faixas paralelas em vez de ondulação.
+    float waveA = sin((vXz.x + vXz.y) / uWaveLength + uTime * uSpeed);
+    float waveB = sin((vXz.x - vXz.y) / (uWaveLength * 1.37) - uTime * uSpeed * 0.8);
+    float wave = (waveA + waveB) * 0.5;
     vec3 color = uColor + wave * uAmplitude;
     gl_FragColor = vec4(color, uOpacity);
   }
@@ -246,7 +251,9 @@ export function Water3D({
             vertexShader: VERTEX_SHADER,
             fragmentShader: FRAGMENT_SHADER,
             transparent: true,
+            depthTest: false,
             depthWrite: false,
+            side: THREE.DoubleSide,
             uniforms: {
               uTime: { value: 0 },
               uColor: { value: new THREE.Vector3(...WATER_COLOR) },
