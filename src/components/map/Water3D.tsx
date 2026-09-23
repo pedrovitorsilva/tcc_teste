@@ -13,15 +13,20 @@ import { useMap } from "@/components/ui/map";
 import {
   WATER_ATTRIBUTION,
   WATER_COLOR,
+  WATER_DIFFUSE_MAP_URL,
+  WATER_LIGHT_DIR,
   WATER_MIN_ZOOM,
+  WATER_NORMAL_MAP_URL,
   WATER_OPACITY,
   WATER_PMTILES_URL,
   WATER_PROBE_LAYER_ID,
+  WATER_SCROLL_SPEED_A,
+  WATER_SCROLL_SPEED_B,
   WATER_SOURCE_ID,
   WATER_SOURCE_LAYER,
-  WATER_WAVE_AMPLITUDE,
-  WATER_WAVE_LENGTH,
-  WATER_WAVE_SPEED,
+  WATER_SPECULAR_SHININESS,
+  WATER_SPECULAR_STRENGTH,
+  WATER_TEXTURE_TILE_SIZE_M,
 } from "@/config/water";
 import {
   bboxIntersects,
@@ -63,33 +68,58 @@ interface WaterScene {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
   origin: MercatorOrigin;
+  diffuseMap: THREE.Texture;
+  normalMap: THREE.Texture;
 }
 
 const VERTEX_SHADER = /* glsl */ `
-  varying vec2 vXz;
+  varying vec2 vUv;
+  uniform float uTileSize;
   void main() {
-    vXz = position.xz;
+    // UV derivado da posição local (metros) — sem precisar de atributo UV
+    // na geometria, que só tem "position" (ver buildWaterGeometry).
+    vUv = position.xz / uTileSize;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
+// Emula (dentro do que dá em WebGL2 puro, sem reflexo planar/WebGPU) o
+// efeito de webgpu_water.html: duas amostras da normal map em velocidades
+// de scroll diferentes (como o `flowDirection` do Water2Mesh) formam a
+// normal perturbada; um highlight especular Blinn-Phong contra uma luz fixa
+// solta o "brilho de água" por cima do albedo tingido pela cor base.
 const FRAGMENT_SHADER = /* glsl */ `
   precision mediump float;
-  varying vec2 vXz;
+  varying vec2 vUv;
+  uniform sampler2D uDiffuseMap;
+  uniform sampler2D uNormalMap;
   uniform float uTime;
   uniform vec3 uColor;
-  uniform float uAmplitude;
-  uniform float uWaveLength;
-  uniform float uSpeed;
+  uniform vec2 uScrollA;
+  uniform vec2 uScrollB;
+  uniform vec3 uLightDir;
+  uniform float uSpecularStrength;
+  uniform float uShininess;
   uniform float uOpacity;
+
   void main() {
-    // Duas ondas em direções diferentes (x+z e x-z), pra não formar um
-    // padrão de listras retas perfeitas — um só seno numa lagoa de centenas
-    // de metros gera dezenas de faixas paralelas em vez de ondulação.
-    float waveA = sin((vXz.x + vXz.y) / uWaveLength + uTime * uSpeed);
-    float waveB = sin((vXz.x - vXz.y) / (uWaveLength * 1.37) - uTime * uSpeed * 0.8);
-    float wave = (waveA + waveB) * 0.5;
-    vec3 color = uColor + wave * uAmplitude;
+    vec2 uvA = vUv + uTime * uScrollA;
+    vec2 uvB = vUv + uTime * uScrollB;
+
+    vec3 normalA = texture2D(uNormalMap, uvA).rgb * 2.0 - 1.0;
+    vec3 normalB = texture2D(uNormalMap, uvB).rgb * 2.0 - 1.0;
+    vec3 normal = normalize(normalA + normalB);
+
+    vec3 albedo = texture2D(uDiffuseMap, uvA).rgb * uColor;
+
+    // Sem posição de câmera real (nossa THREE.Camera só tem projectionMatrix
+    // customizada, sem transform de mundo) — aproxima a vista como "de cima".
+    vec3 viewDir = vec3(0.0, 1.0, 0.0);
+    vec3 lightDir = normalize(uLightDir);
+    vec3 halfDir = normalize(lightDir + viewDir);
+    float specular = pow(max(dot(normal, halfDir), 0.0), uShininess) * uSpecularStrength;
+
+    vec3 color = albedo + specular;
     gl_FragColor = vec4(color, uOpacity);
   }
 `;
@@ -247,6 +277,17 @@ export function Water3D({
           });
           renderer.autoClear = false;
 
+          const textureLoader = new THREE.TextureLoader();
+          const diffuseMap = textureLoader.load(WATER_DIFFUSE_MAP_URL);
+          const normalMap = textureLoader.load(WATER_NORMAL_MAP_URL);
+          // MirroredRepeat, não Repeat: a foto de água não é uma textura
+          // seamless (a borda direita não bate com a esquerda) — com Repeat
+          // isso aparece como uma linha escura a cada 20m (WATER_TEXTURE_TILE_SIZE_M),
+          // onde o tile recomeça. Espelhar garante que a borda sempre bate
+          // com ela mesma, sem salto de cor.
+          diffuseMap.wrapS = diffuseMap.wrapT = THREE.MirroredRepeatWrapping;
+          normalMap.wrapS = normalMap.wrapT = THREE.MirroredRepeatWrapping;
+
           const material = new THREE.ShaderMaterial({
             vertexShader: VERTEX_SHADER,
             fragmentShader: FRAGMENT_SHADER,
@@ -257,9 +298,14 @@ export function Water3D({
             uniforms: {
               uTime: { value: 0 },
               uColor: { value: new THREE.Vector3(...WATER_COLOR) },
-              uAmplitude: { value: WATER_WAVE_AMPLITUDE },
-              uWaveLength: { value: WATER_WAVE_LENGTH },
-              uSpeed: { value: WATER_WAVE_SPEED },
+              uDiffuseMap: { value: diffuseMap },
+              uNormalMap: { value: normalMap },
+              uTileSize: { value: WATER_TEXTURE_TILE_SIZE_M },
+              uScrollA: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_A) },
+              uScrollB: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_B) },
+              uLightDir: { value: new THREE.Vector3(...WATER_LIGHT_DIR) },
+              uSpecularStrength: { value: WATER_SPECULAR_STRENGTH },
+              uShininess: { value: WATER_SPECULAR_SHININESS },
               uOpacity: { value: WATER_OPACITY },
             },
           });
@@ -267,7 +313,7 @@ export function Water3D({
           const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
           scene.add(mesh);
 
-          sceneRef.current = { scene, renderer, mesh, material, origin };
+          sceneRef.current = { scene, renderer, mesh, material, origin, diffuseMap, normalMap };
         },
         render(gl, options) {
           const refs = sceneRef.current;
@@ -288,6 +334,8 @@ export function Water3D({
 
           refs.mesh.geometry.dispose();
           refs.material.dispose();
+          refs.diffuseMap.dispose();
+          refs.normalMap.dispose();
           refs.renderer.dispose();
           sceneRef.current = null;
         },
