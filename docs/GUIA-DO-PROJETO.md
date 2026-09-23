@@ -19,8 +19,9 @@ O mapa mostra três níveis de divisão do território, do maior para o menor:
 | **Loteamento** | Um recorte dentro de um bairro. |
 | **Setor censitário** | A malha do IBGE, usada como camada de referência. |
 
-Clicando num bairro, ele é enquadrado no mapa, os prédios daquela área sobem em
-3D e uma ficha lateral mostra os loteamentos que existem ali dentro. Além disso, o
+Clicando num bairro, ele é enquadrado no mapa e uma ficha lateral mostra os
+loteamentos que existem ali dentro. Três botões deixam ligar, por cima da área
+selecionada, prédios, vegetação e água em 3D (seções 9, 10 e 11). Além disso, o
 usuário pode buscar um lugar pelo nome, ligar e desligar cada nível, e trocar entre
 três temas visuais (claro, escuro e "antigo", que imita um mapa de pergaminho).
 
@@ -119,6 +120,8 @@ src/
 │   ├── map/                O que é desenhado no mapa
 │   │   ├── MapLayers.tsx   Criação de camadas (refatorado em Fase 3)
 │   │   ├── Buildings3D.tsx Prédios 3D
+│   │   ├── Trees3D.tsx     Vegetação 3D (seção 10)
+│   │   ├── Water3D.tsx     Água 3D (seção 11)
 │   │   └── FloatingTitle.tsx Rótulo no topo
 │   ├── panel/              A ficha lateral (desktop) e a folha inferior (mobile)
 │   ├── theme/              Tema (ThemeProvider)
@@ -135,7 +138,7 @@ src/
 ├── lib/                  Funções de apoio, sem tela
 │   ├── color/              Tema, paletas e conversão de cores
 │   └── map/                Contas e utilidades de mapa
-├── config/               Valores ajustáveis (quais níveis existem, prédios)
+├── config/               Valores ajustáveis (quais níveis existem, prédios, vegetação, água)
 └── types/                Vocabulário de tipos compartilhado
 
 public/data/              Os arquivos GeoJSON servidos para o navegador
@@ -336,7 +339,68 @@ a altura, como dito na seção 6, é estimada a partir da área.
 
 ---
 
-## 10. Onde mexer para...
+## 10. Vegetação 3D
+
+```mermaid
+flowchart LR
+    ov["Overture Maps<br/>cobertura do solo + uso da terra"] --> tipos["mata, campo, arbusto,<br/>brejo, parque"]
+    sel["bairro ou loteamento<br/>selecionado"] --> clip
+    tipos --> clip["quais manchas caem<br/>dentro do polígono?"]
+    clip --> arv["árvores 3D espalhadas<br/>dentro de cada mancha"]
+```
+
+O botão "Vegetação 3D" liga árvores dentro do bairro ou loteamento em foco, na
+mesma lógica de recorte dos prédios (seção 9). A diferença é a fonte: em vez do
+contorno de edificações, vêm duas informações do Overture — **cobertura do
+solo** (é mata? é campo aberto? é um brejo?) e **uso da terra** (é um parque?).
+Cada mancha desse tipo vira um punhado de árvores sorteadas dentro dela, com
+densidade diferente por tipo: uma mata fica bem mais cheia de árvores que um
+campo aberto ou um parque, do jeito que seria na vida real.
+
+Três detalhes que não são óbvios:
+
+- **As árvores são desenhadas de verdade em 3D** — tronco e copa como formas
+  sólidas, não um ícone plano. O MapLibre sozinho não sabe desenhar isso; o
+  projeto usa uma engine 3D própria (Three.js) rodando *dentro* do mapa,
+  compartilhando a mesma tela.
+- **O sorteio das posições é sempre o mesmo** para o mesmo pedaço de terreno.
+  Parece aleatório, mas é calculado a partir da forma da mancha — se fosse
+  aleatório de verdade, as árvores "pulariam" de lugar toda vez que o mapa
+  fosse redesenhado (ao arrastar ou dar zoom, por exemplo).
+- **Árvore nunca nasce dentro d'água.** Antes de aceitar cada posição
+  sorteada, o projeto confere se ela não cai em cima de um lago ou rio —
+  importante porque mata e brejo às vezes encostam na beira da água nos
+  próprios dados do Overture.
+
+## 11. Água 3D
+
+```mermaid
+flowchart LR
+    ov["Overture Maps<br/>contorno de lagos e rios"] --> clip
+    sel["bairro ou loteamento<br/>selecionado"] --> clip["qual água cai<br/>dentro do polígono?"]
+    clip --> agua["superfície 3D animada,<br/>com ondulação e brilho"]
+```
+
+O botão "Água 3D" funciona igual ao de vegetação: mostra lagos, rios e lagoas
+dentro do bairro ou loteamento em foco, também vindos do Overture. A diferença
+é que a água é **animada** — ela ondula e brilha sozinha, sem o usuário
+interagir, enquanto o toggle estiver ligado.
+
+Esse efeito também é desenhado pela mesma engine 3D (Three.js): uma foto real
+de água cobre a superfície, e uma segunda imagem (um "mapa de relevo" da
+água) faz o brilho da luz se mover como se houvesse ondulação de verdade.
+
+Um detalhe que parece estranho à primeira vista: a água é **opaca**, não
+deixa nada por baixo aparecer. Isso é proposital — lagos grandes cruzam a
+fronteira entre pedaços dos dados do mapa, e o mesmo trecho de água acaba
+chegando duplicado; com transparência, o trecho duplicado ficava visivelmente
+mais escuro (duas camadas semitransparentes por cima uma da outra), formando
+uma linha feia bem no meio do lago. Deixando opaco, a duplicata desenha
+exatamente a mesma cor por cima — sem esse problema.
+
+---
+
+## 12. Onde mexer para...
 
 | Quero... | Mexo em |
 |---|---|
@@ -345,6 +409,8 @@ a altura, como dito na seção 6, é estimada a partir da área.
 | Mudar espessura de traço ou nome de um nível | `src/config/levels.ts` |
 | Mudar quais camadas começam ligadas | `src/config/levels.ts` (`DEFAULT_LAYER_TOGGLES`) |
 | Ajustar altura, zoom mínimo ou fonte dos prédios | `src/config/buildings.ts` |
+| Ajustar densidade, tipos ou aparência da vegetação | `src/config/vegetation.ts` |
+| Ajustar cor, ondulação ou brilho da água | `src/config/water.ts` |
 | Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
 | Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
 | Mudar como os dados são preparados | `scripts/prepare-data.mjs` (e rodar `npm run prepare-data`) |
@@ -359,7 +425,7 @@ foi distribuída em hooks especializados. Para hooks de estado/interação, veja
 `useMapLayerHandlers`. Para criação/visibilidade de camadas, veja `src/hooks/map/`.
 
 ---
-## 11. Para saber mais
+## 13. Para saber mais
 
 | Documento | Para quê |
 |---|---|

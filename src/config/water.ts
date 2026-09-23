@@ -22,8 +22,6 @@ export const WATER_MIN_ZOOM = 13;
 /** Cor base da água (RGB 0-1, consumido direto pelo shader). */
 export const WATER_COLOR: [number, number, number] = [0.16, 0.42, 0.58];
 
-export const WATER_OPACITY = 0.80;
-
 // Textura de água: albedo + normal map (tangent-space), mesmo pack, 512×512.
 export const WATER_DIFFUSE_MAP_URL = '/water/Water_diffuse_texture.jpg';
 export const WATER_NORMAL_MAP_URL = '/water/Water_texture.jpg';
@@ -39,8 +37,8 @@ export const WATER_TEXTURE_TILE_SIZE_M = 20;
  * uma das duas amostras da textura — direções diferentes pra não
  * sincronizar visualmente (mesma ideia do `flowDirection` do Water2Mesh).
  */
-export const WATER_SCROLL_SPEED_A: [number, number] = [0.02, 0.012];
-export const WATER_SCROLL_SPEED_B: [number, number] = [-0.015, 0.02];
+export const WATER_SCROLL_SPEED_A: [number, number] = [0.06, 0.072];
+export const WATER_SCROLL_SPEED_B: [number, number] = [-0.09, 0.02];
 
 /** Intensidade e "foco" (expoente) do brilho especular. */
 export const WATER_SPECULAR_STRENGTH = 0.6;

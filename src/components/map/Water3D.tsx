@@ -17,7 +17,6 @@ import {
   WATER_LIGHT_DIR,
   WATER_MIN_ZOOM,
   WATER_NORMAL_MAP_URL,
-  WATER_OPACITY,
   WATER_PMTILES_URL,
   WATER_PROBE_LAYER_ID,
   WATER_SCROLL_SPEED_A,
@@ -100,7 +99,6 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uLightDir;
   uniform float uSpecularStrength;
   uniform float uShininess;
-  uniform float uOpacity;
 
   void main() {
     vec2 uvA = vUv + uTime * uScrollA;
@@ -120,7 +118,12 @@ const FRAGMENT_SHADER = /* glsl */ `
     float specular = pow(max(dot(normal, halfDir), 0.0), uShininess) * uSpecularStrength;
 
     vec3 color = albedo + specular;
-    gl_FragColor = vec4(color, uOpacity);
+    // Opaco de propósito: polígonos de água grandes cruzam borda de tile do
+    // MVT e o mesmo trecho acaba desenhado 2x (buffer de tile do
+    // querySourceFeatures) — com alpha blending isso empilhava e escurecia
+    // a costura. Como o shader é função pura da posição, a segunda cópia
+    // desenha o pixel idêntico por cima — sem blending, sem escurecer.
+    gl_FragColor = vec4(color, 1.0);
   }
 `;
 
@@ -280,18 +283,19 @@ export function Water3D({
           const textureLoader = new THREE.TextureLoader();
           const diffuseMap = textureLoader.load(WATER_DIFFUSE_MAP_URL);
           const normalMap = textureLoader.load(WATER_NORMAL_MAP_URL);
-          // MirroredRepeat, não Repeat: a foto de água não é uma textura
-          // seamless (a borda direita não bate com a esquerda) — com Repeat
-          // isso aparece como uma linha escura a cada 20m (WATER_TEXTURE_TILE_SIZE_M),
-          // onde o tile recomeça. Espelhar garante que a borda sempre bate
-          // com ela mesma, sem salto de cor.
-          diffuseMap.wrapS = diffuseMap.wrapT = THREE.MirroredRepeatWrapping;
-          normalMap.wrapS = normalMap.wrapT = THREE.MirroredRepeatWrapping;
+          // Repeat "sequencial" simples — MirroredRepeat foi testado e
+          // trocado: com uma textura de listras diagonais, cada repetição
+          // espelhada forma losangos/borboletas nos encontros de tile, bem
+          // mais visível que a costura que tentava evitar. A costura em si
+          // já não escurece mais porque o material é opaco (ver comentário
+          // no fragment shader) — a costura fica só numa emenda de textura,
+          // não numa faixa escura empilhada.
+          diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
+          normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
           const material = new THREE.ShaderMaterial({
             vertexShader: VERTEX_SHADER,
             fragmentShader: FRAGMENT_SHADER,
-            transparent: true,
             depthTest: false,
             depthWrite: false,
             side: THREE.DoubleSide,
@@ -306,7 +310,6 @@ export function Water3D({
               uLightDir: { value: new THREE.Vector3(...WATER_LIGHT_DIR) },
               uSpecularStrength: { value: WATER_SPECULAR_STRENGTH },
               uShininess: { value: WATER_SPECULAR_SHININESS },
-              uOpacity: { value: WATER_OPACITY },
             },
           });
 

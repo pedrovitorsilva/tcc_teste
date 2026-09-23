@@ -4,7 +4,7 @@
 // `land_use`), por HTTP range request — mesmo padrão do Buildings3D, com uma
 // cena Three.js própria (CustomLayerInterface) no lugar de fill-extrusion nativo.
 import { useEffect, useMemo, useRef } from "react";
-import type { Geometry } from "geojson";
+import type { Geometry, Position } from "geojson";
 import type { CustomLayerInterface, MapSourceDataEvent } from "maplibre-gl";
 import * as THREE from "three";
 import { useMap } from "@/components/ui/map";
@@ -29,6 +29,9 @@ import {
   VEGETATION_SOURCE_ID,
   VEGETATION_SOURCE_LAYER,
   VEGETATION_SUBTYPES,
+  VEGETATION_WATER_PROBE_LAYER_ID,
+  VEGETATION_WATER_SOURCE_ID,
+  VEGETATION_WATER_SOURCE_LAYER,
   type AnyVegetationSubtype,
 } from "@/config/vegetation";
 import {
@@ -177,6 +180,18 @@ export function Trees3D({
       });
     }
 
+    // Terceira source só pra saber onde tem água e não espalhar árvore lá
+    // (land_cover/land_use podem se sobrepor com `water` na borda, ex.:
+    // wetland encostando num lago). Independente da source do Water3D —
+    // os dois toggles ligam/desligam sem depender um do outro.
+    if (!map.getSource(VEGETATION_WATER_SOURCE_ID)) {
+      map.addSource(VEGETATION_WATER_SOURCE_ID, {
+        type: "vector",
+        url: VEGETATION_PMTILES_URL,
+        attribution: VEGETATION_ATTRIBUTION,
+      });
+    }
+
     // Camada invisível que mantém a source marcada como "used" — sem isso o
     // MapLibre não tila os dados e querySourceFeatures não retorna nada
     // (mesma lição de Buildings3D/§3, vale pra qualquer source).
@@ -197,6 +212,17 @@ export function Trees3D({
         type: "fill",
         source: VEGETATION_LANDUSE_SOURCE_ID,
         "source-layer": VEGETATION_LANDUSE_SOURCE_LAYER,
+        minzoom: VEGETATION_MIN_ZOOM,
+        paint: { "fill-opacity": 0 },
+      });
+    }
+
+    if (!map.getLayer(VEGETATION_WATER_PROBE_LAYER_ID)) {
+      map.addLayer({
+        id: VEGETATION_WATER_PROBE_LAYER_ID,
+        type: "fill",
+        source: VEGETATION_WATER_SOURCE_ID,
+        "source-layer": VEGETATION_WATER_SOURCE_LAYER,
         minzoom: VEGETATION_MIN_ZOOM,
         paint: { "fill-opacity": 0 },
       });
@@ -282,10 +308,16 @@ export function Trees3D({
 
     return () => {
       if (map.getLayer(TREES_LAYER_ID)) map.removeLayer(TREES_LAYER_ID);
+      if (map.getLayer(VEGETATION_WATER_PROBE_LAYER_ID)) {
+        map.removeLayer(VEGETATION_WATER_PROBE_LAYER_ID);
+      }
       if (map.getLayer(VEGETATION_LANDUSE_PROBE_LAYER_ID)) {
         map.removeLayer(VEGETATION_LANDUSE_PROBE_LAYER_ID);
       }
       if (map.getLayer(VEGETATION_PROBE_LAYER_ID)) map.removeLayer(VEGETATION_PROBE_LAYER_ID);
+      if (map.getSource(VEGETATION_WATER_SOURCE_ID)) {
+        map.removeSource(VEGETATION_WATER_SOURCE_ID);
+      }
       if (map.getSource(VEGETATION_LANDUSE_SOURCE_ID)) {
         map.removeSource(VEGETATION_LANDUSE_SOURCE_ID);
       }
@@ -354,6 +386,22 @@ export function Trees3D({
         }
       }
 
+      // Anéis de água no viewport — testados por polígono a cada ponto
+      // sorteado, pra não deixar árvore nascer dentro d'água (land_cover/
+      // land_use pode se sobrepor com `water` na borda).
+      const waterFeatures = map.querySourceFeatures(VEGETATION_WATER_SOURCE_ID, {
+        sourceLayer: VEGETATION_WATER_SOURCE_LAYER,
+      });
+      const waterRings: Position[][] = [];
+      for (const feature of waterFeatures) {
+        const ring = outerRing(feature.geometry);
+        if (!ring) continue;
+        if (!bboxIntersects(ringBBox(ring), viewportBBox)) continue;
+        waterRings.push(ring);
+      }
+      const isOnWater = (point: [number, number]) =>
+        waterRings.some((ring) => pointInPolygon(point, { type: "Polygon", coordinates: [ring] }));
+
       const { bbox } = target;
       const positions: [number, number][] = [];
 
@@ -383,7 +431,9 @@ export function Trees3D({
         );
         if (treeCount <= 0) continue;
 
-        positions.push(...randomPointsInRing(ring, treeCount));
+        for (const point of randomPointsInRing(ring, treeCount)) {
+          if (!isOnWater(point)) positions.push(point);
+        }
 
         if (positions.length >= MAX_TREES_TOTAL) break;
       }
@@ -392,7 +442,8 @@ export function Trees3D({
 
       if (
         map.isSourceLoaded(VEGETATION_SOURCE_ID) &&
-        map.isSourceLoaded(VEGETATION_LANDUSE_SOURCE_ID)
+        map.isSourceLoaded(VEGETATION_LANDUSE_SOURCE_ID) &&
+        map.isSourceLoaded(VEGETATION_WATER_SOURCE_ID)
       ) {
         cacheRef.current.set(target.key, clipped);
       }
@@ -407,7 +458,9 @@ export function Trees3D({
 
     const handleSourceData = (event: MapSourceDataEvent) => {
       const isOurs =
-        event.sourceId === VEGETATION_SOURCE_ID || event.sourceId === VEGETATION_LANDUSE_SOURCE_ID;
+        event.sourceId === VEGETATION_SOURCE_ID ||
+        event.sourceId === VEGETATION_LANDUSE_SOURCE_ID ||
+        event.sourceId === VEGETATION_WATER_SOURCE_ID;
       if (isOurs && event.isSourceLoaded) schedule();
     };
 

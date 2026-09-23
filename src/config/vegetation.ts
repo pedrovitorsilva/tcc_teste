@@ -25,6 +25,17 @@ export const VEGETATION_LANDUSE_SOURCE_ID = 'overture-landuse';
 export const VEGETATION_LANDUSE_SOURCE_LAYER = 'land_use';
 export const VEGETATION_LANDUSE_PROBE_LAYER_ID = 'overture-landuse-probe';
 
+/**
+ * Terceira source, só pra excluir água: land_cover/land_use podem se
+ * sobrepor com `water` na borda (ex.: wetland encostando num lago) e
+ * espalhar árvore dentro d'água. Fonte própria (não reaproveita a source do
+ * Water3D) porque os dois componentes ligam/desligam independentemente —
+ * se a água estiver desligada, a source do Water3D nem existe.
+ */
+export const VEGETATION_WATER_SOURCE_ID = 'overture-vegetation-water-check';
+export const VEGETATION_WATER_SOURCE_LAYER = 'water';
+export const VEGETATION_WATER_PROBE_LAYER_ID = 'overture-vegetation-water-check-probe';
+
 /** Zoom mínimo pra exibir vegetação — o tileset do tema `base` tem maxzoom 13. */
 export const VEGETATION_MIN_ZOOM = 13;
 
