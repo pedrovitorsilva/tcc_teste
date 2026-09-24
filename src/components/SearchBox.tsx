@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { LevelId } from "@/types/map";
+import { SearchIcon } from "./icons";
 
 interface SearchBoxProps {
   bairros: IndexedFeature[];
@@ -11,9 +12,10 @@ interface SearchBoxProps {
   onPreview: (feature: IndexedFeature | null) => void;
   onSelect: (level: LevelId, name: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
-/** 
+/**
  * Map Search Bar Engine. Search for neightborhoods and districts.
 */
 export function SearchBox({
@@ -22,6 +24,7 @@ export function SearchBox({
   onPreview,
   onSelect,
   className,
+  placeholder = "Buscar bairro ou loteamento...",
 }: SearchBoxProps) {
 
   const [query, setQuery] = useState("");
@@ -58,16 +61,19 @@ export function SearchBox({
 
   return (
     <div ref={rootRef} className={className}>
-      <input
-        type="text"
-        value={query}
-        onChange={(event) => handleChange(event.target.value)}
-        placeholder="Buscar bairro ou loteamento..."
-        autoComplete="off"
-        aria-label="Buscar bairro ou loteamento"
-        aria-expanded={showResults}
-        className="w-full rounded-[22px] border border-cv-border bg-panel px-4 py-2.5 text-[15px] text-ink placeholder:text-ink-faint placeholder:italic focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-      />
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink-faint" />
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => handleChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          aria-label="Buscar bairro ou loteamento"
+          aria-expanded={showResults}
+          className="w-full rounded-[22px] border border-cv-border bg-panel py-2.5 pl-10 pr-4 text-[15px] text-ink placeholder:text-ink-faint placeholder:italic focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        />
+      </div>
 
       {showResults && (
         <div
@@ -117,7 +123,7 @@ function SearchResult({ feature, onPreview, onSelect }: SearchResultProps) {
       onBlur={() => onPreview(null)}
       onClick={() => onSelect(feature)}
       onKeyDown={handleKeyDown}
-      className="flex min-h-11 cursor-pointer items-center justify-between px-3.5 py-2 text-sm hover:bg-panel-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+      className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-sm hover:bg-panel-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
     >
       <span>{feature.name}</span>
 

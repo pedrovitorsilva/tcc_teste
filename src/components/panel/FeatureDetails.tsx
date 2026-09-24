@@ -1,7 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CartographerNote } from "@/components/panel/CartographerNote";
 import { BuildingsNote } from "@/components/panel/BuildingsNote";
+import { CarsNote } from "@/components/panel/CarsNote";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { LevelId, Selection } from "@/types/map";
 import { cn } from "@/lib/utils";
@@ -18,6 +20,9 @@ interface FeatureDetailsProps {
   selection: Selection;
   loteamentos: IndexedFeature[];
   buildingCount: number;
+  vehiclesCount: number;
+  buildingsEnabled: boolean;
+  carsEnabled: boolean;
   onSelectLoteamento: (name: string) => void;
   /** Mirrors hover from search list to corresponding polygon on map.
    *
@@ -66,33 +71,42 @@ export function FeatureDetails({
   selection,
   loteamentos,
   buildingCount,
+  vehiclesCount,
+  buildingsEnabled,
+  carsEnabled,
   onSelectLoteamento,
   onHoverLoteamento,
 }: FeatureDetailsProps) {
+  const notes = (
+    <div>
+      <BuildingsNote count={buildingCount} enabled={buildingsEnabled} />
+      <CarsNote count={vehiclesCount} enabled={carsEnabled} />
+    </div>
+  );
   if (selection.level === "bairro") {
     return (
       <BairroBody
         bairroName={selection.name}
         loteamentos={loteamentos}
-        buildingCount={buildingCount}
+        notes={notes}
         onSelectLoteamento={onSelectLoteamento}
         onHoverLoteamento={onHoverLoteamento}
       />
     );
   }
-  return <LoteamentoBody selection={selection} />;
+  return <LoteamentoBody selection={selection} notes={notes} />;
 }
 
 function BairroBody({
   bairroName,
   loteamentos,
-  buildingCount,
+  notes,
   onSelectLoteamento,
   onHoverLoteamento,
 }: {
   bairroName: string;
   loteamentos: IndexedFeature[];
-  buildingCount: number;
+  notes: ReactNode;
   onSelectLoteamento: (name: string) => void;
   onHoverLoteamento?: (name: string | null) => void;
 }) {
@@ -135,16 +149,16 @@ function BairroBody({
         ))}
       </div>
 
-      <div>
-        <BuildingsNote count={buildingCount} />
-      </div>
+      {notes}
     </>
   );
 }
 
 function LoteamentoBody({
+  notes,
   selection,
 }: {
+  notes: ReactNode;
   selection: Selection;
 }) {
   const isReliable = selection.properties.is_reliable !== false;
@@ -164,6 +178,8 @@ function LoteamentoBody({
           {isReliable ? "Confirmada" : "Não confirmada"}
         </span>
       </div>
+
+      {notes}
     </>
   );
 }

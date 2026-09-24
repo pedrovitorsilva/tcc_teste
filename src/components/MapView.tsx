@@ -8,7 +8,7 @@ import { useMapStyles } from "@/hooks/useMapStyles";
 import { useGeoIndex } from "@/hooks/useGeoIndex";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useMapInteraction } from "@/hooks/useMapInteraction";
-import { PREVIEW_FRACTION, EXPANDED_FRACTION } from "@/hooks/useBottomSheetDrag";
+import { PREVIEW_FRACTION } from "@/hooks/useBottomSheetDrag";
 import { DEFAULT_LAYER_TOGGLES } from "@/config/levels";
 import type {
   FloatingTitleState,
@@ -55,6 +55,7 @@ export function MapView() {
     DEFAULT_LAYER_TOGGLES,
   );
   const [buildingCount, setBuildingCount] = useState(0);
+  const [vehiclesCount, setVehiclesCount] = useState(0);
   const [buildingsEnabled, setBuildingsEnabled] = useState(false);
   const [vegetationEnabled, setVegetationEnabled] = useState(false);
   const [waterEnabled, setWaterEnabled] = useState(false);
@@ -111,13 +112,6 @@ export function MapView() {
       right: 24,
     };
   }, [isMobile]);
-
-  const sheetHeightFraction =
-    sheetSnap === "expanded" ? EXPANDED_FRACTION : PREVIEW_FRACTION;
-  const layerButtonBottom =
-    isMobile && selection
-      ? `calc(${sheetHeightFraction * 100}vh + 12px)`
-      : "18px";
 
   const optionsListProps = {
     layerToggles,
@@ -188,6 +182,7 @@ export function MapView() {
             hoveredBairro={hoveredBairro}
             bairros={bairros}
             loteamentos={loteamentos}
+            onCountChange={setVehiclesCount}
           />
         </Map>
 
@@ -199,6 +194,7 @@ export function MapView() {
                 loteamentos={loteamentos}
                 onPreview={handlePreview}
                 onSelect={handleNavigate}
+                placeholder={isMobile ? "Pesquisar..." : "Buscar bairro ou loteamento..."}
               />
             </div>
 
@@ -212,16 +208,7 @@ export function MapView() {
             </div>
           </div>
 
-          <div
-            className="pointer-events-auto absolute left-[18px] hidden items-end gap-2 transition-[bottom] duration-300 md:flex"
-            style={{ bottom: "18px" }}
-          >
-            <OptionsList {...optionsListProps} />
-          </div>
-          <div
-            className="pointer-events-auto absolute left-[18px] flex gap-2 transition-[bottom] duration-300 md:hidden"
-            style={{ bottom: layerButtonBottom }}
-          >
+          <div className="pointer-events-auto absolute bottom-[18px] left-[18px] flex items-end gap-2">
             <OptionsList {...optionsListProps} />
           </div>
         </div>
@@ -233,6 +220,9 @@ export function MapView() {
           selection={selection}
           loteamentos={loteamentos}
           buildingCount={buildingCount}
+          vehiclesCount={vehiclesCount}
+          buildingsEnabled={buildingsEnabled}
+          carsEnabled={carsEnabled}
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
@@ -244,6 +234,9 @@ export function MapView() {
           selection={selection}
           loteamentos={loteamentos}
           buildingCount={buildingCount}
+          vehiclesCount={vehiclesCount}
+          buildingsEnabled={buildingsEnabled}
+          carsEnabled={carsEnabled}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
           onClose={handleClose}

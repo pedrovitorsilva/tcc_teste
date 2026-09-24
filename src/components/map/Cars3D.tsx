@@ -72,6 +72,8 @@ interface Cars3DProps {
   hoveredBairro: HoveredBairro | null;
   bairros: IndexedFeature[];
   loteamentos: IndexedFeature[];
+  /** Informa quantos veículos estão sendo exibidos. */
+  onCountChange?: (count: number) => void;
 }
 
 interface ClipTarget {
@@ -282,8 +284,10 @@ function drawnWidthPx(map: MapLibreMap, roadClass: string, zoom: number): number
  * `requestAnimationFrame` próprio, ligado só enquanto `enabled` e houver
  * alvo — mesmo padrão de `Water3D.tsx`.
  */
-export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos }: Cars3DProps) {
+export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos, onCountChange }: Cars3DProps) {
   const { map, isLoaded } = useMap();
+  const onCountChangeRef = useRef(onCountChange);
+  onCountChangeRef.current = onCountChange;
 
   const cacheRef = useRef(new Map<string, Road[]>());
   const lastRoadsRef = useRef<Road[]>([]);
@@ -384,6 +388,7 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
       }
     }
 
+    onCountChangeRef.current?.(refs.active.length);
     map.triggerRepaint();
   };
   publishCarsRef.current = publishCars;
@@ -532,6 +537,7 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
     }
 
     return () => {
+      onCountChangeRef.current?.(0);
       stopAnimation();
       if (map.getLayer(CARS_LAYER_ID)) map.removeLayer(CARS_LAYER_ID);
       if (map.getLayer(CARS_PROBE_LAYER_ID)) map.removeLayer(CARS_PROBE_LAYER_ID);

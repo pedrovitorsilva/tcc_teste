@@ -117,6 +117,5 @@ export const CAR_MODEL_FORWARD_OFFSET = 0;
  */
 export const CARS_ATTRIBUTION =
   '<a href="https://overturemaps.org" target="_blank" rel="noreferrer">© Overture Maps Foundation</a> · ' +
-  'This work is based on <a href="https://sketchfab.com/3d-models/free-low-poly-vehicles-pack-cb7640039e7a40679a53be705ebff50e" target="_blank" rel="noreferrer">"Free Low Poly Vehicles Pack"</a> ' +
-  'by <a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">RgsDev</a> licensed under ' +
+  '<a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">RgsDev</a> · ' +
   '<a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY-4.0</a>';

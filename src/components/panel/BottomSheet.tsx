@@ -10,6 +10,9 @@ interface BottomSheetProps {
   selection: Selection | null;
   loteamentos: IndexedFeature[];
   buildingCount: number;
+  vehiclesCount: number;
+  buildingsEnabled: boolean;
+  carsEnabled: boolean;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
@@ -24,6 +27,9 @@ export function BottomSheet({
   selection,
   loteamentos,
   buildingCount,
+  vehiclesCount,
+  buildingsEnabled,
+  carsEnabled,
   snap,
   onSnapChange,
   onClose,
@@ -105,6 +111,9 @@ export function BottomSheet({
             selection={selection}
             loteamentos={loteamentos}
             buildingCount={buildingCount}
+            vehiclesCount={vehiclesCount}
+            buildingsEnabled={buildingsEnabled}
+            carsEnabled={carsEnabled}
             onSelectLoteamento={(name) => onNavigate('loteamento', name)}
           />
         )}
