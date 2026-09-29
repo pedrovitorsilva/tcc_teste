@@ -1,6 +1,6 @@
 import {
-  LandingHeader, Hero, LocatorSection, ProblemSection, ImportanceSection, CtaSection,
-  ProposalSection, TransparencySection, Faq, FinalCta, LandingFooter, StickyMobileCta,
+  LandingHeader, Hero, ProblemSection, ImportanceSection, CtaSection,
+  ProposalSection, TransparencySection, FinalCta, LandingFooter, StickyMobileCta,
 } from '@/components/landing';
 
 export default function Landing() {
@@ -15,7 +15,6 @@ export default function Landing() {
           cta_primary={{ text: 'Explorar o mapa', href: '/map' }}
           cta_secondary={{ text: 'Ler o projeto (PDF)', href: '/api/projeto' }}
         />
-        <LocatorSection />
         <ProblemSection
           content={{
             kicker: 'O problema',
@@ -63,24 +62,6 @@ export default function Landing() {
               'Em vez de repartir essa sobra em silêncio entre os vizinhos, o método mostra esse resíduo à parte. A página diz o que sobrou e por que sobrou, para você saber até onde os números são confiáveis.',
             ],
           }}
-        />
-        <Faq
-          items={[
-            {
-              question: 'Preciso de cadastro para usar?',
-              answer: 'Não. É só abrir o mapa e explorar, de graça e sem login.',
-            },
-            {
-              question: 'Os números são reais?',
-              answer:
-                'Em parte. Os totais vêm de dados oficiais do Censo (IBGE 2022). A divisão entre loteamentos ainda é ilustrativa e está em validação. O método completo está no PDF.',
-            },
-            {
-              question: 'Onde está o método completo?',
-              answer:
-                'No projeto de pesquisa (PDF), seções 3 e 4. O link também está no rodapé da página.',
-            },
-          ]}
         />
         <FinalCta />
       </main>
