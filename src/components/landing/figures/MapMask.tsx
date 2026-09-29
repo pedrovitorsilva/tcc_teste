@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 
-// Fundo + overlay de divisões SVG (sem silhueta externa).
+// Imagem PNG como fundo + overlay de divisões SVG.
 export function MapMask({
-  color, width, height, className, children,
+  image_url, color, width, height, className, children,
 }: {
-  svg_url?: string; // Não usado mais, mas mantém compatibilidade
-  color: string;
+  image_url?: string;
+  svg_url?: string; // Compatibilidade (ignorado)
+  color?: string; // Compatibilidade (ignorado)
   width: number;
   height: number;
   className?: string;
@@ -16,9 +17,11 @@ export function MapMask({
       className={className}
       style={{
         aspectRatio: `${width} / ${height}`,
-        background: color,
-        borderRadius: '0.5rem',
         position: 'relative',
+        backgroundImage: image_url ? `url(${image_url})` : undefined,
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
       }}
     >
       {/* Overlay de divisões/loteamentos/setores */}
