@@ -22,7 +22,7 @@ export default function Landing() {
             lead: 'O Censo conta por setor e a prefeitura por bairro: recortes grandes, feitos para administrar.',
             paragraphs: [
               'Quem mora em Vitória da Conquista pensa em loteamento: um pedaço menor do bairro, com ruas, história e necessidades próprias. Um bairro pode juntar um loteamento antigo e denso com outro novo e quase vazio.',
-              'Para curiosos: isso tem nome, MAUP. O jeito de desenhar a fronteira muda o que os números parecem dizer.',
+              'A literatura define isso como MAUP - Problema da Unidade de Área Modificável. O jeito de desenhar a fronteira muda o que os números parecem dizer.',
             ],
           }}
         />

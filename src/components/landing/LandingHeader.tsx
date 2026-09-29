@@ -8,12 +8,12 @@ export function LandingHeader({ showCta = true }: { showCta?: boolean }) {
         <span className="font-(family-name:--font-display) text-lg font-semibold text-ink">
           Cadastro Vivo
         </span>
-        <ThemeSwitcher />
         {showCta ? (
           <CtaButton text="Explorar o mapa" href="/map" className="hidden md:inline-flex" />
         ) : (
           <span className="hidden w-32 md:block" />
         )}
+        <ThemeSwitcher />
       </div>
     </header>
   );
