@@ -1,6 +1,6 @@
 import {
   LandingHeader, Hero, ProblemSection, ImportanceSection, CtaSection,
-  ProposalSection, TransparencySection, FinalCta, LandingFooter, StickyMobileCta,
+  ProposalSection, TransparencySection, LandingFooter, StickyMobileCta,
 } from '@/components/landing';
 
 export default function Landing() {
@@ -9,61 +9,60 @@ export default function Landing() {
       <LandingHeader showCta />
       <main>
         <Hero
-          headline="De onde vem a população do seu quarteirão?"
-          subheadline="O IBGE responde por bairro inteiro. Este mapa responde por loteamento, o pedaço da cidade onde você realmente mora."
+          headline="Veja quantas pessoas moram no seu loteamento — não só no seu bairro"
+          subheadline="O IBGE só conta por bairro inteiro. O Cadastro Vivo mostra o mesmo número em pedaços menores, num mapa de Vitória da Conquista que você explora no navegador."
           credibility="TCC PGDW 2026 · IFBA · Vitória da Conquista–BA"
           cta_primary={{ text: 'Explorar o mapa', href: '/map' }}
-          cta_secondary={{ text: 'Ler o projeto (PDF)', href: '/api/projeto' }}
+          cta_secondary={{ text: 'Como foi feito (PDF)', href: '/api/projeto' }}
         />
         <ProblemSection
           content={{
             kicker: 'O problema',
-            title: 'As divisões oficiais não batem com a cidade real',
-            lead: 'Os dados oficiais usam fronteiras que não são as da vizinhança onde as pessoas vivem. Por isso, dizem pouco sobre a sua rua.',
+            title: 'Os dados oficiais não enxergam o seu loteamento',
+            lead: 'O Censo conta por setor e a prefeitura por bairro: recortes grandes, feitos para administrar.',
             paragraphs: [
-              'O Censo do IBGE conta as pessoas por setor censitário. A prefeitura organiza os serviços por bairro. São recortes grandes, feitos para administrar, e não para mostrar como cada vizinhança vive.',
-              'Na prática, as pessoas moram em loteamentos: pedaços menores do bairro, com ruas, história e necessidades próprias. Um mesmo bairro pode juntar um loteamento antigo e cheio de casas com outro novo e quase vazio.',
-              'Isso tem nome: MAUP, o Problema da Unidade de Área Modificável. Quer dizer que o jeito de desenhar as fronteiras muda o que os números parecem mostrar. É como fotografar a cidade de longe: a imagem sai certa, mas os detalhes somem.',
+              'Quem mora em Vitória da Conquista pensa em loteamento: um pedaço menor do bairro, com ruas, história e necessidades próprias. Um bairro pode juntar um loteamento antigo e denso com outro novo e quase vazio.',
+              'Para curiosos: isso tem nome, MAUP. O jeito de desenhar a fronteira muda o que os números parecem dizer.',
             ],
           }}
         />
         <ImportanceSection
           content={{
             kicker: 'Por que isso importa',
-            title: 'Bairro inteiro esconde onde o problema realmente está',
-            lead: 'A média do bairro pode parecer equilibrada enquanto uma parte dele precisa de ajuda urgente.',
+            title: 'A média do bairro esconde quem mais precisa',
+            lead: 'O bairro inteiro pode parecer equilibrado enquanto um pedaço dele fica descoberto.',
             paragraphs: [
-              'Imagine que você precisa decidir onde abrir uma nova escola. Olhando só a média do bairro, tudo parece em ordem: tem vaga para quase todo mundo.',
-              'Agora olhe loteamento por loteamento. Aparece um bolsão de famílias com crianças e sem vaga por perto. Esse bolsão estava lá o tempo todo, escondido dentro da média.',
-              'Enxergar esse nível de detalhe ajuda a planejar melhor onde colocar escolas, postos de saúde e obras. Isso significa gastar o dinheiro público onde ele faz mais diferença.',
+              'Imagine decidir onde abrir uma nova escola. Na média do bairro, tudo parece em ordem; tem vaga. Mas por loteamento, aparece um bolsão de famílias com crianças e sem vaga por perto.',
+              'Enxergar esse detalhe ajuda a planejar melhor: escola, posto de saúde, obra. Dinheiro público vai para onde mais falta.',
             ],
           }}
         />
-        <CtaSection />
+        <CtaSection
+          title="Pronto para ver o seu pedaço da cidade?"
+          microcopy="Versão de demonstração: parte dos dados ainda é ilustrativa"
+        />
         <ProposalSection
           content={{
             kicker: 'A proposta',
-            title: 'Não inventamos gente nova — redistribuímos a que já existe',
-            lead: 'O Censo já diz quantas pessoas moram em cada setor. Nosso trabalho é decidir quanto dessa população fica em cada loteamento que ocupa aquele setor.',
+            title: 'Repartimos os moradores que o Censo já contou',
+            lead: 'Não inventamos gente. O setor tem população conhecida; dividimos pelos loteamentos pela quantidade de casas.',
             paragraphs: [
-              'Pense num setor censitário com 300 moradores conhecidos. O total é oficial e não muda. A pergunta é outra: como essas 300 pessoas se dividem entre os loteamentos que ficam dentro dele?',
-              'Para responder, contamos os endereços residenciais de cada loteamento no CNEFE, o cadastro de endereços do IBGE. Loteamento com mais casas recebe uma fatia maior da população do setor.',
-              'A lógica é simples: onde há mais casas, moram mais pessoas. Assim, cada loteamento recebe a parte que combina com o que existe nele.',
+              'Um setor censitário pode ter 300 moradores conhecidos. Esse total não muda. A pergunta é outra: como essas 300 pessoas se dividem entre os loteamentos que ficam ali dentro?',
+              'Contamos os endereços residenciais de cada loteamento (dados oficiais do IBGE). Loteamento com mais casas recebe fatia maior. Simples: mais casas, mais gente mora ali.',
             ],
           }}
         />
         <TransparencySection
           content={{
             kicker: 'Honestidade dos dados',
-            title: 'O que sobra é mostrado, não escondido',
-            lead: 'Quando uma parte da população não se encaixa em nenhum loteamento, o mapa mostra isso claramente.',
+            title: 'O que não sabemos aparece no mapa, não some',
+            lead: 'Parte do setor pode ser rural, vazia ou loteamento não cadastrado ainda.',
             paragraphs: [
-              'Nem toda a área de um setor fica dentro de um loteamento mapeado. Pode ser zona rural, terreno vazio ou um loteamento que ainda não entrou no cadastro.',
-              'Em vez de repartir essa sobra em silêncio entre os vizinhos, o método mostra esse resíduo à parte. A página diz o que sobrou e por que sobrou, para você saber até onde os números são confiáveis.',
+              'Em vez de esconder essa sobra na média entre vizinhos, mostramos à parte. A página diz o que sobrou e por quê.',
+              'Assim você sabe: até onde os números são sólidos, e aonde começa a incerteza.',
             ],
           }}
         />
-        <FinalCta />
       </main>
       <LandingFooter />
       <StickyMobileCta />
