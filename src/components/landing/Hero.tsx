@@ -1,6 +1,5 @@
 import { CtaButton } from './CtaButton';
-import { MapMask } from './figures/MapMask';
-import { H, W } from './figures/geo';
+import { MapImage } from './figures/MapImage';
 
 type Cta = { text: string; href: string };
 
@@ -35,9 +34,9 @@ export function Hero({
             </p>
           </div>
           <div className="rounded-3xl border border-cv-border bg-panel p-6 shadow-sm">
-            <MapMask image_url="/svg/conquista.png" width={W} height={H} className="mx-auto w-full max-w-72" />
+            <MapImage className="mx-auto w-full max-w-72 rounded-lg" />
             <p className="mt-4 text-center text-sm text-ink-soft">
-              Vitória da Conquista · subdivisões ilustrativas
+              Vitória da Conquista
             </p>
           </div>
         </div>
