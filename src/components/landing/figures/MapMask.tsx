@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 
-// Silhueta como <img> + overlay de divisões SVG.
+// Fundo + overlay de divisões SVG (sem silhueta externa).
 export function MapMask({
-  svg_url, color, width, height, className, children,
+  color, width, height, className, children,
 }: {
-  svg_url: string;
+  svg_url?: string; // Não usado mais, mas mantém compatibilidade
   color: string;
   width: number;
   height: number;
@@ -16,24 +16,12 @@ export function MapMask({
       className={className}
       style={{
         aspectRatio: `${width} / ${height}`,
+        background: color,
+        borderRadius: '0.5rem',
         position: 'relative',
       }}
     >
-      {/* Silhueta (SVG como img, colocar tint via CSS filter ou opacity) */}
-      <img
-        src={svg_url}
-        alt="Mapa"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          opacity: 0.4,
-          objectFit: 'contain',
-        }}
-        aria-hidden="true"
-      />
-      {/* Overlay de divisões */}
+      {/* Overlay de divisões/loteamentos/setores */}
       <svg
         viewBox={`0 0 ${width} ${height}`}
         style={{
