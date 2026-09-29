@@ -21,9 +21,9 @@ const ebGaramond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Mapa — Vitória da Conquista",
+  title: "Cadastro Vivo",
   description:
-    "Cadastro territorial vivo de bairros, loteamentos e setores censitários",
+    "Descubra de onde vem a população do seu quarteirão. Um mapa interativo que desagrega dados do IBGE em loteamentos — o pedaço da cidade onde você realmente mora.",
 };
 
   

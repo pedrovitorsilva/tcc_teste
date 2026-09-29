@@ -38,6 +38,7 @@ body {
   --map-land: #ffffff;
   --map-water: #e3e9f2;
   --map-ink: #2b3242;
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 /* Escuro = cidade à noite.
@@ -62,6 +63,7 @@ body {
   --map-land: #0c1626;
   --map-water: #081120;
   --map-ink: #876b2f;
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 /* Tema Antigo 
@@ -84,6 +86,7 @@ body {
   --map-land: #f7dcc0;
   --map-water: #d3aa99;
   --map-ink: #7b2321;
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 @theme inline {
@@ -219,7 +222,7 @@ body {
 
   /* Título flutuante — nome principal */
   .cv-title {
-    font-size: clamp(28px, 6vw, 96px);
+    font-size: clamp(28px, 6vw, 32px);
   }
 
   /* Título flutuante — breadcrumb */
@@ -232,7 +235,14 @@ body {
 
   /* <h2> da sidebar / bottom sheet */
   .cv-h2 {
-    font-size: 25px;
+    font-size: clamp(24px, 3vw, 32px);
+  }
+
+  .cv-lead {
+    font-family: var(--font-body), 'EB Garamond', serif;
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.6;
+    color: var(--ink-soft);
   }
 
   /* Kicker itálico acima dos títulos */
