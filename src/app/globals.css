@@ -232,7 +232,14 @@ body {
 
   /* <h2> da sidebar / bottom sheet */
   .cv-h2 {
-    font-size: 25px;
+    font-size: clamp(24px, 3vw, 32px);
+  }
+
+  .cv-lead {
+    font-family: var(--font-body), 'EB Garamond', serif;
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.6;
+    color: var(--ink-soft);
   }
 
   /* Kicker itálico acima dos títulos */

@@ -12,4 +12,3 @@ export { ImportanceSection } from './sections/ImportanceSection';
 export { ProposalSection } from './sections/ProposalSection';
 export { TransparencySection } from './sections/TransparencySection';
 export { CtaSection } from './sections/CtaSection';
-export { FinalCta } from './sections/FinalCta';
