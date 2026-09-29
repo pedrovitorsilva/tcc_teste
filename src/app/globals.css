@@ -219,7 +219,7 @@ body {
 
   /* Título flutuante — nome principal */
   .cv-title {
-    font-size: clamp(28px, 6vw, 96px);
+    font-size: clamp(28px, 6vw, 32px);
   }
 
   /* Título flutuante — breadcrumb */

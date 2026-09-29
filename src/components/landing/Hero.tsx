@@ -1,6 +1,6 @@
 import { CtaButton } from './CtaButton';
 import { MapMask } from './figures/MapMask';
-import { H, LOTS, VB, W } from './figures/geo';
+import { H, LOTS, W } from './figures/geo';
 
 type Cta = { text: string; href: string };
 
@@ -36,12 +36,10 @@ export function Hero({
           </div>
           <div className="rounded-3xl border border-cv-border bg-panel p-6 shadow-sm">
             <MapMask svg_url="/svg/conquista.svg" color="var(--panel-2)" width={W} height={H} className="mx-auto w-full max-w-72">
-              <svg viewBox={VB} aria-hidden className="size-full">
-                {LOTS.map((p, i) => (
-                  <polygon key={p} points={p} stroke="var(--ink-faint)" strokeWidth="1.5"
-                    fill={i === 1 ? 'var(--uncertain)' : 'var(--loteamento)'} fillOpacity={i === 1 ? 0.9 : 0.25} />
-                ))}
-              </svg>
+              {LOTS.map((p, i) => (
+                <polygon key={p} points={p} stroke="var(--ink-faint)" strokeWidth="1.5"
+                  fill={i === 1 ? 'var(--uncertain)' : 'var(--loteamento)'} fillOpacity={i === 1 ? 0.9 : 0.25} />
+              ))}
             </MapMask>
             <p className="mt-4 text-center text-sm text-ink-soft">
               Vitória da Conquista · subdivisões ilustrativas

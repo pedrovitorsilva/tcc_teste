@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-// Silhueta via CSS mask. children (ex.: <svg> de divisões) ficam recortados pela silhueta.
+// Silhueta como <img> + overlay de divisões SVG.
 export function MapMask({
   svg_url, color, width, height, className, children,
 }: {
@@ -11,24 +11,40 @@ export function MapMask({
   className?: string;
   children?: ReactNode;
 }) {
-  const mask = `url(${svg_url})`;
   return (
     <div
       className={className}
       style={{
         aspectRatio: `${width} / ${height}`,
-        background: color,
-        maskImage: mask,
-        WebkitMaskImage: mask,
-        maskSize: 'contain',
-        WebkitMaskSize: 'contain',
-        maskRepeat: 'no-repeat',
-        WebkitMaskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        WebkitMaskPosition: 'center',
+        position: 'relative',
       }}
     >
-      {children}
+      {/* Silhueta (SVG como img, colocar tint via CSS filter ou opacity) */}
+      <img
+        src={svg_url}
+        alt="Mapa"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0.4,
+          objectFit: 'contain',
+        }}
+        aria-hidden="true"
+      />
+      {/* Overlay de divisões */}
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        {children}
+      </svg>
     </div>
   );
 }
