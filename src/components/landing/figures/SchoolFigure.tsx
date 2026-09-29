@@ -8,9 +8,14 @@ export function SchoolFigure() {
       figcaption="Na média do bairro tudo parece igual; por loteamento, um lote concentra a demanda. (Ilustrativo)"
     >
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-8">
-        {/* Demanda média */}
+        {/* Demanda média - todos os lotes iguais */}
         <div className="flex flex-col items-center gap-2">
-          <div className="w-44 aspect-[288/359.546922] rounded-lg bg-ink-faint opacity-30" />
+          <svg viewBox={VB} className="w-44 rounded-lg" style={{ background: 'var(--panel-2)', opacity: 0.5 }}>
+            {LOTS.map((p) => (
+              <polygon key={p} points={p} stroke="var(--ink-faint)" strokeWidth="1.5"
+                fill="var(--loteamento)" fillOpacity="0.25" />
+            ))}
+          </svg>
           <span className="text-sm text-ink-soft">Demanda média</span>
         </div>
 

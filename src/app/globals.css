@@ -38,7 +38,7 @@ body {
   --map-land: #ffffff;
   --map-water: #e3e9f2;
   --map-ink: #2b3242;
-  --map-img-filter: brightness(0.95);
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 /* Escuro = cidade à noite.
@@ -63,7 +63,7 @@ body {
   --map-land: #0c1626;
   --map-water: #081120;
   --map-ink: #876b2f;
-  --map-img-filter: brightness(1.1) saturate(0.8);
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 /* Tema Antigo 
@@ -86,7 +86,7 @@ body {
   --map-land: #f7dcc0;
   --map-water: #d3aa99;
   --map-ink: #7b2321;
-  --map-img-filter: sepia(0.45) hue-rotate(-15deg) brightness(0.95);
+  --map-img-filter: brightness(1.1) saturate(-1.0);
 }
 
 @theme inline {

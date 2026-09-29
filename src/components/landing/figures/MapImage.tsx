@@ -15,7 +15,7 @@ export function MapImage({ width = 288, height = 359.546922, className }: {
         backgroundSize: 'contain',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        filter: 'var(--map-img-filter, brightness(0.95))',
+        filter: 'var(--map-img-filter)',
       }}
     />
   );
