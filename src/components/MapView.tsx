@@ -21,6 +21,7 @@ import { Trees3D } from "./map/Trees3D";
 import { Water3D } from "./map/Water3D";
 import { Cars3D } from "./map/Cars3D";
 import { StreetLamps3D } from "./map/StreetLamps3D";
+import { ModelsAttribution } from "./map/ModelsAttribution";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
@@ -201,6 +202,7 @@ export function MapView() {
             bairros={bairros}
             loteamentos={loteamentos}
           />
+          <ModelsAttribution cars={carsEnabled} lamps={lampsEnabled} />
         </Map>
 
         <div className="pointer-events-none absolute inset-0 z-10">

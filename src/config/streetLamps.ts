@@ -28,3 +28,7 @@ export const STREET_LAMPS_MIN_ZOOM = 13;
  * cortaria o bairro pela metade (ordem das vias, não espacial).
  */
 export const MAX_LAMPS_TOTAL = 6000;
+
+/** Autor do modelo do poste (public/lights/license.txt), montado no (i) por ModelsAttribution. */
+export const STREET_LAMP_MODEL_CREDIT =
+  '<a href="https://sketchfab.com/Fridqeir" target="_blank" rel="noreferrer">Fridqeir</a> (postes)';

@@ -5,6 +5,7 @@ import { CartographerNote } from "@/components/panel/CartographerNote";
 import { BuildingsNote } from "@/components/panel/BuildingsNote";
 import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
+import { Models3DNote } from "@/components/panel/Models3DNote";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { LevelId, Selection } from "@/types/map";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,8 @@ export function FeatureDetails({
 }: FeatureDetailsProps) {
   const notes = (
     <div>
+      {/* Só carros e postes usam modelos de terceiros; edificações/vegetação/água são geradas. */}
+      <Models3DNote enabled={carsEnabled || lampsEnabled} />
       <BuildingsNote count={buildingCount} enabled={buildingsEnabled} />
       <StreetLampsNote enabled={lampsEnabled} />
       <CarsNote count={vehiclesCount} enabled={carsEnabled} />

@@ -131,7 +131,11 @@ export const CAR_HEADLIGHT_INTENSITY = 0.6;
 /**
  * Atribuição exibida automaticamente pelo controle de atribuição do mapa.
  * Só dados (o (i) deduplica com buildings/water/vegetation); o crédito
- * CC-BY-4.0 do pack de veículos (public/cars/license.txt) fica em CarsNote.
+ * CC-BY-4.0 do pack de veículos vai em CAR_MODEL_CREDIT (ver ModelsAttribution).
  */
 export const CARS_ATTRIBUTION =
   '<a href="https://overturemaps.org" target="_blank" rel="noreferrer">© Overture Maps Foundation</a>';
+
+/** Autor do pack de veículos (public/cars/license.txt), montado no (i) por ModelsAttribution. */
+export const CAR_MODEL_CREDIT =
+  '<a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">RgsDev</a> (carros)';
