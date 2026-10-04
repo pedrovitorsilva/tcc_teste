@@ -13,6 +13,7 @@ import {
   Trees,
   Waves,
   Car,
+  Lightbulb,
 } from 'lucide-react';
 
 /** Envolve um ícone lucide-react com o stroke fino padrão do projeto. */
@@ -39,3 +40,4 @@ export const BuildingIcon = createIcon(Building2);
 export const VegetationIcon = createIcon(Trees);
 export const WaterIcon = createIcon(Waves);
 export const CarIcon = createIcon(Car);
+export const LampIcon = createIcon(Lightbulb);

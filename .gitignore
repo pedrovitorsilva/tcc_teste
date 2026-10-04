@@ -3,3 +3,4 @@ node_modules
 /CLAUDE.md
 /.claude/
 temp/
+/public/data/postes.json

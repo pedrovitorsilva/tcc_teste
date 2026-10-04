@@ -20,6 +20,7 @@ import { Buildings3D } from "./map/Buildings3D";
 import { Trees3D } from "./map/Trees3D";
 import { Water3D } from "./map/Water3D";
 import { Cars3D } from "./map/Cars3D";
+import { StreetLamps3D } from "./map/StreetLamps3D";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
@@ -62,6 +63,7 @@ export function MapView() {
   const [vegetationEnabled, setVegetationEnabled] = useState(false);
   const [waterEnabled, setWaterEnabled] = useState(false);
   const [carsEnabled, setCarsEnabled] = useState(false);
+  const [lampsEnabled, setLampsEnabled] = useState(false);
 
   const {
     selection,
@@ -126,6 +128,8 @@ export function MapView() {
     onWaterChange: setWaterEnabled,
     carsEnabled,
     onCarsChange: setCarsEnabled,
+    lampsEnabled,
+    onLampsChange: setLampsEnabled,
   };
 
   return (
@@ -188,6 +192,14 @@ export function MapView() {
             bairros={bairros}
             loteamentos={loteamentos}
             onCountChange={setVehiclesCount}
+          />
+          <StreetLamps3D
+            enabled={lampsEnabled}
+            night={night}
+            selection={selection}
+            hoveredBairro={hoveredBairro}
+            bairros={bairros}
+            loteamentos={loteamentos}
           />
         </Map>
 

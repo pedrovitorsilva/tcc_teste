@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "prepare-data": "node scripts/prepare-data.mjs"
+    "prepare-data": "node scripts/prepare-mock-data.mjs && node scripts/prepare-lamps.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
