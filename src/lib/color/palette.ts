@@ -21,6 +21,8 @@ export interface Palette {
    * Uma variante por tema: a mesma paleta precisa de lightness diferente para
    * continuar legível em cada fundo. Na variante `dark`, cada preset é uma rampa
    * — muda a cor da luz, não a estrutura. Ver docs/DECISOES-TECNICAS.md §1.
+   * Prédios ficam fora da rampa à noite: é o prédio do claro sob luar (matiz
+   * do claro, OKLCH L 0.40, croma reduzido), como `--building` em globals.css.
    */
   colors: Record<ThemeName, PaletteColors>;
 }
@@ -50,7 +52,7 @@ export const PALETTES: Palette[] = [
       // Rampa terrosa: mesma escada do tema claro, em sépia.
       light: { bairro: '#52361d', loteamento: '#704f31', setor: '#8e6947', building: '#af845f' },
       // Rampa dourada, a luz padrão do tema noturno.
-      dark: { bairro: '#9e7500', loteamento: '#c89711', setor: '#ecb841', building: '#ffd47c' },
+      dark: { bairro: '#9e7500', loteamento: '#c89711', setor: '#ecb841', building: '#59422f' },
       // Oxblood padrão do tema antigo; prédios em marrom (55° OKLCH), fora do matiz.
       vintage: { bairro: '#660c0f', loteamento: '#832b28', setor: '#a0453f', building: '#b47548' },
     },
@@ -62,7 +64,7 @@ export const PALETTES: Palette[] = [
       // O azul-ardósia padrão do tema claro.
       light: { bairro: '#303d58', loteamento: '#475676', setor: '#607195', building: '#798eb6' },
       // Rampa de vapor de mercúrio: mesma escada, luz fria.
-      dark: { bairro: '#2f6d93', loteamento: '#57a3c4', setor: '#9fd4e8', building: '#c1ecfd' },
+      dark: { bairro: '#2f6d93', loteamento: '#57a3c4', setor: '#9fd4e8', building: '#3d485d' },
       vintage: { bairro: '#12375a', loteamento: '#2b5075', setor: '#43698f', building: '#5c84ab' },
     },
   },
@@ -74,7 +76,7 @@ export const PALETTES: Palette[] = [
       light: { bairro: '#1d3879', loteamento: '#32529b', setor: '#486ec0', building: '#5b8ce7' },
       // O primeiro degrau não pode descer mais: abaixo de #b8410f perde os 3:1
       // de contraste contra o azul-marinho do tema.
-      dark: { bairro: '#c24710', loteamento: '#f07818', setor: '#ffd24d', building: '#ffee8b' },
+      dark: { bairro: '#c24710', loteamento: '#f07818', setor: '#ffd24d', building: '#2d4677' },
       vintage: { bairro: '#680020', loteamento: '#900d32', setor: '#ae3149', building: '#cd4e62' },
     },
   },

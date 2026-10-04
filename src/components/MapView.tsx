@@ -20,6 +20,8 @@ import { Buildings3D } from "./map/Buildings3D";
 import { Trees3D } from "./map/Trees3D";
 import { Water3D } from "./map/Water3D";
 import { Cars3D } from "./map/Cars3D";
+import { StreetLamps3D } from "./map/StreetLamps3D";
+import { ModelsAttribution } from "./map/ModelsAttribution";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
@@ -44,6 +46,8 @@ ensurePMTilesProtocol();
 
 export function MapView() {
   const { theme } = useTheme();
+  // Vintage segue diurno: só o escuro tem noite.
+  const night = theme === "dark";
   const tokens = useThemeTokens();
   const mapStyles = useMapStyles(theme, tokens);
   const { bairros, loteamentos, bairrosData, loteamentosData } = useGeoIndex();
@@ -60,6 +64,7 @@ export function MapView() {
   const [vegetationEnabled, setVegetationEnabled] = useState(false);
   const [waterEnabled, setWaterEnabled] = useState(false);
   const [carsEnabled, setCarsEnabled] = useState(false);
+  const [lampsEnabled, setLampsEnabled] = useState(false);
 
   const {
     selection,
@@ -124,6 +129,8 @@ export function MapView() {
     onWaterChange: setWaterEnabled,
     carsEnabled,
     onCarsChange: setCarsEnabled,
+    lampsEnabled,
+    onLampsChange: setLampsEnabled,
   };
 
   return (
@@ -164,6 +171,7 @@ export function MapView() {
           />
           <Trees3D
             enabled={vegetationEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
@@ -171,6 +179,7 @@ export function MapView() {
           />
           <Water3D
             enabled={waterEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
@@ -178,12 +187,22 @@ export function MapView() {
           />
           <Cars3D
             enabled={carsEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
             loteamentos={loteamentos}
             onCountChange={setVehiclesCount}
           />
+          <StreetLamps3D
+            enabled={lampsEnabled}
+            night={night}
+            selection={selection}
+            hoveredBairro={hoveredBairro}
+            bairros={bairros}
+            loteamentos={loteamentos}
+          />
+          <ModelsAttribution cars={carsEnabled} lamps={lampsEnabled} />
         </Map>
 
         <div className="pointer-events-none absolute inset-0 z-10">
@@ -223,6 +242,7 @@ export function MapView() {
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
+          lampsEnabled={lampsEnabled}
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
@@ -237,6 +257,7 @@ export function MapView() {
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
+          lampsEnabled={lampsEnabled}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
           onClose={handleClose}

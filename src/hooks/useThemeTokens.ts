@@ -14,12 +14,14 @@ export interface ThemeTokens {
   accentWash: string;
   /** Cor das extrusões de edificação, nos três temas — o último degrau da rampa. */
   building: string;
-  /** Cor do "papel" do basemap — alvo claro da tintura do tema antigo. */
+  /** Cor do "papel"/terreno do basemap. */
   mapLand: string;
   /** Cor chapada da água no basemap. */
   mapWater: string;
-  /** Cor da tinta do basemap — alvo escuro da tintura do tema antigo. */
+  /** Cor da tinta do basemap; nos temas claro e escuro, a cor das vias (rampa invertida). */
   mapInk: string;
+  /** Cor chapada de parques/gramados no basemap. */
+  mapPark: string;
 }
 
 const VAR_NAMES: Record<keyof ThemeTokens, string> = {
@@ -35,6 +37,7 @@ const VAR_NAMES: Record<keyof ThemeTokens, string> = {
   mapLand: '--map-land',
   mapWater: '--map-water',
   mapInk: '--map-ink',
+  mapPark: '--map-park',
 };
 
 // Espelha [data-theme="light"] do globals.css, para o primeiro render (servidor
@@ -44,14 +47,15 @@ const FALLBACK_TOKENS: ThemeTokens = {
   loteamento: '#475676',
   setor: '#607195',
   uncertain: '#55565a',
-  ink: '#1a1f2b',
-  inkSoft: '#545c6b',
+  ink: '#2c3e50',
+  inkSoft: '#55606e',
   panel: '#ffffff',
-  accentWash: 'rgba(48, 61, 88, .06)',
-  building: '#798eb6',
-  mapLand: '#ffffff',
-  mapWater: '#e3e9f2',
-  mapInk: '#2b3242',
+  accentWash: 'rgba(59, 130, 196, .08)',
+  building: '#cdcfea',
+  mapLand: '#cccbd8',
+  mapWater: '#0d1a31',
+  mapInk: '#686870',
+  mapPark: '#768254',
 };
 
 function readTokens(): ThemeTokens {

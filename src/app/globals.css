@@ -19,32 +19,42 @@ body {
    Cada tema segue uma referência cartográfica e as camadas formam uma rampa de
    lightness num matiz só, não quatro matizes.*/
 
-   :root,
+/* Claro = F4map. Água, gramado, vias e topo de prédio amostrados do render do
+   F4. O terreno sai do mesmo matiz, porém mais claro: o F4 sombreia o chão e o
+   MapLibre pinta chapado, e #cccbd8 é o mais escuro que mantém o --setor
+   tracejado em 3:1. --map-ink é a cor das vias (rampa invertida, ver useMapStyles). */
+:root,
 [data-theme="light"] {
-  --page: #f7f8fa;
+  --page: #e4e2e8;
   --panel: #ffffff;
-  --panel-2: #eef0f4;
-  --ink: #1a1f2b;
-  --ink-soft: #545c6b;
-  --ink-faint: #6d7585;
-  --border: rgba(26, 31, 43, .14);
-  --border-soft: rgba(26, 31, 43, .07);
+  --panel-2: #f2f2f2;
+  --ink: #2c3e50;
+  --ink-soft: #55606e;
+  --ink-faint: #646e7b;
+  --border: rgba(44, 62, 80, .14);
+  --border-soft: rgba(44, 62, 80, .07);
   --bairro: #303d58;
   --loteamento: #475676;
   --setor: #607195;
-  --building: #798eb6;
+  --building: #cdcfea;
   --uncertain: #55565a;
-  --accent-wash: rgba(48, 61, 88, .06);
-  --map-land: #ffffff;
-  --map-water: #e3e9f2;
-  --map-ink: #2b3242;
-  --map-img-filter: brightness(1.1) saturate(-1.0);
+  --accent-wash: rgba(59, 130, 196, .08);
+  --map-land: #cccbd8;
+  --map-water: #0d1a31;
+  --map-ink: #686870;
+  --map-park: #768254;
 }
 
-/* Escuro = cidade à noite.
-   Rampa invertida em relação aos outros temas: a unidade menor é a que brilha
-   mais. `--uncertain` é o topo da rampa e se separa de `--ink` por temperatura.
-*/
+/* Escuro = noite: luar frio, cidade adormecida.
+   O mapa é o do tema claro (mesma receita em useMapStyles) sob luar: os
+   `--map-*` e `--building` são os do claro escurecidos e puxados para o azul
+   (OKLCH, matiz 262–282). Só os polígonos seguem acesos em âmbar — rampa
+   invertida, a unidade menor brilha mais; `--uncertain` é o topo dela e se
+   separa de `--ink` por temperatura.
+   Restrições (WCAG): `--bairro`, o âmbar mais escuro, a 3:1 do terreno exige
+   terreno com luminância ≤ 0.033; com o chão tão escuro, as vias só chegam a
+   3:1 mais claras que ele — pavimento ao luar, não asfalto escuro. Medido:
+   bairro 3.4, loteamento 5.3, setor 7.7, vias 3.2. */
 [data-theme="dark"] {
   --page: #0c1626;
   --panel: #101c30;
@@ -57,13 +67,13 @@ body {
   --bairro: #9e7500;
   --loteamento: #c89711;
   --setor: #ecb841;
-  --building: #ffd47c;
+  --building: #454658;
   --uncertain: #fff0d2;
   --accent-wash: rgba(158, 117, 0, .07);
-  --map-land: #0c1626;
-  --map-water: #081120;
-  --map-ink: #876b2f;
-  --map-img-filter: brightness(1.1) saturate(-1.0);
+  --map-land: #272b38;
+  --map-water: #040d21;
+  --map-ink: #777882;
+  --map-park: #20260f;
 }
 
 /* Tema Antigo 
@@ -86,7 +96,7 @@ body {
   --map-land: #f7dcc0;
   --map-water: #d3aa99;
   --map-ink: #7b2321;
-  --map-img-filter: brightness(1.1) saturate(-1.0);
+  --map-park: #cdb98a;
 }
 
 @theme inline {
@@ -183,7 +193,8 @@ body {
     --sidebar-ring: var(--ink-soft);
   }
   * {
-    @apply border-border outline-ring/50;
+    /* Opaco: a 50% o anel ficava em ~2:1 sobre o painel branco (WCAG pede 3:1). */
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-page text-ink;
@@ -222,7 +233,7 @@ body {
 
   /* Título flutuante — nome principal */
   .cv-title {
-    font-size: clamp(28px, 6vw, 32px);
+    font-size: clamp(28px, 6vw, 96px);
   }
 
   /* Título flutuante — breadcrumb */
@@ -235,14 +246,7 @@ body {
 
   /* <h2> da sidebar / bottom sheet */
   .cv-h2 {
-    font-size: clamp(24px, 3vw, 32px);
-  }
-
-  .cv-lead {
-    font-family: var(--font-body), 'EB Garamond', serif;
-    font-size: clamp(17px, 2vw, 20px);
-    line-height: 1.6;
-    color: var(--ink-soft);
+    font-size: 25px;
   }
 
   /* Kicker itálico acima dos títulos */

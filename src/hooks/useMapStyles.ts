@@ -31,7 +31,7 @@ interface MapStyles {
  */
 export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
   const [tinted, setTinted] = useState<StyleSpecification | null>(null);
-  const { mapLand, mapWater, mapInk } = tokens;
+  const { mapLand, mapWater, mapInk, mapPark } = tokens;
 
   useEffect(() => {
     // Cada tema define de qual style parte e para onde cada extremo da faixa de
@@ -40,32 +40,25 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
       theme === 'vintage'
         ? {
             source: MAP_STYLES.light,
-            target: { land: mapLand, water: mapWater, ink: mapInk },
+            target: { land: mapLand, water: mapWater, ink: mapInk, park: mapPark },
           }
-        : theme === 'dark'
-          ? {
-              source: MAP_STYLES.dark,
-              target: {
-                background: mapLand,
-                // Invertido: a via mais clara vira o âmbar aceso, a mais escura
-                // se dissolve no fundo. Só a malha principal fica acesa.
-                land: mapInk,
-                ink: mapLand,
-                water: mapWater,
-                contrast: 0.85,
-              },
-            }
-          : {
-              source: MAP_STYLES.light,
-              // 0.55 dá a leitura de gravura sem chegar ao preto, que competiria
-              // com os dados (o Positron cru desenha as vias em #ddd).
-              target: {
-                land: mapLand,
-                water: mapWater,
-                ink: mapInk,
-                contrast: 0.55,
-              },
-            };
+        : {
+            source: MAP_STYLES.light,
+            // F4map: vias como faixas cinza-médio sobre o terreno. Invertido
+            // porque o Positron preenche as vias em #fff (o tom mais claro do
+            // style) — na rampa direta elas sumiam no terreno e só os
+            // contornos apareciam. Contornos e limites se dissolvem no fundo.
+            // O escuro usa a mesma receita: é o mapa claro sob luar, só os
+            // tokens mudam (globals.css).
+            target: {
+              background: mapLand,
+              land: mapInk,
+              ink: mapLand,
+              water: mapWater,
+              park: mapPark,
+              contrast: 0.9,
+            },
+          };
 
     // Limpa antes de buscar: senão o style do tema anterior segue pintado até a
     // nova busca resolver. O basemap cru no intervalo é o estado errado certo.
@@ -82,7 +75,7 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
     return () => {
       cancelled = true;
     };
-  }, [theme, mapLand, mapWater, mapInk]);
+  }, [theme, mapLand, mapWater, mapInk, mapPark]);
 
   return useMemo(
     () => (tinted ? { light: tinted, dark: tinted } : MAP_STYLES),

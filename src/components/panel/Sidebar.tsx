@@ -12,6 +12,7 @@ interface SidebarProps {
   vehiclesCount: number;
   buildingsEnabled: boolean;
   carsEnabled: boolean;
+  lampsEnabled: boolean;
   onClose: () => void;
   onNavigate: (level: LevelId, name: string) => void;
   /** Mirrors loteamento list hover to polygon on map. */
@@ -27,6 +28,7 @@ export function Sidebar({
   vehiclesCount,
   buildingsEnabled,
   carsEnabled,
+  lampsEnabled,
   onClose,
   onNavigate,
   onHoverLoteamento,
@@ -85,6 +87,7 @@ export function Sidebar({
               vehiclesCount={vehiclesCount}
               buildingsEnabled={buildingsEnabled}
               carsEnabled={carsEnabled}
+              lampsEnabled={lampsEnabled}
               onSelectLoteamento={(name) => onNavigate('loteamento', name)}
               onHoverLoteamento={onHoverLoteamento}
             />
