@@ -56,24 +56,33 @@ export type LanduseVegetationSubtype = (typeof LANDUSE_VEGETATION_SUBTYPES)[numb
 export type AnyVegetationSubtype = VegetationSubtype | LanduseVegetationSubtype;
 
 /**
- * Área (m²) que cada árvore ocupa, em média, ao espalhar pontos num polígono —
- * por subtype, porque um campo aberto (`grass`) não deveria ficar tão denso
- * quanto uma mata (`forest`). Densidade decrescente: forest > wetland > shrub >
- * grass/park (park usa a mesma densidade de grass, a pedido).
+ * Dois níveis de densidade, cada um com orçamento próprio: mata (`forest`,
+ * `wetland`) vira massa de copas sobrepostas; campo aberto (`grass`, `shrub`,
+ * `park`) continua com árvores espaçadas. Orçamentos separados para uma mata
+ * grande não "comer" as árvores dos gramados.
  */
-export const TREE_SPACING_M2_BY_SUBTYPE: Record<AnyVegetationSubtype, number> = {
-  forest: 40,
-  wetland: 90,
-  shrub: 150,
-  grass: 400,
-  park: 400,
+export type TreeDensity = 'forest' | 'open';
+
+export const TREE_DENSITY_BY_SUBTYPE: Record<AnyVegetationSubtype, TreeDensity> = {
+  forest: 'forest',
+  wetland: 'forest',
+  shrub: 'open',
+  grass: 'open',
+  park: 'open',
 };
 
-/** Teto de árvores por polígono individual — evita um polígono grande sozinho estourar o total. */
-export const MAX_TREES_PER_POLYGON = 400;
+/** Área (m²) por árvore, ao espalhar pontos num polígono. */
+export const TREE_SPACING_FOREST = 15;
+export const TREE_SPACING_OPEN = 400;
 
-/** Teto de árvores no total — tamanho fixo do InstancedMesh. */
-export const MAX_TREES_TOTAL = 3000;
+/** Teto por polígono individual — evita um polígono grande sozinho estourar o orçamento. */
+export const MAX_TREES_PER_POLYGON_FOREST = 800;
+export const MAX_TREES_PER_POLYGON_OPEN = 200;
+
+/** Teto por nível de densidade; a soma é o tamanho fixo dos InstancedMesh. */
+export const MAX_TREES_FOREST = 8000;
+export const MAX_TREES_OPEN = 5000;
+export const MAX_TREES_TOTAL = MAX_TREES_FOREST + MAX_TREES_OPEN;
 
 /** Dimensões da árvore (metros): altura/raio do tronco e da copa. */
 export const TREE_TRUNK_HEIGHT = 2.2;
@@ -82,7 +91,9 @@ export const TREE_CANOPY_HEIGHT = 3.2;
 export const TREE_CANOPY_RADIUS = 1.4;
 
 export const TREE_TRUNK_COLOR = '#6b4a30';
-export const TREE_CANOPY_COLOR = '#3f7d43';
+/** Copa: cada árvore sorteia (hash da posição) um tom entre esses dois. */
+export const TREE_CANOPY_COLOR_DARK = '#2d5a2e';
+export const TREE_CANOPY_COLOR_LIGHT = '#4f7f3b';
 
 /** Atribuição exibida automaticamente pelo controle de atribuição do mapa. */
 export const VEGETATION_ATTRIBUTION =

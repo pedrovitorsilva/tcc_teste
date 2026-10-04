@@ -10,12 +10,18 @@ import * as THREE from "three";
 import { useMap } from "@/components/ui/map";
 import {
   LANDUSE_VEGETATION_SUBTYPES,
-  MAX_TREES_PER_POLYGON,
+  MAX_TREES_FOREST,
+  MAX_TREES_OPEN,
+  MAX_TREES_PER_POLYGON_FOREST,
+  MAX_TREES_PER_POLYGON_OPEN,
   MAX_TREES_TOTAL,
-  TREE_CANOPY_COLOR,
+  TREE_CANOPY_COLOR_DARK,
+  TREE_CANOPY_COLOR_LIGHT,
   TREE_CANOPY_HEIGHT,
   TREE_CANOPY_RADIUS,
-  TREE_SPACING_M2_BY_SUBTYPE,
+  TREE_DENSITY_BY_SUBTYPE,
+  TREE_SPACING_FOREST,
+  TREE_SPACING_OPEN,
   TREE_TRUNK_COLOR,
   TREE_TRUNK_HEIGHT,
   TREE_TRUNK_RADIUS,
@@ -38,11 +44,13 @@ import {
   approxAreaM2,
   bboxIntersects,
   lodMinAreaM2,
+  mulberry32,
   outerRing,
   pointInPolygon,
   randomPointsInRing,
   ringBBox,
   ringCentroid,
+  seedFromRing,
 } from "@/lib/map/buildingClip";
 import {
   lngLatToLocalMeters,
@@ -55,6 +63,15 @@ import type { HoveredBairro, Selection } from "@/types/map";
 
 const TREES_LAYER_ID = "trees-3d-layer";
 const CLIP_DEBOUNCE_MS = 120;
+
+/** Orçamento por nível de densidade (ver TREE_DENSITY_BY_SUBTYPE). */
+const DENSITY = {
+  forest: { spacingM2: TREE_SPACING_FOREST, perPolygon: MAX_TREES_PER_POLYGON_FOREST, max: MAX_TREES_FOREST },
+  open: { spacingM2: TREE_SPACING_OPEN, perPolygon: MAX_TREES_PER_POLYGON_OPEN, max: MAX_TREES_OPEN },
+} as const;
+
+/** Hash determinístico em [0, 1) — `%` do JS preserva o sinal, daí o `+ 100`. */
+const hash01 = (v: number) => (((v % 100) + 100) % 100) / 100;
 
 interface Trees3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
@@ -75,7 +92,9 @@ interface TreeScene {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
   trunks: THREE.InstancedMesh;
-  canopies: THREE.InstancedMesh;
+  /** Copa em 2 cones (inferior invertido + superior), mesma matriz por árvore. */
+  canopyLow: THREE.InstancedMesh;
+  canopyHigh: THREE.InstancedMesh;
   origin: MercatorOrigin;
 }
 
@@ -125,33 +144,48 @@ export function Trees3D({
     return null;
   }, [enabled, selection, hoveredBairro, bairros, loteamentos]);
 
-  /** Recria as duas InstancedMesh (tronco+copa) a partir de uma lista de posições. */
+  /** Recria as InstancedMesh (tronco + 2 cones de copa) a partir de uma lista de posições. */
   const publishTrees = (positions: [number, number][]) => {
     const refs = sceneRef.current;
     if (!refs || !map) return;
 
-    const matrix = new THREE.Matrix4();
     const dummy = new THREE.Object3D();
+    const dark = new THREE.Color(TREE_CANOPY_COLOR_DARK);
+    const light = new THREE.Color(TREE_CANOPY_COLOR_LIGHT);
+    const color = new THREE.Color();
 
     const count = Math.min(positions.length, MAX_TREES_TOTAL);
     for (let i = 0; i < count; i += 1) {
       const [lng, lat] = positions[i];
       const { x, z } = lngLatToLocalMeters(refs.origin, [lng, lat]);
       dummy.position.set(x, 0, z);
-      // Ângulo determinístico a partir da posição — mesma árvore sempre com a
-      // mesma rotação, sem `Math.random()` (recorte roda de novo a cada moveend).
+      // Rotação, altura, largura e cor determinísticas a partir da posição —
+      // mesma árvore sempre igual, sem `Math.random()` (recorte roda de novo
+      // a cada moveend).
       const raw = (x * 928371 + z * 12345) % (Math.PI * 2);
       dummy.rotation.y = raw < 0 ? raw + Math.PI * 2 : raw;
+      const height = 0.8 + 0.5 * hash01(x * 928371 + z * 12345);
+      const width = 0.85 + 0.3 * hash01(x * 123456 + z * 654321);
+      dummy.scale.set(width, height, width);
       dummy.updateMatrix();
-      matrix.copy(dummy.matrix);
-      refs.trunks.setMatrixAt(i, matrix);
-      refs.canopies.setMatrixAt(i, matrix);
+      refs.trunks.setMatrixAt(i, dummy.matrix);
+      refs.canopyLow.setMatrixAt(i, dummy.matrix);
+      refs.canopyHigh.setMatrixAt(i, dummy.matrix);
+
+      color.lerpColors(dark, light, mulberry32(seedFromRing([[lng, lat]]))());
+      refs.canopyLow.setColorAt(i, color);
+      refs.canopyHigh.setColorAt(i, color);
     }
 
-    refs.trunks.count = count;
-    refs.canopies.count = count;
-    refs.trunks.instanceMatrix.needsUpdate = true;
-    refs.canopies.instanceMatrix.needsUpdate = true;
+    for (const mesh of [refs.trunks, refs.canopyLow, refs.canopyHigh]) {
+      mesh.count = count;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      // O Three só calcula o boundingSphere da InstancedMesh uma vez (no 1º
+      // render, quando count ainda é 0 → esfera vazia) e o frustum culling
+      // passa a descartar a mesh inteira para sempre. Recalcula a cada publish.
+      mesh.computeBoundingSphere();
+    }
 
     map.triggerRepaint();
   };
@@ -253,29 +287,29 @@ export function Trees3D({
           );
           trunkGeometry.translate(0, TREE_TRUNK_HEIGHT / 2, 0);
 
-          const canopyGeometry = new THREE.ConeGeometry(
-            TREE_CANOPY_RADIUS,
-            TREE_CANOPY_HEIGHT,
-            7,
-          );
-          canopyGeometry.translate(0, TREE_TRUNK_HEIGHT + TREE_CANOPY_HEIGHT / 2, 0);
+          // Copa em 2 cones formando um losango (mais larga, sem pico fino):
+          // o de baixo invertido (ponta no tronco), o de cima normal, base com base.
+          const lowHeight = TREE_CANOPY_HEIGHT * 0.6;
+          const highHeight = TREE_CANOPY_HEIGHT * 0.8;
+          const canopyLowGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 0.8, lowHeight, 7);
+          canopyLowGeometry.rotateX(Math.PI);
+          canopyLowGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight / 2, 0);
+          const canopyHighGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 1.1, highHeight, 7);
+          canopyHighGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight + highHeight / 2, 0);
 
           const trunkMaterial = new THREE.MeshLambertMaterial({ color: TREE_TRUNK_COLOR });
-          const canopyMaterial = new THREE.MeshLambertMaterial({ color: TREE_CANOPY_COLOR });
+          // Cor branca: a cor real vem por instância (instanceColor multiplica material.color).
+          const canopyMaterial = new THREE.MeshLambertMaterial();
 
           const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, MAX_TREES_TOTAL);
-          const canopies = new THREE.InstancedMesh(
-            canopyGeometry,
-            canopyMaterial,
-            MAX_TREES_TOTAL,
-          );
-          trunks.count = 0;
-          canopies.count = 0;
+          const canopyLow = new THREE.InstancedMesh(canopyLowGeometry, canopyMaterial, MAX_TREES_TOTAL);
+          const canopyHigh = new THREE.InstancedMesh(canopyHighGeometry, canopyMaterial, MAX_TREES_TOTAL);
+          for (const mesh of [trunks, canopyLow, canopyHigh]) mesh.count = 0;
 
           scene.add(new THREE.HemisphereLight(0xffffff, 0x3a2a1a, 1.4));
-          scene.add(trunks, canopies);
+          scene.add(trunks, canopyLow, canopyHigh);
 
-          sceneRef.current = { scene, renderer, trunks, canopies, origin };
+          sceneRef.current = { scene, renderer, trunks, canopyLow, canopyHigh, origin };
         },
         render(gl, options) {
           const refs = sceneRef.current;
@@ -294,10 +328,10 @@ export function Trees3D({
           const refs = sceneRef.current;
           if (!refs) return;
 
-          refs.trunks.geometry.dispose();
-          (refs.trunks.material as THREE.Material).dispose();
-          refs.canopies.geometry.dispose();
-          (refs.canopies.material as THREE.Material).dispose();
+          for (const mesh of [refs.trunks, refs.canopyLow, refs.canopyHigh]) {
+            mesh.geometry.dispose();
+            (mesh.material as THREE.Material).dispose();
+          }
           refs.renderer.dispose();
           sceneRef.current = null;
         },
@@ -339,6 +373,7 @@ export function Trees3D({
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const compute = () => {
+      const startedAt = performance.now();
       const zoom = map.getZoom();
       if (zoom < VEGETATION_MIN_ZOOM) {
         publishTrees([]);
@@ -403,9 +438,16 @@ export function Trees3D({
         waterRings.some((ring) => pointInPolygon(point, { type: "Polygon", coordinates: [ring] }));
 
       const { bbox } = target;
-      const positions: [number, number][] = [];
+      // Um orçamento por nível de densidade — mata estourando o dela não
+      // consome o dos campos abertos.
+      const placed = { forest: [] as [number, number][], open: [] as [number, number][] };
 
       for (const { geometry, subtype } of candidates) {
+        const density = TREE_DENSITY_BY_SUBTYPE[subtype];
+        const { spacingM2, perPolygon, max } = DENSITY[density];
+        const positions = placed[density];
+        if (positions.length >= max) continue;
+
         const ring = outerRing(geometry);
         if (!ring) continue;
 
@@ -425,20 +467,25 @@ export function Trees3D({
         const centroid = ringCentroid(ring);
         if (!pointInPolygon(centroid, target.geometry)) continue;
 
+        // Corta no que sobra do orçamento: randomPointsInRing é determinístico
+        // e sequencial, então pedir menos pontos só pega um prefixo dos mesmos.
         const treeCount = Math.min(
-          Math.round(area / TREE_SPACING_M2_BY_SUBTYPE[subtype]),
-          MAX_TREES_PER_POLYGON,
+          Math.round(area / spacingM2),
+          perPolygon,
+          max - positions.length,
         );
         if (treeCount <= 0) continue;
 
         for (const point of randomPointsInRing(ring, treeCount)) {
           if (!isOnWater(point)) positions.push(point);
         }
-
-        if (positions.length >= MAX_TREES_TOTAL) break;
       }
 
-      const clipped = positions.slice(0, MAX_TREES_TOTAL);
+      const clipped = [...placed.forest, ...placed.open];
+      console.log(
+        `[Trees3D] compute ${(performance.now() - startedAt).toFixed(1)} ms — ` +
+          `${placed.forest.length} mata + ${placed.open.length} aberto (${target.key})`,
+      );
 
       if (
         map.isSourceLoaded(VEGETATION_SOURCE_ID) &&
