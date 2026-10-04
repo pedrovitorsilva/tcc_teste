@@ -58,6 +58,7 @@ import {
   projectionMatrixFor,
   type MercatorOrigin,
 } from "@/lib/map/threeCustomLayer";
+import { lightingFor } from "@/config/lighting";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
@@ -76,6 +77,8 @@ const hash01 = (v: number) => (((v % 100) + 100) % 100) / 100;
 interface Trees3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
   enabled: boolean;
+  /** Tema escuro: luar frio no lugar do sol (config/lighting.ts). */
+  night: boolean;
   selection: Selection | null;
   hoveredBairro: HoveredBairro | null;
   bairros: IndexedFeature[];
@@ -95,7 +98,14 @@ interface TreeScene {
   /** Copa em 2 cones (inferior invertido + superior), mesma matriz por árvore. */
   canopyLow: THREE.InstancedMesh;
   canopyHigh: THREE.InstancedMesh;
+  light: THREE.HemisphereLight;
   origin: MercatorOrigin;
+}
+
+function applyTreeLight(light: THREE.HemisphereLight, night: boolean) {
+  const lighting = lightingFor(night);
+  light.color.set(lighting.color);
+  light.intensity = lighting.hemisphere;
 }
 
 /** Espalha árvores dentro do bairro ou loteamento em foco.
@@ -107,6 +117,7 @@ interface TreeScene {
  */
 export function Trees3D({
   enabled,
+  night,
   selection,
   hoveredBairro,
   bairros,
@@ -116,6 +127,9 @@ export function Trees3D({
 
   const cacheRef = useRef(new Map<string, [number, number][]>());
   const sceneRef = useRef<TreeScene | null>(null);
+  // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
+  const nightRef = useRef(night);
+  nightRef.current = night;
 
   const target: ClipTarget | null = useMemo(() => {
     if (!enabled) return null;
@@ -306,10 +320,11 @@ export function Trees3D({
           const canopyHigh = new THREE.InstancedMesh(canopyHighGeometry, canopyMaterial, MAX_TREES_TOTAL);
           for (const mesh of [trunks, canopyLow, canopyHigh]) mesh.count = 0;
 
-          scene.add(new THREE.HemisphereLight(0xffffff, 0x3a2a1a, 1.4));
-          scene.add(trunks, canopyLow, canopyHigh);
+          const light = new THREE.HemisphereLight(0xffffff, 0x3a2a1a);
+          applyTreeLight(light, nightRef.current);
+          scene.add(light, trunks, canopyLow, canopyHigh);
 
-          sceneRef.current = { scene, renderer, trunks, canopyLow, canopyHigh, origin };
+          sceneRef.current = { scene, renderer, trunks, canopyLow, canopyHigh, light, origin };
         },
         render(gl, options) {
           const refs = sceneRef.current;
@@ -359,6 +374,13 @@ export function Trees3D({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
+
+  useEffect(() => {
+    const refs = sceneRef.current;
+    if (!refs || !map) return;
+    applyTreeLight(refs.light, night);
+    map.triggerRepaint();
+  }, [map, night]);
 
   // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
   // debounce/moveend/sourcedata do Buildings3D.

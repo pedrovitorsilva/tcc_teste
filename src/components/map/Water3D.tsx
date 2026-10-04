@@ -40,6 +40,7 @@ import {
   projectionMatrixFor,
   type MercatorOrigin,
 } from "@/lib/map/threeCustomLayer";
+import { lightingFor } from "@/config/lighting";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
@@ -49,6 +50,8 @@ const CLIP_DEBOUNCE_MS = 120;
 interface Water3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
   enabled: boolean;
+  /** Tema escuro: água sob luar frio (config/lighting.ts). */
+  night: boolean;
   selection: Selection | null;
   hoveredBairro: HoveredBairro | null;
   bairros: IndexedFeature[];
@@ -99,6 +102,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uLightDir;
   uniform float uSpecularStrength;
   uniform float uShininess;
+  uniform vec3 uLight;
 
   void main() {
     vec2 uvA = vUv + uTime * uScrollA;
@@ -123,7 +127,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     // querySourceFeatures) — com alpha blending isso empilhava e escurecia
     // a costura. Como o shader é função pura da posição, a segunda cópia
     // desenha o pixel idêntico por cima — sem blending, sem escurecer.
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(color * uLight, 1.0);
   }
 `;
 
@@ -159,6 +163,12 @@ function buildWaterGeometry(rings: Position[][], origin: MercatorOrigin): THREE.
   return geometry;
 }
 
+/** Cor×intensidade da luz, em sRGB cru como o resto do shader (sem conversão linear). */
+function setWaterLight(uniform: THREE.Color, night: boolean) {
+  const lighting = lightingFor(night);
+  uniform.setHex(lighting.color, THREE.LinearSRGBColorSpace).multiplyScalar(lighting.water);
+}
+
 /** Exibe a água 3D (com ondulação animada) do bairro ou loteamento em foco.
  *
  * Fonte: Overture Maps (tema `base`, layer `water`), fonte vetorial remota.
@@ -167,6 +177,7 @@ function buildWaterGeometry(rings: Position[][], origin: MercatorOrigin): THREE.
  */
 export function Water3D({
   enabled,
+  night,
   selection,
   hoveredBairro,
   bairros,
@@ -177,6 +188,9 @@ export function Water3D({
   const cacheRef = useRef(new Map<string, Position[][]>());
   const sceneRef = useRef<WaterScene | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
+  const nightRef = useRef(night);
+  nightRef.current = night;
 
   const target: ClipTarget | null = useMemo(() => {
     if (!enabled) return null;
@@ -310,8 +324,10 @@ export function Water3D({
               uLightDir: { value: new THREE.Vector3(...WATER_LIGHT_DIR) },
               uSpecularStrength: { value: WATER_SPECULAR_STRENGTH },
               uShininess: { value: WATER_SPECULAR_SHININESS },
+              uLight: { value: new THREE.Color() },
             },
           });
+          setWaterLight(material.uniforms.uLight.value, nightRef.current);
 
           const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
           scene.add(mesh);
@@ -355,6 +371,13 @@ export function Water3D({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
+
+  useEffect(() => {
+    const refs = sceneRef.current;
+    if (!refs || !map) return;
+    setWaterLight(refs.material.uniforms.uLight.value, night);
+    map.triggerRepaint();
+  }, [map, night]);
 
   // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
   // debounce/moveend/sourcedata do Buildings3D/Trees3D. O loop de animação

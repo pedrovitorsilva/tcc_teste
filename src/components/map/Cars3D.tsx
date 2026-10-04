@@ -46,6 +46,7 @@ import {
   type CarType,
 } from "@/config/cars";
 import { WATER_LIGHT_DIR } from "@/config/water";
+import { lightingFor } from "@/config/lighting";
 import {
   bboxIntersects,
   mulberry32,
@@ -68,6 +69,8 @@ const CLIP_DEBOUNCE_MS = 120;
 interface Cars3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile/modelo. */
   enabled: boolean;
+  /** Tema escuro: luar frio no lugar do sol (config/lighting.ts). */
+  night: boolean;
   selection: Selection | null;
   hoveredBairro: HoveredBairro | null;
   bairros: IndexedFeature[];
@@ -165,6 +168,8 @@ function advanceAtEnd(car: ActiveCar, graph: RoadGraph): void {
 interface CarScene {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
+  ambient: THREE.AmbientLight;
+  sun: THREE.DirectionalLight;
   origin: MercatorOrigin;
   /** `null` até o glTF terminar de carregar — carros só aparecem depois disso. */
   prefabs: Map<CarType, THREE.Group> | null;
@@ -177,6 +182,14 @@ interface CarScene {
  * pivot do carro fica na posição em que o tipo foi desenhado dentro do pack
  * (uma fileira de 14 veículos lado a lado), e girar o grupo pra orientar o
  * carro faria ele "orbitar" um ponto distante em vez de girar no próprio eixo. */
+function applyCarLight(refs: Pick<CarScene, "ambient" | "sun">, night: boolean) {
+  const lighting = lightingFor(night);
+  refs.ambient.color.set(lighting.color);
+  refs.ambient.intensity = lighting.ambient;
+  refs.sun.color.set(lighting.color);
+  refs.sun.intensity = lighting.sun;
+}
+
 function recenterGroupXZ(group: THREE.Group): void {
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
@@ -284,7 +297,7 @@ function drawnWidthPx(map: MapLibreMap, roadClass: string, zoom: number): number
  * `requestAnimationFrame` próprio, ligado só enquanto `enabled` e houver
  * alvo — mesmo padrão de `Water3D.tsx`.
  */
-export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos, onCountChange }: Cars3DProps) {
+export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, loteamentos, onCountChange }: Cars3DProps) {
   const { map, isLoaded } = useMap();
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
@@ -298,6 +311,9 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
   /** Vias que já receberam carros — carros migram entre vias, então "tem carro agora" não serve. */
   const spawnedRef = useRef(new Set<string>());
   const targetRef = useRef<ClipTarget | null>(null);
+  // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
+  const nightRef = useRef(night);
+  nightRef.current = night;
 
   const target: ClipTarget | null = enabled
     ? selection
@@ -494,12 +510,13 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
           // Os materiais do glTF são PBR (MeshStandardMaterial) — sem luz
           // na cena eles renderizam pretos, diferente do MeshBasicMaterial
           // usado em Trees3D. Mesma direção de luz de Water3D, por consistência.
-          scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-          const sun = new THREE.DirectionalLight(0xffffff, 2);
+          const ambient = new THREE.AmbientLight();
+          const sun = new THREE.DirectionalLight();
           sun.position.set(WATER_LIGHT_DIR[0], WATER_LIGHT_DIR[1], WATER_LIGHT_DIR[2]);
-          scene.add(sun);
+          applyCarLight({ ambient, sun }, nightRef.current);
+          scene.add(ambient, sun);
 
-          sceneRef.current = { scene, renderer, origin, prefabs: null, rawGltfScene: null, active: [] };
+          sceneRef.current = { scene, renderer, ambient, sun, origin, prefabs: null, rawGltfScene: null, active: [] };
 
           new GLTFLoader().load(CAR_GLTF_URL, (gltf) => {
             const refs = sceneRef.current;
@@ -545,6 +562,13 @@ export function Cars3D({ enabled, selection, hoveredBairro, bairros, loteamentos
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
+
+  useEffect(() => {
+    const refs = sceneRef.current;
+    if (!refs || !map) return;
+    applyCarLight(refs, night);
+    map.triggerRepaint();
+  }, [map, night]);
 
   // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
   // debounce/moveend/sourcedata das outras camadas 3D.

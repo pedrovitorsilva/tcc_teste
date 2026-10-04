@@ -44,6 +44,8 @@ ensurePMTilesProtocol();
 
 export function MapView() {
   const { theme } = useTheme();
+  // Vintage segue diurno: só o escuro tem noite.
+  const night = theme === "dark";
   const tokens = useThemeTokens();
   const mapStyles = useMapStyles(theme, tokens);
   const { bairros, loteamentos, bairrosData, loteamentosData } = useGeoIndex();
@@ -164,6 +166,7 @@ export function MapView() {
           />
           <Trees3D
             enabled={vegetationEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
@@ -171,6 +174,7 @@ export function MapView() {
           />
           <Water3D
             enabled={waterEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
@@ -178,6 +182,7 @@ export function MapView() {
           />
           <Cars3D
             enabled={carsEnabled}
+            night={night}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}
