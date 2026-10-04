@@ -38,6 +38,12 @@ function isWaterLayer(layer: LayerSpecification): boolean {
   return /water|ocean|sea|river|lake/i.test(layerName(layer));
 }
 
+/** Residential landuse is a near-white veil over the land: under an inverted ramp
+ * (light → roads) it would turn whole blocks road-grey, so it's painted as land. */
+function isLandLayer(layer: LayerSpecification): boolean {
+  return layer.type === 'background' || /residential/i.test(layerName(layer));
+}
+
 function isParkLayer(layer: LayerSpecification): boolean {
   return /park|landcover|wood|grass|forest/i.test(layerName(layer));
 }
@@ -46,10 +52,11 @@ function isColorKey(key: string): boolean {
   return key.toLowerCase().includes('color');
 }
 
-/** Walk through a paint value (string or nested expression) applying `visit`. */
+/** Walk through a paint value (string, expression or legacy `{stops}` function) applying `visit`. */
 function walkColors(value: unknown, visit: (color: string) => void): void {
   if (typeof value === 'string') visit(value);
-  else if (Array.isArray(value)) value.forEach((item) => walkColors(item, visit));
+  else if (value && typeof value === 'object')
+    Object.values(value).forEach((item) => walkColors(item, visit));
 }
 
 export function tintStyle(style: StyleSpecification, target: TintTarget): StyleSpecification {
@@ -75,7 +82,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
   let minL = Infinity;
   let maxL = -Infinity;
   for (const layer of style.layers) {
-    if (layer.type === 'background' || isWaterLayer(layer) || isFlatPark(layer)) continue;
+    if (isLandLayer(layer) || isWaterLayer(layer) || isFlatPark(layer)) continue;
     const paint = 'paint' in layer ? layer.paint : undefined;
     if (!paint) continue;
     for (const [key, value] of Object.entries(paint)) {
@@ -97,7 +104,9 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
     if (!rgb) return input; // `transparent`, CSS names, non-color values
 
     if (mode === 'water') return formatColor(oklabToRgb({ ...water, alpha: rgb.a }));
-    if (mode === 'park' && park) return formatColor(oklabToRgb({ ...park, alpha: rgb.a }));
+    // Opaque on purpose: Positron paints parks at alpha .5, which blended the
+    // green half-and-half with the land into a grey.
+    if (mode === 'park' && park) return formatColor(oklabToRgb({ ...park, alpha: 1 }));
     if (mode === 'background') {
       return formatColor(oklabToRgb({ ...background, alpha: rgb.a }));
     }
@@ -120,10 +129,17 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
     );
   }
 
-  /** Color can be string or nested expression; tinting only what `parseColor` recognizes preserves operators and numbers. */
+  /** Color can be string, nested expression or legacy `{stops}` function (Positron
+   * uses those for landcover/park/casings — skipping them left parks untinted);
+   * tinting only what `parseColor` recognizes preserves operators and numbers. */
   function tintValue(value: unknown, mode: TintMode): unknown {
     if (typeof value === 'string') return tintOne(value, mode);
     if (Array.isArray(value)) return value.map((item) => tintValue(item, mode));
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, tintValue(item, mode)])
+      );
+    }
     return value;
   }
 
@@ -132,7 +148,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
     if (!paint) return layer;
 
     const mode: TintMode =
-      layer.type === 'background'
+      isLandLayer(layer)
         ? 'background'
         : isWaterLayer(layer)
           ? 'water'

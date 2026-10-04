@@ -58,14 +58,18 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
             }
           : {
               source: MAP_STYLES.light,
-              // Paleta do F4map: vias cinza-médio bem marcadas sobre o terreno
-              // lilás (o Positron cru desenha as vias em #ddd).
+              // F4map: vias como faixas cinza-médio sobre o terreno. Invertido
+              // como o escuro, porque o Positron preenche as vias em #fff (o
+              // tom mais claro do style) — na rampa direta elas sumiam no
+              // terreno e só os contornos apareciam. Contornos e limites se
+              // dissolvem no fundo.
               target: {
-                land: mapLand,
+                background: mapLand,
+                land: mapInk,
+                ink: mapLand,
                 water: mapWater,
-                ink: mapInk,
                 park: mapPark,
-                contrast: 0.8,
+                contrast: 0.9,
               },
             };
 

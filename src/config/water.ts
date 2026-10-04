@@ -19,8 +19,12 @@ export const WATER_PROBE_LAYER_ID = 'overture-water-probe';
 /** Zoom mínimo pra exibir água — o tileset do tema `base` tem maxzoom 13. */
 export const WATER_MIN_ZOOM = 13;
 
-/** Cor base da água (RGB 0-1, consumido direto pelo shader). */
-export const WATER_COLOR: [number, number, number] = [0.16, 0.42, 0.58];
+/**
+ * Cor base da água (RGB 0-1, consumido direto pelo shader). Multiplica a
+ * textura difusa (média ≈ [0.21, 0.33, 0.43]) sem conversão de espaço de cor:
+ * o resultado médio é o azul-marinho do F4map, #0d1a31 (= --map-water no claro).
+ */
+export const WATER_COLOR: [number, number, number] = [0.24, 0.3, 0.44];
 
 // Textura de água: albedo + normal map (tangent-space), mesmo pack, 512×512.
 export const WATER_DIFFUSE_MAP_URL = '/water/Water_diffuse_texture.jpg';

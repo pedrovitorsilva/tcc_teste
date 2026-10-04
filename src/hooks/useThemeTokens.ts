@@ -14,11 +14,11 @@ export interface ThemeTokens {
   accentWash: string;
   /** Cor das extrusões de edificação, nos três temas — o último degrau da rampa. */
   building: string;
-  /** Cor do "papel" do basemap — alvo claro da tintura do tema antigo. */
+  /** Cor do "papel"/terreno do basemap. */
   mapLand: string;
   /** Cor chapada da água no basemap. */
   mapWater: string;
-  /** Cor da tinta do basemap — alvo escuro da tintura do tema antigo. */
+  /** Cor da tinta do basemap; nos temas claro e escuro, a cor das vias (rampa invertida). */
   mapInk: string;
   /** Cor chapada de parques/gramados no basemap. */
   mapPark: string;
@@ -51,11 +51,11 @@ const FALLBACK_TOKENS: ThemeTokens = {
   inkSoft: '#55606e',
   panel: '#ffffff',
   accentWash: 'rgba(59, 130, 196, .08)',
-  building: '#798eb6',
-  mapLand: '#e4e2e8',
-  mapWater: '#4d6d8c',
-  mapInk: '#6f6e76',
-  mapPark: '#9db55e',
+  building: '#cdcfea',
+  mapLand: '#cccbd8',
+  mapWater: '#0d1a31',
+  mapInk: '#686870',
+  mapPark: '#768254',
 };
 
 function readTokens(): ThemeTokens {
