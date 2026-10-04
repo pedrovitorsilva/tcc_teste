@@ -16,6 +16,8 @@ export interface TintTarget {
   water: string;
   /** Direction where the **darkest** feature of the style heads. */
   ink: string;
+  /** Flat park/landcover color. Omitted → parks follow the land→ink ramp. */
+  park?: string;
   /** Flat background. Default is `land`; in a dark style the two separate (§1). */
   background?: string;
   /** How much of the paper→ink path the darkest feature traverses. Not 1 by design (§1). */
@@ -24,12 +26,20 @@ export interface TintTarget {
 
 const DEFAULT_CONTRAST = 0.7;
 
-type TintMode = 'background' | 'water' | 'feature';
+type TintMode = 'background' | 'water' | 'park' | 'feature';
+
+function layerName(layer: LayerSpecification): string {
+  const sourceLayer = 'source-layer' in layer ? layer['source-layer'] : undefined;
+  return `${layer.id} ${sourceLayer ?? ''}`;
+}
 
 /** Water is flat color, not remapped: remapping produces a beige that reads as shadow (§1). */
 function isWaterLayer(layer: LayerSpecification): boolean {
-  const sourceLayer = 'source-layer' in layer ? layer['source-layer'] : undefined;
-  return /water|ocean|sea|river|lake/i.test(`${layer.id} ${sourceLayer ?? ''}`);
+  return /water|ocean|sea|river|lake/i.test(layerName(layer));
+}
+
+function isParkLayer(layer: LayerSpecification): boolean {
+  return /park|landcover|wood|grass|forest/i.test(layerName(layer));
 }
 
 function isColorKey(key: string): boolean {
@@ -47,12 +57,15 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
   const inkRgb = parseColor(target.ink);
   const waterRgb = parseColor(target.water);
   const backgroundRgb = parseColor(target.background ?? target.land);
+  const parkRgb = target.park ? parseColor(target.park) : null;
   if (!landRgb || !inkRgb || !waterRgb || !backgroundRgb) return style;
 
   const land = rgbToOklab(landRgb);
   const ink = rgbToOklab(inkRgb);
   const water = rgbToOklab(waterRgb);
   const background = rgbToOklab(backgroundRgb);
+  const park = parkRgb ? rgbToOklab(parkRgb) : null;
+  const isFlatPark = (layer: LayerSpecification) => park !== null && isParkLayer(layer);
 
   const contrast = target.contrast ?? DEFAULT_CONTRAST;
 
@@ -62,7 +75,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
   let minL = Infinity;
   let maxL = -Infinity;
   for (const layer of style.layers) {
-    if (layer.type === 'background' || isWaterLayer(layer)) continue;
+    if (layer.type === 'background' || isWaterLayer(layer) || isFlatPark(layer)) continue;
     const paint = 'paint' in layer ? layer.paint : undefined;
     if (!paint) continue;
     for (const [key, value] of Object.entries(paint)) {
@@ -84,6 +97,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
     if (!rgb) return input; // `transparent`, CSS names, non-color values
 
     if (mode === 'water') return formatColor(oklabToRgb({ ...water, alpha: rgb.a }));
+    if (mode === 'park' && park) return formatColor(oklabToRgb({ ...park, alpha: rgb.a }));
     if (mode === 'background') {
       return formatColor(oklabToRgb({ ...background, alpha: rgb.a }));
     }
@@ -122,7 +136,9 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
         ? 'background'
         : isWaterLayer(layer)
           ? 'water'
-          : 'feature';
+          : isFlatPark(layer)
+            ? 'park'
+            : 'feature';
     const nextPaint: Record<string, unknown> = { ...paint };
     let changed = false;
 
@@ -158,6 +174,7 @@ export function loadTintedStyle(
     target.land,
     target.water,
     target.ink,
+    target.park ?? '',
     target.background ?? target.land,
     target.contrast ?? DEFAULT_CONTRAST,
   ].join('|');

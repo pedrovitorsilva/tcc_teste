@@ -21,23 +21,24 @@ body {
 
    :root,
 [data-theme="light"] {
-  --page: #f7f8fa;
+  --page: #e4e2e8;
   --panel: #ffffff;
-  --panel-2: #eef0f4;
-  --ink: #1a1f2b;
-  --ink-soft: #545c6b;
-  --ink-faint: #6d7585;
-  --border: rgba(26, 31, 43, .14);
-  --border-soft: rgba(26, 31, 43, .07);
+  --panel-2: #f2f2f2;
+  --ink: #2c3e50;
+  --ink-soft: #55606e;
+  --ink-faint: #7a8491;
+  --border: rgba(44, 62, 80, .14);
+  --border-soft: rgba(44, 62, 80, .07);
   --bairro: #303d58;
   --loteamento: #475676;
   --setor: #607195;
   --building: #798eb6;
   --uncertain: #55565a;
-  --accent-wash: rgba(48, 61, 88, .06);
-  --map-land: #ffffff;
-  --map-water: #e3e9f2;
-  --map-ink: #2b3242;
+  --accent-wash: rgba(59, 130, 196, .08);
+  --map-land: #e4e2e8;
+  --map-water: #4d6d8c;
+  --map-ink: #6f6e76;
+  --map-park: #9db55e;
 }
 
 /* Escuro = cidade à noite.
@@ -62,6 +63,7 @@ body {
   --map-land: #0c1626;
   --map-water: #081120;
   --map-ink: #876b2f;
+  --map-park: #1b2a22;
 }
 
 /* Tema Antigo 
@@ -84,6 +86,7 @@ body {
   --map-land: #f7dcc0;
   --map-water: #d3aa99;
   --map-ink: #7b2321;
+  --map-park: #cdb98a;
 }
 
 @theme inline {

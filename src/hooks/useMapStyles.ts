@@ -31,7 +31,7 @@ interface MapStyles {
  */
 export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
   const [tinted, setTinted] = useState<StyleSpecification | null>(null);
-  const { mapLand, mapWater, mapInk } = tokens;
+  const { mapLand, mapWater, mapInk, mapPark } = tokens;
 
   useEffect(() => {
     // Cada tema define de qual style parte e para onde cada extremo da faixa de
@@ -40,7 +40,7 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
       theme === 'vintage'
         ? {
             source: MAP_STYLES.light,
-            target: { land: mapLand, water: mapWater, ink: mapInk },
+            target: { land: mapLand, water: mapWater, ink: mapInk, park: mapPark },
           }
         : theme === 'dark'
           ? {
@@ -52,18 +52,20 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
                 land: mapInk,
                 ink: mapLand,
                 water: mapWater,
+                park: mapPark,
                 contrast: 0.85,
               },
             }
           : {
               source: MAP_STYLES.light,
-              // 0.55 dá a leitura de gravura sem chegar ao preto, que competiria
-              // com os dados (o Positron cru desenha as vias em #ddd).
+              // Paleta do F4map: vias cinza-médio bem marcadas sobre o terreno
+              // lilás (o Positron cru desenha as vias em #ddd).
               target: {
                 land: mapLand,
                 water: mapWater,
                 ink: mapInk,
-                contrast: 0.55,
+                park: mapPark,
+                contrast: 0.8,
               },
             };
 
@@ -82,7 +84,7 @@ export function useMapStyles(theme: ThemeName, tokens: ThemeTokens): MapStyles {
     return () => {
       cancelled = true;
     };
-  }, [theme, mapLand, mapWater, mapInk]);
+  }, [theme, mapLand, mapWater, mapInk, mapPark]);
 
   return useMemo(
     () => (tinted ? { light: tinted, dark: tinted } : MAP_STYLES),
