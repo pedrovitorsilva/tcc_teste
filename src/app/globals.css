@@ -233,7 +233,13 @@ body {
 
   /* Título flutuante — nome principal */
   .cv-title {
-    font-size: clamp(28px, 6vw, 96px);
+    font-size: clamp(24px, 5vw, 72px);
+  }
+
+  /* Hero da landing page — compacto */
+  .cv-title-hero {
+    font-size: clamp(20px, 4vw, 48px);
+    line-height: 1.2;
   }
 
   /* Título flutuante — breadcrumb */
