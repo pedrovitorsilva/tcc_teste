@@ -17,7 +17,7 @@ const CC_BY =
 export function ModelsAttribution({ cars, lamps }: { cars: boolean; lamps: boolean }) {
   const { map, isLoaded } = useMap();
   const credits = [cars && CAR_MODEL_CREDIT, lamps && STREET_LAMP_MODEL_CREDIT].filter(Boolean);
-  const attribution = credits.length ? `Modelos 3D: ${credits.join(" · ")}, ${CC_BY}` : "";
+  const attribution = credits.length ? `3D: ${credits.join(" · ")}, ${CC_BY}` : "";
 
   useEffect(() => {
     if (!map || !isLoaded || !attribution) return;
