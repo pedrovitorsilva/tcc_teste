@@ -28,10 +28,3 @@ export const STREET_LAMPS_MIN_ZOOM = 13;
  * cortaria o bairro pela metade (ordem das vias, não espacial).
  */
 export const MAX_LAMPS_TOTAL = 6000;
-
-export const STREET_LAMPS_ATTRIBUTION =
-  '© <a href="https://openstreetmap.org" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · ' +
-  '<a href="https://openstreetmap.org/copyright" target="_blank" rel="noreferrer">ODbL</a> · ' +
-  '<a href="https://sketchfab.com/3d-models/low-poly-street-light-bf960763cd58472eb444e2d4875ca474" target="_blank" rel="noreferrer">"Low Poly Street Light"</a> por ' +
-  '<a href="https://sketchfab.com/Fridqeir" target="_blank" rel="noreferrer">Fridqeir</a> · ' +
-  '<a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY-4.0</a>';

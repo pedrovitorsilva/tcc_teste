@@ -24,11 +24,12 @@ import {
   STREET_LAMP_GLOW_COLOR,
   STREET_LAMP_GLOW_RADIUS,
   STREET_LAMP_GLTF_URL,
-  STREET_LAMPS_ATTRIBUTION,
   STREET_LAMPS_DATA_URL,
   STREET_LAMPS_MIN_ZOOM,
 } from "@/config/streetLamps";
+import { CAR_SCALE_FACTOR_MAX, CAR_SCALE_FACTOR_MIN, ROAD_WIDTH_M, ROAD_WIDTH_REF_M } from "@/config/cars";
 import { lightingFor } from "@/config/lighting";
+import { drawnWidthPx, pixelsPerMeter } from "@/components/map/Cars3D";
 import { pointInPolygon } from "@/lib/map/buildingClip";
 import { radialGlowTexture } from "@/lib/map/glowTexture";
 import {
@@ -40,11 +41,9 @@ import {
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
+// Sem crédito no (i): o OSM já vem do basemap CARTO; a nota da sidebar
+// (StreetLampsNote) explica a origem dos postes.
 const LAMPS_LAYER_ID = "street-lamps-3d-layer";
-// Source GeoJSON vazia + layer invisível: só existem pra o controle de
-// atribuição mostrar o crédito do OSM (ele lista sources "used" por um layer).
-const LAMPS_ATTRIBUTION_SOURCE_ID = "street-lamps-attribution";
-const LAMPS_ATTRIBUTION_PROBE_ID = "street-lamps-attribution-probe";
 
 /** [lng, lat, heading] — heading em radianos, leste=0, anti-horário. */
 type Lamp = [number, number, number];
@@ -87,6 +86,40 @@ interface LampScene {
   headMaterial: THREE.MeshLambertMaterial;
   light: THREE.HemisphereLight;
   origin: MercatorOrigin;
+  /** Postes recortados: [x, z, heading] no referencial local. */
+  placed: [number, number, number][];
+  /** Escala aplicada hoje às instâncias (muda com o zoom). */
+  scale: number;
+}
+
+// Mesmo fator de Cars3D numa via residencial (maioria dos postes): largura
+// desenhada da via em metros / largura de referência, mesmo piso/teto — poste
+// e carro na mesma rua ficam proporcionais em qualquer zoom.
+function lampScale(map: Parameters<typeof drawnWidthPx>[0]): number {
+  const zoom = map.getZoom();
+  const px = drawnWidthPx(map, "residential", zoom);
+  const widthM = px === null ? ROAD_WIDTH_M.residential : px / pixelsPerMeter(zoom, map.getCenter().lat);
+  return Math.min(CAR_SCALE_FACTOR_MAX, Math.max(CAR_SCALE_FACTOR_MIN, widthM / ROAD_WIDTH_REF_M));
+}
+
+function writeMatrices(refs: LampScene) {
+  const dummy = new THREE.Object3D();
+  dummy.scale.setScalar(refs.scale);
+  refs.placed.forEach(([x, z, heading], i) => {
+    dummy.position.set(x, 0, z);
+    dummy.rotation.y = heading; // +X local → (leste cos h, norte sin h)
+    dummy.updateMatrix();
+    refs.poles.setMatrixAt(i, dummy.matrix);
+    refs.heads.setMatrixAt(i, dummy.matrix);
+    refs.glows.setMatrixAt(i, dummy.matrix);
+  });
+  for (const mesh of [refs.poles, refs.heads, refs.glows]) {
+    mesh.count = refs.placed.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    // Ver Trees3D: sem isso o boundingSphere fica o da 1ª render (vazio) e
+    // o frustum culling descarta a mesh pra sempre.
+    mesh.computeBoundingSphere();
+  }
 }
 
 function applyNight(refs: LampScene, night: boolean) {
@@ -135,26 +168,9 @@ export function StreetLamps3D({
     };
   }, [enabled, lamps]);
 
-  // Lifecycle: source/probe de atribuição + custom layer (cena Three.js).
+  // Lifecycle: custom layer (cena Three.js).
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
-
-    if (!map.getSource(LAMPS_ATTRIBUTION_SOURCE_ID)) {
-      map.addSource(LAMPS_ATTRIBUTION_SOURCE_ID, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-        attribution: STREET_LAMPS_ATTRIBUTION,
-      });
-    }
-    if (!map.getLayer(LAMPS_ATTRIBUTION_PROBE_ID)) {
-      map.addLayer({
-        id: LAMPS_ATTRIBUTION_PROBE_ID,
-        type: "circle",
-        source: LAMPS_ATTRIBUTION_SOURCE_ID,
-        minzoom: STREET_LAMPS_MIN_ZOOM,
-        paint: { "circle-opacity": 0 },
-      });
-    }
 
     if (!map.getLayer(LAMPS_LAYER_ID)) {
       const customLayer: CustomLayerInterface = {
@@ -199,7 +215,11 @@ export function StreetLamps3D({
           const light = new THREE.HemisphereLight(0xffffff, 0x3a2a1a);
           scene.add(light, poles, heads, glows);
 
-          const refs: LampScene = { scene, renderer, poles, heads, glows, headMaterial, light, origin };
+          const refs: LampScene = {
+            scene, renderer, poles, heads, glows, headMaterial, light, origin,
+            placed: [],
+            scale: lampScale(mapInstance),
+          };
           applyNight(refs, nightRef.current);
           sceneRef.current = refs;
 
@@ -250,6 +270,12 @@ export function StreetLamps3D({
           const refs = sceneRef.current;
           if (!refs || map.getZoom() < STREET_LAMPS_MIN_ZOOM) return;
 
+          const scale = lampScale(map);
+          if (scale !== refs.scale) {
+            refs.scale = scale;
+            writeMatrices(refs);
+          }
+
           const camera = new THREE.Camera();
           camera.projectionMatrix = projectionMatrixFor(
             refs.origin,
@@ -276,8 +302,6 @@ export function StreetLamps3D({
 
     return () => {
       if (map.getLayer(LAMPS_LAYER_ID)) map.removeLayer(LAMPS_LAYER_ID);
-      if (map.getLayer(LAMPS_ATTRIBUTION_PROBE_ID)) map.removeLayer(LAMPS_ATTRIBUTION_PROBE_ID);
-      if (map.getSource(LAMPS_ATTRIBUTION_SOURCE_ID)) map.removeSource(LAMPS_ATTRIBUTION_SOURCE_ID);
     };
   }, [map, isLoaded, enabled]);
 
@@ -295,32 +319,19 @@ export function StreetLamps3D({
     const refs = sceneRef.current;
     if (!map || !refs) return;
 
-    let count = 0;
+    const placed: LampScene["placed"] = [];
     if (target && lamps) {
-      const dummy = new THREE.Object3D();
       const [w, s, e, n] = target.bbox ?? [-Infinity, -Infinity, Infinity, Infinity];
       for (const [lng, lat, heading] of lamps) {
-        if (count >= MAX_LAMPS_TOTAL) break;
+        if (placed.length >= MAX_LAMPS_TOTAL) break;
         if (lng < w || lng > e || lat < s || lat > n) continue;
         if (!pointInPolygon([lng, lat], target.geometry)) continue;
         const { x, z } = lngLatToLocalMeters(refs.origin, [lng, lat]);
-        dummy.position.set(x, 0, z);
-        dummy.rotation.y = heading; // +X local → (leste cos h, norte sin h)
-        dummy.updateMatrix();
-        refs.poles.setMatrixAt(count, dummy.matrix);
-        refs.heads.setMatrixAt(count, dummy.matrix);
-        refs.glows.setMatrixAt(count, dummy.matrix);
-        count += 1;
+        placed.push([x, z, heading]);
       }
     }
-
-    for (const mesh of [refs.poles, refs.heads, refs.glows]) {
-      mesh.count = count;
-      mesh.instanceMatrix.needsUpdate = true;
-      // Ver Trees3D: sem isso o boundingSphere fica o da 1ª render (vazio) e
-      // o frustum culling descarta a mesh pra sempre.
-      mesh.computeBoundingSphere();
-    }
+    refs.placed = placed;
+    writeMatrices(refs);
     map.triggerRepaint();
   }, [map, isLoaded, enabled, target, lamps]);
 

@@ -13,6 +13,7 @@ interface BottomSheetProps {
   vehiclesCount: number;
   buildingsEnabled: boolean;
   carsEnabled: boolean;
+  lampsEnabled: boolean;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
@@ -30,6 +31,7 @@ export function BottomSheet({
   vehiclesCount,
   buildingsEnabled,
   carsEnabled,
+  lampsEnabled,
   snap,
   onSnapChange,
   onClose,
@@ -114,6 +116,7 @@ export function BottomSheet({
             vehiclesCount={vehiclesCount}
             buildingsEnabled={buildingsEnabled}
             carsEnabled={carsEnabled}
+            lampsEnabled={lampsEnabled}
             onSelectLoteamento={(name) => onNavigate('loteamento', name)}
           />
         )}

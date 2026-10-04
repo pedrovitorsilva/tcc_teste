@@ -240,6 +240,7 @@ export function MapView() {
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
+          lampsEnabled={lampsEnabled}
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
@@ -254,6 +255,7 @@ export function MapView() {
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
+          lampsEnabled={lampsEnabled}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
           onClose={handleClose}

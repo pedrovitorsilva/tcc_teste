@@ -111,11 +111,27 @@ export const CAR_CLASS_BOOST: Record<string, number> = {
 export const CAR_MODEL_FORWARD_OFFSET = 0;
 
 /**
+ * Faróis/lanternas, só à noite. As peças são MeshBasicMaterial (sem luz, sem
+ * `emissive`): a cor já é o brilho final. Tamanhos em metros de um carro real
+ * de `CAR_REFERENCE_LENGTH_M` — convertidos pro comprimento medido de cada
+ * modelo, então acompanham a escala do carro (zoom/classe de via).
+ */
+export const CAR_REFERENCE_LENGTH_M = 4.5;
+export const CAR_HEADLIGHT_COLOR = 0xfff4cc; // branco-quente
+export const CAR_TAILLIGHT_COLOR = 0xff3333; // vermelho
+/** Caixinha de cada farol/lanterna (m): largura × altura × profundidade. */
+export const CAR_LAMP_SIZE_M: [number, number, number] = [0.3, 0.15, 0.1];
+
+/** Disco aditivo no chão à frente do carro (como o halo dos postes). */
+export const CAR_HEADLIGHT_GLOW_RADIUS = 4; // m
+export const CAR_HEADLIGHT_GLOW_COLOR = 0xfff4cc;
+/** Multiplica a cor do disco — no blending aditivo, cor = intensidade. */
+export const CAR_HEADLIGHT_INTENSITY = 0.6;
+
+/**
  * Atribuição exibida automaticamente pelo controle de atribuição do mapa.
- * O texto do pack de veículos é o crédito exato exigido por
- * public/cars/license.txt (CC-BY-4.0) — não simplificar/parafrasear.
+ * Só dados (o (i) deduplica com buildings/water/vegetation); o crédito
+ * CC-BY-4.0 do pack de veículos (public/cars/license.txt) fica em CarsNote.
  */
 export const CARS_ATTRIBUTION =
-  '<a href="https://overturemaps.org" target="_blank" rel="noreferrer">© Overture Maps Foundation</a> · ' +
-  '<a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">RgsDev</a> · ' +
-  '<a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC-BY-4.0</a>';
+  '<a href="https://overturemaps.org" target="_blank" rel="noreferrer">© Overture Maps Foundation</a>';
