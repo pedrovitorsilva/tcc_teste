@@ -2,7 +2,6 @@
 
 import { LayerControlsPopoverButton } from './LayerControlsPopoverButton';
 import { PalettePopoverButton } from './PalettePopoverButton';
-import { ToggleButton } from '../ToggleButton';
 import { BuildingIcon, VegetationIcon, WaterIcon, CarIcon, LampIcon } from '@/components/icons';
 import type { LayerToggles } from '@/types/map';
 
@@ -21,8 +20,10 @@ interface OptionsListProps {
   onLampsChange: (enabled: boolean) => void;
 }
 
-/** Agrupa camadas, paleta e as camadas 3D (prédios, vegetação, água) — sempre
- * juntos, idênticos no cluster de opções desktop e mobile de MapView.tsx. */
+const ICONE = 'h-4 w-4';
+
+/** Controles do canto do mapa: "Camadas" (limites + 3D) e "Paleta". Dois botões
+ * em vez de sete — o 3D ambienta, não é o que se consulta a todo momento. */
 export function OptionsList({
   layerToggles,
   onLayerTogglesChange,
@@ -42,59 +43,16 @@ export function OptionsList({
       <LayerControlsPopoverButton
         toggles={layerToggles}
         onChange={onLayerTogglesChange}
+        camadas3D={[
+          { key: 'predios', label: 'Edificações', icon: <BuildingIcon className={ICONE} />, enabled: buildingsEnabled, onChange: onBuildingsChange },
+          { key: 'vegetacao', label: 'Vegetação', icon: <VegetationIcon className={ICONE} />, enabled: vegetationEnabled, onChange: onVegetationChange },
+          { key: 'agua', label: 'Água', icon: <WaterIcon className={ICONE} />, enabled: waterEnabled, onChange: onWaterChange },
+          { key: 'carros', label: 'Carros', icon: <CarIcon className={ICONE} />, enabled: carsEnabled, onChange: onCarsChange },
+          { key: 'postes', label: 'Postes', icon: <LampIcon className={ICONE} />, enabled: lampsEnabled, onChange: onLampsChange },
+        ]}
         className="relative"
       />
       <PalettePopoverButton className="relative" />
-      <ToggleButton
-        pressed={buildingsEnabled}
-        onChange={onBuildingsChange}
-        icon={<BuildingIcon className="h-4 w-4" />}
-        label={
-          buildingsEnabled
-            ? 'Edificações 3D ativas — desativar'
-            : 'Edificações 3D desativadas — ativar'
-        }
-      />
-      <ToggleButton
-        pressed={vegetationEnabled}
-        onChange={onVegetationChange}
-        icon={<VegetationIcon className="h-4 w-4" />}
-        label={
-          vegetationEnabled
-            ? 'Vegetação 3D ativa — desativar'
-            : 'Vegetação 3D desativada — ativar'
-        }
-      />
-      <ToggleButton
-        pressed={waterEnabled}
-        onChange={onWaterChange}
-        icon={<WaterIcon className="h-4 w-4" />}
-        label={
-          waterEnabled
-            ? 'Água 3D ativa — desativar'
-            : 'Água 3D desativada — ativar'
-        }
-      />
-      <ToggleButton
-        pressed={carsEnabled}
-        onChange={onCarsChange}
-        icon={<CarIcon className="h-4 w-4" />}
-        label={
-          carsEnabled
-            ? 'Carros 3D ativos — desativar'
-            : 'Carros 3D desativados — ativar'
-        }
-      />
-      <ToggleButton
-        pressed={lampsEnabled}
-        onChange={onLampsChange}
-        icon={<LampIcon className="h-4 w-4" />}
-        label={
-          lampsEnabled
-            ? 'Postes 3D ativos — desativar'
-            : 'Postes 3D desativados — ativar'
-        }
-      />
     </>
   );
 }
