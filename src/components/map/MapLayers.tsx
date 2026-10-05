@@ -16,6 +16,7 @@ import { useGeoLayerStyles } from '@/hooks/useGeoLayerStyles';
 import { useBairroLayer } from '@/hooks/map/useBairroLayer';
 import { useLoteamentoLayer } from '@/hooks/map/useLoteamentoLayer';
 import { useSetorLayer } from '@/hooks/map/useSetorLayer';
+import { useSobraLayer } from '@/hooks/map/useSobraLayer';
 import { useMapLayerHandlers } from '@/hooks/useMapLayerHandlers';
 
 interface MapLayersProps {
@@ -70,6 +71,16 @@ export function MapLayers({
     hoveredBairro,
     previewTarget,
     layerToggleBairro: layerToggles.bairro,
+  });
+
+  useSobraLayer({
+    map,
+    isLoaded,
+    tokens,
+    selection,
+    hoveredBairroName: hoveredBairro?.name ?? null,
+    previewTarget,
+    layerToggleLoteamento: layerToggles.loteamento,
   });
 
   useLoteamentoLayer({
