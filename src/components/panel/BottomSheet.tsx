@@ -1,7 +1,7 @@
 'use client';
 
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
-import { CloseIcon, DragHandleIcon } from '@/components/icons';
+import { CentralizarIcon, CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
 import { rotuloUnidade } from '@/config/levels';
 import type { Resumo } from '@/lib/resumo';
@@ -25,6 +25,8 @@ interface BottomSheetProps {
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
   onNavigate: (level: LevelId, name: string) => void;
+  /** Reenquadra a seleção (depois de pan/zoom). */
+  onRecenter: () => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export function BottomSheet({
   lampsEnabled,
   snap,
   onSnapChange,
+  onRecenter,
   onClose,
   onNavigate,
 }: BottomSheetProps) {
@@ -95,6 +98,15 @@ export function BottomSheet({
           className="absolute left-3 flex h-11 w-11 items-center justify-center rounded-full border border-cv-border text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <CloseIcon className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onRecenter}
+          aria-label="Centralizar no mapa"
+          title="Centralizar no mapa"
+          className="absolute right-3 flex h-11 w-11 items-center justify-center rounded-full border border-cv-border text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <CentralizarIcon className="h-4 w-4" />
         </button>
         <div className="cv-kicker truncate">
           {selection

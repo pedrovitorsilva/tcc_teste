@@ -35,6 +35,9 @@ import {
   PlaneLanding,
   Accessibility,
   CircleDashed,
+  PanelRightClose,
+  PanelRightOpen,
+  LocateFixed,
 } from 'lucide-react';
 import { MdOutlineFamilyRestroom } from 'react-icons/md';
 import { DollarCircleSolid, Neighbourhood, Pipe3d, Planimetry } from 'iconoir-react';
@@ -102,3 +105,8 @@ export const AcessibilidadeIcon = createIcon(Accessibility);
 
 /** Geometria aproximada: tracejado, como o contorno do loteamento incerto no mapa. */
 export const IncertoIcon = createIcon(CircleDashed);
+
+// Controles da ficha.
+export const RecolherIcon = createIcon(PanelRightClose);
+export const MostrarFichaIcon = createIcon(PanelRightOpen);
+export const CentralizarIcon = createIcon(LocateFixed);

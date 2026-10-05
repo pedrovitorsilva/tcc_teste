@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Map, MapControls } from "@/components/ui/map";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useThemeTokens } from "@/hooks/useThemeTokens";
@@ -27,6 +27,7 @@ import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
 import { ThemeSwitcherPopoverButton } from "./buttons/themeSwitcher/ThemeSwitcherPopoverButton";
 import { SearchBox } from "./SearchBox";
+import { MostrarFichaIcon } from "./icons";
 import { Sidebar } from "./panel/Sidebar";
 import { BottomSheet } from "./panel/BottomSheet";
 
@@ -81,6 +82,15 @@ export function MapView() {
     handlePreview,
     handleHoverLoteamentoByName,
   } = useMapInteraction(bairros, loteamentos);
+
+  // Ficha recolhida: a seleção continua no mapa, só o painel sai da frente.
+  // Uma seleção nova reabre — quem clicou numa área quer ver a ficha dela.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [recenterKey, setRecenterKey] = useState(0);
+  useEffect(() => {
+    setSidebarCollapsed(false);
+  }, [selection?.featureId, selection?.level]);
+  const handleRecenter = () => setRecenterKey((k) => k + 1);
 
   const floatingTitle: FloatingTitleState | null = useMemo(() => {
     if (previewTarget) {
@@ -159,6 +169,7 @@ export function MapView() {
             onHoverLoteamento={setHoveredLoteamento}
             onSelect={handleSelect}
             fitPadding={fitPadding}
+            recenterKey={recenterKey}
           />
           <Buildings3D
             tokens={tokens}
@@ -227,6 +238,17 @@ export function MapView() {
             </div>
           </div>
 
+          {selection && sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(false)}
+              className="pointer-events-auto absolute top-[76px] right-[18px] hidden min-h-11 max-w-[240px] items-center gap-2 rounded-full border border-cv-border bg-panel px-4 text-sm text-ink shadow-[0_4px_16px_rgba(0,0,0,.08)] hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex"
+            >
+              <MostrarFichaIcon className="size-4 shrink-0" />
+              <span className="truncate">{selection.name}</span>
+            </button>
+          )}
+
           <div className="pointer-events-auto absolute bottom-[18px] left-[18px] flex items-end gap-2">
             <OptionsList {...optionsListProps} />
           </div>
@@ -249,6 +271,9 @@ export function MapView() {
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
+          collapsed={sidebarCollapsed}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onRecenter={handleRecenter}
           width={sidebarWidth}
         />
       </div>
@@ -266,6 +291,7 @@ export function MapView() {
           lampsEnabled={lampsEnabled}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
+          onRecenter={handleRecenter}
           onClose={handleClose}
           onNavigate={handleNavigate}
         />
