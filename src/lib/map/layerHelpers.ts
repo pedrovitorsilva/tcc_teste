@@ -15,6 +15,45 @@ export function ensureSource(
   });
 }
 
+interface ProbedVectorSource {
+  sourceId: string;
+  probeLayerId: string;
+  url: string;
+  sourceLayer: string;
+  minzoom: number;
+  attribution: string;
+}
+
+/**
+ * Source vetorial remota + layer-sonda invisível (idempotente). Sem a sonda o
+ * MapLibre não tila a source e `querySourceFeatures` não retorna nada
+ * (docs/DECISOES-TECNICAS.md §3) — vale pra toda camada 3D que recorta tiles.
+ */
+export function addProbedVectorSource(map: MaplibreMap, opts: ProbedVectorSource) {
+  if (!map.getSource(opts.sourceId)) {
+    map.addSource(opts.sourceId, { type: 'vector', url: opts.url, attribution: opts.attribution });
+  }
+  if (!map.getLayer(opts.probeLayerId)) {
+    map.addLayer({
+      id: opts.probeLayerId,
+      type: 'fill',
+      source: opts.sourceId,
+      'source-layer': opts.sourceLayer,
+      minzoom: opts.minzoom,
+      paint: { 'fill-opacity': 0 },
+    });
+  }
+}
+
+/** Desfaz `addProbedVectorSource` — remover a source para os requests de tile. */
+export function removeProbedVectorSource(
+  map: MaplibreMap,
+  opts: Pick<ProbedVectorSource, 'sourceId' | 'probeLayerId'>
+) {
+  if (map.getLayer(opts.probeLayerId)) map.removeLayer(opts.probeLayerId);
+  if (map.getSource(opts.sourceId)) map.removeSource(opts.sourceId);
+}
+
 /** Cria ou ignora (idempotente) uma fill layer. */
 export function ensureFillLayer(
   map: MaplibreMap,

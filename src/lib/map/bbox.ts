@@ -1,8 +1,15 @@
 /** Bounding box of a GeoJSON geometry — used by map `fitBounds` and by search index. */
+import type { Map as MapLibreMap } from 'maplibre-gl';
 
 type NestedCoords = number[] | NestedCoords[];
 
 export type BBox = [number, number, number, number];
+
+/** BBox da área visível do mapa, no mesmo formato de `computeBBox`. */
+export function viewportBBox(map: MapLibreMap): BBox {
+  const bounds = map.getBounds();
+  return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+}
 
 /** `[minLng, minLat, maxLng, maxLat]`. Used by map and search index so both frame identically. */
 export function computeBBox(geometry: GeoJSON.Geometry): BBox {

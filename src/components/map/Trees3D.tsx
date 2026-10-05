@@ -3,9 +3,8 @@
 // Fonte da vegetação 3D: Overture Maps (tema `base`, layers `land_cover` e
 // `land_use`), por HTTP range request — mesmo padrão do Buildings3D, com uma
 // cena Three.js própria (CustomLayerInterface) no lugar de fill-extrusion nativo.
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Geometry, Position } from "geojson";
-import type { CustomLayerInterface, MapSourceDataEvent } from "maplibre-gl";
 import * as THREE from "three";
 import { useMap } from "@/components/ui/map";
 import {
@@ -52,18 +51,37 @@ import {
   ringCentroid,
   seedFromRing,
 } from "@/lib/map/buildingClip";
-import {
-  lngLatToLocalMeters,
-  mercatorOrigin,
-  projectionMatrixFor,
-  type MercatorOrigin,
-} from "@/lib/map/threeCustomLayer";
+import { createThreeLayer, lngLatToLocalMeters, type ThreeBase } from "@/lib/map/threeCustomLayer";
+import { viewportBBox } from "@/lib/map/bbox";
+import { addProbedVectorSource, removeProbedVectorSource } from "@/lib/map/layerHelpers";
 import { lightingFor } from "@/config/lighting";
+import { useClipEffect } from "@/hooks/map/useClipEffect";
+import { useClipTarget } from "@/hooks/map/useClipTarget";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
 const TREES_LAYER_ID = "trees-3d-layer";
-const CLIP_DEBOUNCE_MS = 120;
+
+// `park` mora em `land_use`, uma source-layer separada de `land_cover` dentro
+// do mesmo `base.pmtiles` — MapLibre exige uma source por combinação de
+// URL+tipo, mas todas apontam pro mesmo arquivo remoto. A de água existe só
+// pra não espalhar árvore dentro d'água (land_cover/land_use podem se
+// sobrepor com `water` na borda) — independente da source do Water3D, os dois
+// toggles ligam/desligam sem depender um do outro.
+const SOURCES = [
+  [VEGETATION_SOURCE_ID, VEGETATION_PROBE_LAYER_ID, VEGETATION_SOURCE_LAYER],
+  [VEGETATION_LANDUSE_SOURCE_ID, VEGETATION_LANDUSE_PROBE_LAYER_ID, VEGETATION_LANDUSE_SOURCE_LAYER],
+  [VEGETATION_WATER_SOURCE_ID, VEGETATION_WATER_PROBE_LAYER_ID, VEGETATION_WATER_SOURCE_LAYER],
+].map(([sourceId, probeLayerId, sourceLayer]) => ({
+  sourceId,
+  probeLayerId,
+  sourceLayer,
+  url: VEGETATION_PMTILES_URL,
+  minzoom: VEGETATION_MIN_ZOOM,
+  attribution: VEGETATION_ATTRIBUTION,
+}));
+const SOURCE_IDS = SOURCES.map((source) => source.sourceId);
+const NO_TREES: [number, number][] = [];
 
 /** Orçamento por nível de densidade (ver TREE_DENSITY_BY_SUBTYPE). */
 const DENSITY = {
@@ -85,21 +103,12 @@ interface Trees3DProps {
   loteamentos: IndexedFeature[];
 }
 
-interface ClipTarget {
-  key: string;
-  geometry: Geometry;
-  bbox?: [number, number, number, number];
-}
-
-interface TreeScene {
-  scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
+interface TreeScene extends ThreeBase {
   trunks: THREE.InstancedMesh;
   /** Copa em 2 cones (inferior invertido + superior), mesma matriz por árvore. */
   canopyLow: THREE.InstancedMesh;
   canopyHigh: THREE.InstancedMesh;
   light: THREE.HemisphereLight;
-  origin: MercatorOrigin;
 }
 
 function applyTreeLight(light: THREE.HemisphereLight, night: boolean) {
@@ -125,38 +134,12 @@ export function Trees3D({
 }: Trees3DProps) {
   const { map, isLoaded } = useMap();
 
-  const cacheRef = useRef(new Map<string, [number, number][]>());
   const sceneRef = useRef<TreeScene | null>(null);
   // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
   const nightRef = useRef(night);
   nightRef.current = night;
 
-  const target: ClipTarget | null = useMemo(() => {
-    if (!enabled) return null;
-
-    if (selection) {
-      const features = selection.level === "loteamento" ? loteamentos : bairros;
-      const feature = features.find((item) => item.featureId === selection.featureId);
-      if (!feature?.geometry) return null;
-      return {
-        key: `${selection.level}:${selection.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    if (hoveredBairro) {
-      const feature = bairros.find((item) => item.featureId === hoveredBairro.featureId);
-      if (!feature?.geometry) return null;
-      return {
-        key: `bairro:${hoveredBairro.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    return null;
-  }, [enabled, selection, hoveredBairro, bairros, loteamentos]);
+  const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
 
   /** Recria as InstancedMesh (tronco + 2 cones de copa) a partir de uma lista de posições. */
   const publishTrees = (positions: [number, number][]) => {
@@ -204,173 +187,63 @@ export function Trees3D({
     map.triggerRepaint();
   };
 
-  // Lifecycle: source vetorial + layer-sonda + custom layer (cena Three.js).
+  // Lifecycle: sources vetoriais + layers-sonda + custom layer (cena Three.js).
   // Só existem enquanto `enabled` é true.
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
 
-    if (!map.getSource(VEGETATION_SOURCE_ID)) {
-      map.addSource(VEGETATION_SOURCE_ID, {
-        type: "vector",
-        url: VEGETATION_PMTILES_URL,
-        attribution: VEGETATION_ATTRIBUTION,
-      });
-    }
-
-    // `park` mora em `land_use`, uma source-layer separada de `land_cover`
-    // dentro do mesmo `base.pmtiles` — MapLibre exige uma source por
-    // combinação de URL+tipo, mas ambas apontam pro mesmo arquivo remoto.
-    if (!map.getSource(VEGETATION_LANDUSE_SOURCE_ID)) {
-      map.addSource(VEGETATION_LANDUSE_SOURCE_ID, {
-        type: "vector",
-        url: VEGETATION_PMTILES_URL,
-        attribution: VEGETATION_ATTRIBUTION,
-      });
-    }
-
-    // Terceira source só pra saber onde tem água e não espalhar árvore lá
-    // (land_cover/land_use podem se sobrepor com `water` na borda, ex.:
-    // wetland encostando num lago). Independente da source do Water3D —
-    // os dois toggles ligam/desligam sem depender um do outro.
-    if (!map.getSource(VEGETATION_WATER_SOURCE_ID)) {
-      map.addSource(VEGETATION_WATER_SOURCE_ID, {
-        type: "vector",
-        url: VEGETATION_PMTILES_URL,
-        attribution: VEGETATION_ATTRIBUTION,
-      });
-    }
-
-    // Camada invisível que mantém a source marcada como "used" — sem isso o
-    // MapLibre não tila os dados e querySourceFeatures não retorna nada
-    // (mesma lição de Buildings3D/§3, vale pra qualquer source).
-    if (!map.getLayer(VEGETATION_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: VEGETATION_PROBE_LAYER_ID,
-        type: "fill",
-        source: VEGETATION_SOURCE_ID,
-        "source-layer": VEGETATION_SOURCE_LAYER,
-        minzoom: VEGETATION_MIN_ZOOM,
-        paint: { "fill-opacity": 0 },
-      });
-    }
-
-    if (!map.getLayer(VEGETATION_LANDUSE_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: VEGETATION_LANDUSE_PROBE_LAYER_ID,
-        type: "fill",
-        source: VEGETATION_LANDUSE_SOURCE_ID,
-        "source-layer": VEGETATION_LANDUSE_SOURCE_LAYER,
-        minzoom: VEGETATION_MIN_ZOOM,
-        paint: { "fill-opacity": 0 },
-      });
-    }
-
-    if (!map.getLayer(VEGETATION_WATER_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: VEGETATION_WATER_PROBE_LAYER_ID,
-        type: "fill",
-        source: VEGETATION_WATER_SOURCE_ID,
-        "source-layer": VEGETATION_WATER_SOURCE_LAYER,
-        minzoom: VEGETATION_MIN_ZOOM,
-        paint: { "fill-opacity": 0 },
-      });
-    }
+    for (const source of SOURCES) addProbedVectorSource(map, source);
 
     if (!map.getLayer(TREES_LAYER_ID)) {
-      const customLayer: CustomLayerInterface = {
-        id: TREES_LAYER_ID,
-        type: "custom",
-        renderingMode: "3d",
-        onAdd(mapInstance, gl) {
-          const center = mapInstance.getCenter();
-          const origin = mercatorOrigin(center.lng, center.lat);
+      map.addLayer(
+        createThreeLayer(TREES_LAYER_ID, sceneRef, {
+          setup(base) {
+            const trunkGeometry = new THREE.CylinderGeometry(
+              TREE_TRUNK_RADIUS,
+              TREE_TRUNK_RADIUS,
+              TREE_TRUNK_HEIGHT,
+              6,
+            );
+            trunkGeometry.translate(0, TREE_TRUNK_HEIGHT / 2, 0);
 
-          const scene = new THREE.Scene();
-          const renderer = new THREE.WebGLRenderer({
-            canvas: mapInstance.getCanvas(),
-            context: gl,
-            antialias: true,
-          });
-          renderer.autoClear = false;
+            // Copa em 2 cones formando um losango (mais larga, sem pico fino):
+            // o de baixo invertido (ponta no tronco), o de cima normal, base com base.
+            const lowHeight = TREE_CANOPY_HEIGHT * 0.6;
+            const highHeight = TREE_CANOPY_HEIGHT * 0.8;
+            const canopyLowGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 0.8, lowHeight, 7);
+            canopyLowGeometry.rotateX(Math.PI);
+            canopyLowGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight / 2, 0);
+            const canopyHighGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 1.1, highHeight, 7);
+            canopyHighGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight + highHeight / 2, 0);
 
-          const trunkGeometry = new THREE.CylinderGeometry(
-            TREE_TRUNK_RADIUS,
-            TREE_TRUNK_RADIUS,
-            TREE_TRUNK_HEIGHT,
-            6,
-          );
-          trunkGeometry.translate(0, TREE_TRUNK_HEIGHT / 2, 0);
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: TREE_TRUNK_COLOR });
+            // Cor branca: a cor real vem por instância (instanceColor multiplica material.color).
+            const canopyMaterial = new THREE.MeshLambertMaterial();
 
-          // Copa em 2 cones formando um losango (mais larga, sem pico fino):
-          // o de baixo invertido (ponta no tronco), o de cima normal, base com base.
-          const lowHeight = TREE_CANOPY_HEIGHT * 0.6;
-          const highHeight = TREE_CANOPY_HEIGHT * 0.8;
-          const canopyLowGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 0.8, lowHeight, 7);
-          canopyLowGeometry.rotateX(Math.PI);
-          canopyLowGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight / 2, 0);
-          const canopyHighGeometry = new THREE.ConeGeometry(TREE_CANOPY_RADIUS * 1.1, highHeight, 7);
-          canopyHighGeometry.translate(0, TREE_TRUNK_HEIGHT + lowHeight + highHeight / 2, 0);
+            const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, MAX_TREES_TOTAL);
+            const canopyLow = new THREE.InstancedMesh(canopyLowGeometry, canopyMaterial, MAX_TREES_TOTAL);
+            const canopyHigh = new THREE.InstancedMesh(canopyHighGeometry, canopyMaterial, MAX_TREES_TOTAL);
+            for (const mesh of [trunks, canopyLow, canopyHigh]) mesh.count = 0;
 
-          const trunkMaterial = new THREE.MeshLambertMaterial({ color: TREE_TRUNK_COLOR });
-          // Cor branca: a cor real vem por instância (instanceColor multiplica material.color).
-          const canopyMaterial = new THREE.MeshLambertMaterial();
+            const light = new THREE.HemisphereLight(0xffffff, 0x3a2a1a);
+            applyTreeLight(light, nightRef.current);
+            base.scene.add(light, trunks, canopyLow, canopyHigh);
 
-          const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, MAX_TREES_TOTAL);
-          const canopyLow = new THREE.InstancedMesh(canopyLowGeometry, canopyMaterial, MAX_TREES_TOTAL);
-          const canopyHigh = new THREE.InstancedMesh(canopyHighGeometry, canopyMaterial, MAX_TREES_TOTAL);
-          for (const mesh of [trunks, canopyLow, canopyHigh]) mesh.count = 0;
-
-          const light = new THREE.HemisphereLight(0xffffff, 0x3a2a1a);
-          applyTreeLight(light, nightRef.current);
-          scene.add(light, trunks, canopyLow, canopyHigh);
-
-          sceneRef.current = { scene, renderer, trunks, canopyLow, canopyHigh, light, origin };
-        },
-        render(gl, options) {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          const camera = new THREE.Camera();
-          camera.projectionMatrix = projectionMatrixFor(
-            refs.origin,
-            options.defaultProjectionData.mainMatrix,
-          );
-
-          refs.renderer.resetState();
-          refs.renderer.render(refs.scene, camera);
-        },
-        onRemove() {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          for (const mesh of [refs.trunks, refs.canopyLow, refs.canopyHigh]) {
-            mesh.geometry.dispose();
-            (mesh.material as THREE.Material).dispose();
-          }
-          refs.renderer.dispose();
-          sceneRef.current = null;
-        },
-      };
-
-      map.addLayer(customLayer);
+            return { ...base, trunks, canopyLow, canopyHigh, light };
+          },
+          dispose(refs) {
+            for (const mesh of [refs.trunks, refs.canopyLow, refs.canopyHigh]) {
+              mesh.geometry.dispose();
+              (mesh.material as THREE.Material).dispose();
+            }
+          },
+        }),
+      );
     }
 
     return () => {
       if (map.getLayer(TREES_LAYER_ID)) map.removeLayer(TREES_LAYER_ID);
-      if (map.getLayer(VEGETATION_WATER_PROBE_LAYER_ID)) {
-        map.removeLayer(VEGETATION_WATER_PROBE_LAYER_ID);
-      }
-      if (map.getLayer(VEGETATION_LANDUSE_PROBE_LAYER_ID)) {
-        map.removeLayer(VEGETATION_LANDUSE_PROBE_LAYER_ID);
-      }
-      if (map.getLayer(VEGETATION_PROBE_LAYER_ID)) map.removeLayer(VEGETATION_PROBE_LAYER_ID);
-      if (map.getSource(VEGETATION_WATER_SOURCE_ID)) {
-        map.removeSource(VEGETATION_WATER_SOURCE_ID);
-      }
-      if (map.getSource(VEGETATION_LANDUSE_SOURCE_ID)) {
-        map.removeSource(VEGETATION_LANDUSE_SOURCE_ID);
-      }
-      if (map.getSource(VEGETATION_SOURCE_ID)) map.removeSource(VEGETATION_SOURCE_ID);
+      for (const source of SOURCES) removeProbedVectorSource(map, source);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
@@ -382,42 +255,27 @@ export function Trees3D({
     map.triggerRepaint();
   }, [map, night]);
 
-  // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
-  // debounce/moveend/sourcedata do Buildings3D.
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    if (!target) {
-      publishTrees([]);
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const compute = () => {
+  // Recorte por bairro/loteamento selecionado ou em hover.
+  useClipEffect({
+    map,
+    isLoaded,
+    target,
+    sourceIds: SOURCE_IDS,
+    minZoom: VEGETATION_MIN_ZOOM,
+    empty: NO_TREES,
+    publish: publishTrees,
+    compute: (target) => {
       const startedAt = performance.now();
-      const zoom = map.getZoom();
-      if (zoom < VEGETATION_MIN_ZOOM) {
-        publishTrees([]);
-        return;
-      }
-
-      const bounds = map.getBounds();
-      const viewportBBox: [number, number, number, number] = [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ];
-      const minArea = lodMinAreaM2(zoom);
+      const viewport = viewportBBox(map!);
+      const minArea = lodMinAreaM2(map!.getZoom());
 
       // Duas fontes, mesmo critério de recorte: land_cover (forest/grass/
       // shrub/wetland) e land_use (park) — combinadas numa lista única de
       // candidatos antes do filtro espacial, pra não duplicar a lógica.
-      const landCoverFeatures = map.querySourceFeatures(VEGETATION_SOURCE_ID, {
+      const landCoverFeatures = map!.querySourceFeatures(VEGETATION_SOURCE_ID, {
         sourceLayer: VEGETATION_SOURCE_LAYER,
       });
-      const landUseFeatures = map.querySourceFeatures(VEGETATION_LANDUSE_SOURCE_ID, {
+      const landUseFeatures = map!.querySourceFeatures(VEGETATION_LANDUSE_SOURCE_ID, {
         sourceLayer: VEGETATION_LANDUSE_SOURCE_LAYER,
       });
 
@@ -444,16 +302,15 @@ export function Trees3D({
       }
 
       // Anéis de água no viewport — testados por polígono a cada ponto
-      // sorteado, pra não deixar árvore nascer dentro d'água (land_cover/
-      // land_use pode se sobrepor com `water` na borda).
-      const waterFeatures = map.querySourceFeatures(VEGETATION_WATER_SOURCE_ID, {
+      // sorteado, pra não deixar árvore nascer dentro d'água.
+      const waterFeatures = map!.querySourceFeatures(VEGETATION_WATER_SOURCE_ID, {
         sourceLayer: VEGETATION_WATER_SOURCE_LAYER,
       });
       const waterRings: Position[][] = [];
       for (const feature of waterFeatures) {
         const ring = outerRing(feature.geometry);
         if (!ring) continue;
-        if (!bboxIntersects(ringBBox(ring), viewportBBox)) continue;
+        if (!bboxIntersects(ringBBox(ring), viewport)) continue;
         waterRings.push(ring);
       }
       const isOnWater = (point: [number, number]) =>
@@ -480,7 +337,7 @@ export function Trees3D({
         // inteiro) esteja no viewport. Testar só o centroide fazia as
         // árvores sumirem ao aproximar o zoom.
         const ringBox = ringBBox(ring);
-        if (!bboxIntersects(ringBox, viewportBBox)) continue;
+        if (!bboxIntersects(ringBox, viewport)) continue;
         if (bbox && !bboxIntersects(ringBox, bbox)) continue;
 
         const area = approxAreaM2(ring);
@@ -503,53 +360,13 @@ export function Trees3D({
         }
       }
 
-      const clipped = [...placed.forest, ...placed.open];
       console.log(
         `[Trees3D] compute ${(performance.now() - startedAt).toFixed(1)} ms — ` +
           `${placed.forest.length} mata + ${placed.open.length} aberto (${target.key})`,
       );
-
-      if (
-        map.isSourceLoaded(VEGETATION_SOURCE_ID) &&
-        map.isSourceLoaded(VEGETATION_LANDUSE_SOURCE_ID) &&
-        map.isSourceLoaded(VEGETATION_WATER_SOURCE_ID)
-      ) {
-        cacheRef.current.set(target.key, clipped);
-      }
-
-      publishTrees(clipped);
-    };
-
-    const schedule = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(compute, CLIP_DEBOUNCE_MS);
-    };
-
-    const handleSourceData = (event: MapSourceDataEvent) => {
-      const isOurs =
-        event.sourceId === VEGETATION_SOURCE_ID ||
-        event.sourceId === VEGETATION_LANDUSE_SOURCE_ID ||
-        event.sourceId === VEGETATION_WATER_SOURCE_ID;
-      if (isOurs && event.isSourceLoaded) schedule();
-    };
-
-    const cached = cacheRef.current.get(target.key);
-    if (cached) {
-      publishTrees(cached);
-    } else {
-      schedule();
-    }
-
-    map.on("sourcedata", handleSourceData);
-    map.on("moveend", schedule);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      map.off("sourcedata", handleSourceData);
-      map.off("moveend", schedule);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, target]);
+      return [...placed.forest, ...placed.open];
+    },
+  });
 
   return null;
 }

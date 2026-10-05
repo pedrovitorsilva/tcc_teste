@@ -4,9 +4,8 @@
 // range request — mesmo esqueleto de source/probe do Buildings3D/Trees3D,
 // com uma cena Three.js própria (CustomLayerInterface) e loop de animação
 // próprio (só roda enquanto `enabled` e houver alvo selecionado).
-import { useEffect, useMemo, useRef } from "react";
-import type { Geometry, Position } from "geojson";
-import type { CustomLayerInterface, MapSourceDataEvent } from "maplibre-gl";
+import { useEffect, useRef } from "react";
+import type { Position } from "geojson";
 import * as THREE from "three";
 import earcut from "earcut";
 import { useMap } from "@/components/ui/map";
@@ -35,17 +34,31 @@ import {
   ringCentroid,
 } from "@/lib/map/buildingClip";
 import {
+  createThreeLayer,
   lngLatToLocalMeters,
-  mercatorOrigin,
-  projectionMatrixFor,
   type MercatorOrigin,
+  type ThreeBase,
 } from "@/lib/map/threeCustomLayer";
+import { viewportBBox } from "@/lib/map/bbox";
+import { addProbedVectorSource, removeProbedVectorSource } from "@/lib/map/layerHelpers";
 import { lightingFor } from "@/config/lighting";
+import { useAnimationFrame } from "@/hooks/map/useAnimationFrame";
+import { useClipEffect } from "@/hooks/map/useClipEffect";
+import { useClipTarget } from "@/hooks/map/useClipTarget";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
 const WATER_LAYER_ID = "water-3d-layer";
-const CLIP_DEBOUNCE_MS = 120;
+const SOURCE = {
+  sourceId: WATER_SOURCE_ID,
+  probeLayerId: WATER_PROBE_LAYER_ID,
+  url: WATER_PMTILES_URL,
+  sourceLayer: WATER_SOURCE_LAYER,
+  minzoom: WATER_MIN_ZOOM,
+  attribution: WATER_ATTRIBUTION,
+};
+const SOURCE_IDS = [WATER_SOURCE_ID];
+const NO_WATER: Position[][] = [];
 
 interface Water3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
@@ -58,18 +71,9 @@ interface Water3DProps {
   loteamentos: IndexedFeature[];
 }
 
-interface ClipTarget {
-  key: string;
-  geometry: Geometry;
-  bbox?: [number, number, number, number];
-}
-
-interface WaterScene {
-  scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
+interface WaterScene extends ThreeBase {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
-  origin: MercatorOrigin;
   diffuseMap: THREE.Texture;
   normalMap: THREE.Texture;
 }
@@ -185,39 +189,12 @@ export function Water3D({
 }: Water3DProps) {
   const { map, isLoaded } = useMap();
 
-  const cacheRef = useRef(new Map<string, Position[][]>());
   const sceneRef = useRef<WaterScene | null>(null);
-  const rafRef = useRef<number | null>(null);
   // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
   const nightRef = useRef(night);
   nightRef.current = night;
 
-  const target: ClipTarget | null = useMemo(() => {
-    if (!enabled) return null;
-
-    if (selection) {
-      const features = selection.level === "loteamento" ? loteamentos : bairros;
-      const feature = features.find((item) => item.featureId === selection.featureId);
-      if (!feature?.geometry) return null;
-      return {
-        key: `${selection.level}:${selection.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    if (hoveredBairro) {
-      const feature = bairros.find((item) => item.featureId === hoveredBairro.featureId);
-      if (!feature?.geometry) return null;
-      return {
-        key: `bairro:${hoveredBairro.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    return null;
-  }, [enabled, selection, hoveredBairro, bairros, loteamentos]);
+  const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
 
   const publishWater = (rings: Position[][]) => {
     const refs = sceneRef.current;
@@ -228,146 +205,79 @@ export function Water3D({
     map.triggerRepaint();
   };
 
-  const stopAnimation = () => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-  };
-
-  const startAnimation = () => {
-    if (rafRef.current !== null || !map) return;
-
-    const start = performance.now();
-    const tick = (now: number) => {
-      const refs = sceneRef.current;
-      if (refs) {
-        refs.material.uniforms.uTime.value = (now - start) / 1000;
-        map.triggerRepaint();
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  };
+  // Ondulação: o loop liga só enquanto existir alvo (nunca anima parado).
+  useAnimationFrame(target !== null, (_now, dtS) => {
+    const refs = sceneRef.current;
+    if (!refs || !map) return;
+    // Acumula dt (não `now`): tempo pequeno mantém precisão no `mediump` do shader.
+    refs.material.uniforms.uTime.value += dtS;
+    map.triggerRepaint();
+  });
 
   // Lifecycle: source vetorial + layer-sonda + custom layer (cena Three.js).
   // Só existem enquanto `enabled` é true.
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
 
-    if (!map.getSource(WATER_SOURCE_ID)) {
-      map.addSource(WATER_SOURCE_ID, {
-        type: "vector",
-        url: WATER_PMTILES_URL,
-        attribution: WATER_ATTRIBUTION,
-      });
-    }
-
-    // Camada invisível que mantém a source marcada como "used" — sem isso o
-    // MapLibre não tila os dados e querySourceFeatures não retorna nada
-    // (mesma lição de Buildings3D/§3, vale pra qualquer source).
-    if (!map.getLayer(WATER_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: WATER_PROBE_LAYER_ID,
-        type: "fill",
-        source: WATER_SOURCE_ID,
-        "source-layer": WATER_SOURCE_LAYER,
-        minzoom: WATER_MIN_ZOOM,
-        paint: { "fill-opacity": 0 },
-      });
-    }
+    addProbedVectorSource(map, SOURCE);
 
     if (!map.getLayer(WATER_LAYER_ID)) {
-      const customLayer: CustomLayerInterface = {
-        id: WATER_LAYER_ID,
-        type: "custom",
-        renderingMode: "3d",
-        onAdd(mapInstance, gl) {
-          const center = mapInstance.getCenter();
-          const origin = mercatorOrigin(center.lng, center.lat);
+      map.addLayer(
+        createThreeLayer(WATER_LAYER_ID, sceneRef, {
+          setup(base) {
+            const textureLoader = new THREE.TextureLoader();
+            const diffuseMap = textureLoader.load(WATER_DIFFUSE_MAP_URL);
+            const normalMap = textureLoader.load(WATER_NORMAL_MAP_URL);
+            // Repeat "sequencial" simples — MirroredRepeat foi testado e
+            // trocado: com uma textura de listras diagonais, cada repetição
+            // espelhada forma losangos/borboletas nos encontros de tile, bem
+            // mais visível que a costura que tentava evitar. A costura em si
+            // já não escurece mais porque o material é opaco (ver comentário
+            // no fragment shader) — a costura fica só numa emenda de textura,
+            // não numa faixa escura empilhada.
+            diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
+            normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
-          const scene = new THREE.Scene();
-          const renderer = new THREE.WebGLRenderer({
-            canvas: mapInstance.getCanvas(),
-            context: gl,
-            antialias: true,
-          });
-          renderer.autoClear = false;
+            const material = new THREE.ShaderMaterial({
+              vertexShader: VERTEX_SHADER,
+              fragmentShader: FRAGMENT_SHADER,
+              depthTest: false,
+              depthWrite: false,
+              side: THREE.DoubleSide,
+              uniforms: {
+                uTime: { value: 0 },
+                uColor: { value: new THREE.Vector3(...WATER_COLOR) },
+                uDiffuseMap: { value: diffuseMap },
+                uNormalMap: { value: normalMap },
+                uTileSize: { value: WATER_TEXTURE_TILE_SIZE_M },
+                uScrollA: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_A) },
+                uScrollB: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_B) },
+                uLightDir: { value: new THREE.Vector3(...WATER_LIGHT_DIR) },
+                uSpecularStrength: { value: WATER_SPECULAR_STRENGTH },
+                uShininess: { value: WATER_SPECULAR_SHININESS },
+                uLight: { value: new THREE.Color() },
+              },
+            });
+            setWaterLight(material.uniforms.uLight.value, nightRef.current);
 
-          const textureLoader = new THREE.TextureLoader();
-          const diffuseMap = textureLoader.load(WATER_DIFFUSE_MAP_URL);
-          const normalMap = textureLoader.load(WATER_NORMAL_MAP_URL);
-          // Repeat "sequencial" simples — MirroredRepeat foi testado e
-          // trocado: com uma textura de listras diagonais, cada repetição
-          // espelhada forma losangos/borboletas nos encontros de tile, bem
-          // mais visível que a costura que tentava evitar. A costura em si
-          // já não escurece mais porque o material é opaco (ver comentário
-          // no fragment shader) — a costura fica só numa emenda de textura,
-          // não numa faixa escura empilhada.
-          diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
-          normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+            const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+            base.scene.add(mesh);
 
-          const material = new THREE.ShaderMaterial({
-            vertexShader: VERTEX_SHADER,
-            fragmentShader: FRAGMENT_SHADER,
-            depthTest: false,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            uniforms: {
-              uTime: { value: 0 },
-              uColor: { value: new THREE.Vector3(...WATER_COLOR) },
-              uDiffuseMap: { value: diffuseMap },
-              uNormalMap: { value: normalMap },
-              uTileSize: { value: WATER_TEXTURE_TILE_SIZE_M },
-              uScrollA: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_A) },
-              uScrollB: { value: new THREE.Vector2(...WATER_SCROLL_SPEED_B) },
-              uLightDir: { value: new THREE.Vector3(...WATER_LIGHT_DIR) },
-              uSpecularStrength: { value: WATER_SPECULAR_STRENGTH },
-              uShininess: { value: WATER_SPECULAR_SHININESS },
-              uLight: { value: new THREE.Color() },
-            },
-          });
-          setWaterLight(material.uniforms.uLight.value, nightRef.current);
-
-          const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-          scene.add(mesh);
-
-          sceneRef.current = { scene, renderer, mesh, material, origin, diffuseMap, normalMap };
-        },
-        render(gl, options) {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          const camera = new THREE.Camera();
-          camera.projectionMatrix = projectionMatrixFor(
-            refs.origin,
-            options.defaultProjectionData.mainMatrix,
-          );
-
-          refs.renderer.resetState();
-          refs.renderer.render(refs.scene, camera);
-        },
-        onRemove() {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          refs.mesh.geometry.dispose();
-          refs.material.dispose();
-          refs.diffuseMap.dispose();
-          refs.normalMap.dispose();
-          refs.renderer.dispose();
-          sceneRef.current = null;
-        },
-      };
-
-      map.addLayer(customLayer);
+            return { ...base, mesh, material, diffuseMap, normalMap };
+          },
+          dispose(refs) {
+            refs.mesh.geometry.dispose();
+            refs.material.dispose();
+            refs.diffuseMap.dispose();
+            refs.normalMap.dispose();
+          },
+        }),
+      );
     }
 
     return () => {
-      stopAnimation();
       if (map.getLayer(WATER_LAYER_ID)) map.removeLayer(WATER_LAYER_ID);
-      if (map.getLayer(WATER_PROBE_LAYER_ID)) map.removeLayer(WATER_PROBE_LAYER_ID);
-      if (map.getSource(WATER_SOURCE_ID)) map.removeSource(WATER_SOURCE_ID);
+      removeProbedVectorSource(map, SOURCE);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
@@ -379,34 +289,18 @@ export function Water3D({
     map.triggerRepaint();
   }, [map, night]);
 
-  // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
-  // debounce/moveend/sourcedata do Buildings3D/Trees3D. O loop de animação
-  // liga só enquanto existir alvo, e desliga com ele (nunca anima parado).
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    if (!target) {
-      stopAnimation();
-      publishWater([]);
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const compute = () => {
-      if (map.getZoom() < WATER_MIN_ZOOM) {
-        publishWater([]);
-        return;
-      }
-
-      const bounds = map.getBounds();
-      const viewportBBox: [number, number, number, number] = [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ];
-      const features = map.querySourceFeatures(WATER_SOURCE_ID, {
+  // Recorte por bairro/loteamento selecionado ou em hover.
+  useClipEffect({
+    map,
+    isLoaded,
+    target,
+    sourceIds: SOURCE_IDS,
+    minZoom: WATER_MIN_ZOOM,
+    empty: NO_WATER,
+    publish: publishWater,
+    compute: (target) => {
+      const viewport = viewportBBox(map!);
+      const features = map!.querySourceFeatures(WATER_SOURCE_ID, {
         sourceLayer: WATER_SOURCE_LAYER,
       });
 
@@ -421,7 +315,7 @@ export function Water3D({
         // bem maior que a tela em zooms altos (mesmo problema documentado em
         // Trees3D) — testar só o centroide fazia a água sumir ao aproximar.
         const ringBox = ringBBox(ring);
-        if (!bboxIntersects(ringBox, viewportBBox)) continue;
+        if (!bboxIntersects(ringBox, viewport)) continue;
         if (bbox && !bboxIntersects(ringBox, bbox)) continue;
 
         const centroid = ringCentroid(ring);
@@ -430,42 +324,9 @@ export function Water3D({
         rings.push(ring);
       }
 
-      if (map.isSourceLoaded(WATER_SOURCE_ID)) {
-        cacheRef.current.set(target.key, rings);
-      }
-
-      publishWater(rings);
-    };
-
-    const schedule = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(compute, CLIP_DEBOUNCE_MS);
-    };
-
-    const handleSourceData = (event: MapSourceDataEvent) => {
-      if (event.sourceId === WATER_SOURCE_ID && event.isSourceLoaded) schedule();
-    };
-
-    const cached = cacheRef.current.get(target.key);
-    if (cached) {
-      publishWater(cached);
-    } else {
-      schedule();
-    }
-
-    startAnimation();
-
-    map.on("sourcedata", handleSourceData);
-    map.on("moveend", schedule);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      stopAnimation();
-      map.off("sourcedata", handleSourceData);
-      map.off("moveend", schedule);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, target]);
+      return rings;
+    },
+  });
 
   return null;
 }
