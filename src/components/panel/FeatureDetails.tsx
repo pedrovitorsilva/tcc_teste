@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CartographerNote } from "@/components/panel/CartographerNote";
+import { CartographerNote, RuralNote } from "@/components/panel/CartographerNote";
 import { BuildingsNote } from "@/components/panel/BuildingsNote";
 import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
@@ -183,6 +183,7 @@ function BairroBody({
 
   return (
     <>
+      {unidade.cd_unidade.endsWith("-rural") && <RuralNote />}
       <NumerosChave
         itens={[
           { rotulo: "Moradores", valor: fmt.int(resumo.pop) },

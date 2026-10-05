@@ -12,8 +12,10 @@ export interface ClipTarget {
 }
 
 /**
- * Alvo do recorte das camadas 3D: a seleção (bairro ou loteamento) vence o
- * hover de bairro; `null` com a camada desligada ou sem foco.
+ * Alvo do recorte das camadas 3D: a seleção (bairro, distrito ou loteamento)
+ * vence o hover; `null` com a camada desligada ou sem foco. O hover só vale
+ * para bairro: distritos têm dezenas de km (a zona rural contorna a cidade
+ * inteira) e o recorte deles custa demais para uma prévia — 3D só ao selecionar.
  */
 export function useClipTarget(
   enabled: boolean,
@@ -30,7 +32,7 @@ export function useClipTarget(
       key = `${selection.level}:${selection.featureId}`;
       const features = selection.level === "loteamento" ? loteamentos : bairros;
       feature = features.find((item) => item.featureId === selection.featureId);
-    } else if (hoveredBairro) {
+    } else if (hoveredBairro?.tipo === "bairro") {
       key = `bairro:${hoveredBairro.featureId}`;
       feature = bairros.find((item) => item.featureId === hoveredBairro.featureId);
     } else {

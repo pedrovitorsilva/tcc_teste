@@ -57,9 +57,11 @@ export function useMapLayerHandlers({
 
     const handleMouseMove = (e: MapLayerMouseEvent) => {
       const feature = e.features?.[0];
-      if (!feature) return;
+      // Mesmo polígono: nada mudou. Sem isso cada mousemove gerava um
+      // `hoveredBairro` novo e re-renderizava/recortava todas as camadas 3D.
+      if (!feature || feature.id === hoveredFeatureId) return;
 
-      if (hoveredFeatureId !== undefined && hoveredFeatureId !== feature.id) {
+      if (hoveredFeatureId !== undefined) {
         map.setFeatureState(
           { source: BAIRRO.sourceId, id: hoveredFeatureId },
           { hover: false }

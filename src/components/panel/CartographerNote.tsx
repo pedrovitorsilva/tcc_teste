@@ -12,3 +12,16 @@ export function CartographerNote() {
     </NoteCard>
   );
 }
+
+/** Zona rural do distrito-sede (`cd_unidade` com sufixo `-rural` no ETL):
+ * dado do Censo válido, mas a unidade não é um distrito nem um bairro oficial. */
+export function RuralNote() {
+  return (
+    <NoteCard className="mb-4 px-3 py-2">
+      <p className="cv-note-body">
+        <span className="cv-note-title not-italic">Região rural sem distrito definido:</span>{' '}
+        setores rurais do distrito-sede que não pertencem a nenhum bairro nem a outro distrito.
+      </p>
+    </NoteCard>
+  );
+}
