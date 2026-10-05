@@ -20,7 +20,7 @@ export function Hero({
             <p className="mb-6 inline-block rounded-full border border-cv-border bg-panel px-3 py-1 text-xs text-ink-soft">
               {credibility}
             </p>
-            <h1 className="cv-title">{headline}</h1>
+            <h1 className="cv-title-hero">{headline}</h1>
             <p className="cv-lead mt-6">{subheadline}</p>
             <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-start">
               <div className="flex flex-col items-center gap-2 md:items-start">
