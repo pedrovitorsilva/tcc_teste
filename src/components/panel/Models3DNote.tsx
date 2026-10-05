@@ -6,7 +6,7 @@ import { CAR_TYPES } from '@/config/cars';
 /** Créditos dos modelos 3D de terceiros (carros e postes), com a licença CC-BY citada uma vez. */
 export function Models3DNote({ enabled }: { enabled: boolean }) {
   return (
-    <NoteCard className={`${enabled ? '' : 'hidden '}max-w-[min(420px,calc(100vw-36px))] my-10 px-3 py-2`}>
+    <NoteCard className={`${enabled ? '' : 'hidden '}my-2 px-3 py-2`}>
       <p className="cv-note-body">
         <strong>3D</strong>
         <br />

@@ -6,7 +6,7 @@ export function CarsNote({ count, enabled }: { count: number; enabled: boolean }
   if (count === 0) return null;
 
   return (
-    <NoteCard className={`${enabled ? "" : "hidden "}max-w-[min(420px,calc(100vw-36px))] my-10 px-3 py-2`}>
+    <NoteCard className={`${enabled ? "" : "hidden "}my-2 px-3 py-2`}>
       <p className="cv-note-body">
         <strong>{count.toLocaleString("pt-BR")} veículos</strong> animados.
       </p>

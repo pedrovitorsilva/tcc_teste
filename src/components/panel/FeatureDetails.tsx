@@ -7,7 +7,6 @@ import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
 import { Models3DNote } from "@/components/panel/Models3DNote";
 import {
-  Linha,
   NotaSigilo,
   Secao,
   SecaoAreaPonderacao,
@@ -16,10 +15,12 @@ import {
   SecaoQualidade,
   SecoesCenso,
 } from "@/components/panel/FichaSecoes";
-import { LoteamentosIcon } from "@/components/icons";
+import { Comparacao, NumerosChave, type Serie } from "@/components/panel/FichaResumo";
+import { IncertoIcon, LoteamentosIcon } from "@/components/icons";
 import { rotuloUnidade } from "@/config/levels";
 import { fmt } from "@/config/indicadores";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
+import { resumir, type Resumo } from "@/lib/resumo";
 import type {
   AreaPonderacaoProperties,
   LevelId,
@@ -39,7 +40,11 @@ export interface FeatureBackLinkProps {
 
 interface FeatureDetailsProps {
   selection: Selection;
+  /** Bairros e distritos — a ficha do loteamento compara com o bairro pai. */
+  bairros: IndexedFeature[];
   loteamentos: IndexedFeature[];
+  /** Município inteiro: referência de todas as comparações. */
+  municipio: Resumo | null;
   /** Áreas de ponderação por `cd_ap` — só a ficha do loteamento usa. */
   areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
@@ -90,10 +95,15 @@ export function FeatureBackLink({
   );
 }
 
-/** Conteúdo da ficha — o mesmo na Sidebar (desktop) e no BottomSheet (mobile). */
+/** Conteúdo da ficha — o mesmo na Sidebar (desktop) e no BottomSheet (mobile).
+ *
+ * Ordem pensada para leitura rápida: números-chave e comparação ficam à vista;
+ * o detalhe vai em seções recolhidas, abertas sob demanda. */
 export function FeatureDetails({
   selection,
+  bairros,
   loteamentos,
+  municipio,
   areasPonderacao,
   buildingCount,
   vehiclesCount,
@@ -103,40 +113,54 @@ export function FeatureDetails({
   onSelectLoteamento,
   onHoverLoteamento,
 }: FeatureDetailsProps) {
-  const notes = (
-    <div>
+  const has3d = buildingsEnabled || carsEnabled || lampsEnabled;
+  // As notas falam das camadas 3D, não da área: ficam juntas, recolhidas, no fim.
+  const notes = has3d && (
+    <Secao titulo="Sobre o mapa 3D">
       {/* Só carros e postes usam modelos de terceiros; edificações/vegetação/água são geradas. */}
       <Models3DNote enabled={carsEnabled || lampsEnabled} />
       <BuildingsNote count={buildingCount} enabled={buildingsEnabled} />
       <StreetLampsNote enabled={lampsEnabled} />
       <CarsNote count={vehiclesCount} enabled={carsEnabled} />
-    </div>
+    </Secao>
   );
+
   if (selection.level === "bairro") {
     return (
       <BairroBody
         bairroName={selection.name}
         unidade={selection.properties as unknown as UnidadeProperties}
         loteamentos={loteamentos}
+        municipio={municipio}
         notes={notes}
         onSelectLoteamento={onSelectLoteamento}
         onHoverLoteamento={onHoverLoteamento}
       />
     );
   }
+  const pai = bairros.find((b) => b.name === selection.parentBairro);
   return (
     <LoteamentoBody
       selection={selection}
+      bairroPai={pai ? (pai.properties as unknown as UnidadeProperties) : null}
+      municipio={municipio}
       areasPonderacao={areasPonderacao}
       notes={notes}
     />
   );
 }
 
+const densidade = (pop: number | null, areaKm2: number | null) =>
+  pop != null && areaKm2 ? `${fmt.int(pop / areaKm2)} hab/km²` : fmt.int(null);
+
+/** Estimativa de loteamento leva "≈". */
+const aprox = (v: number | null) => (v != null ? `≈ ${fmt.int(v)}` : fmt.int(v));
+
 function BairroBody({
   bairroName,
   unidade,
   loteamentos,
+  municipio,
   notes,
   onSelectLoteamento,
   onHoverLoteamento,
@@ -144,65 +168,76 @@ function BairroBody({
   bairroName: string;
   unidade: UnidadeProperties;
   loteamentos: IndexedFeature[];
+  municipio: Resumo | null;
   notes: ReactNode;
   onSelectLoteamento: (name: string) => void;
   onHoverLoteamento?: (name: string | null) => void;
 }) {
   const children = loteamentos.filter((l) => l.parentBairro === bairroName);
+  const resumo = resumir([unidade]);
   const tipo = rotuloUnidade(unidade.tipo);
+  const series: Serie[] = [
+    { rotulo: tipo === "distrito" ? "Este distrito" : "Este bairro", resumo, cor: "var(--bairro)" },
+    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)" }] : []),
+  ];
 
   return (
     <>
-      <div className="cv-sec-title mt-0">Registro geral</div>
-      <Linha rotulo="Tipo" valor={tipo === "distrito" ? "Distrito" : "Bairro"} />
-      <Linha rotulo="Área" valor={fmt.km2(unidade.area_km2)} />
-      <Linha rotulo="Área com domicílios" valor={fmt.km2(unidade.area_domiciliada_km2)} />
-      {/* Distrito não tem loteamento mapeado: a lista só existe para bairro. */}
-      {tipo === "bairro" && <Linha rotulo="Loteamentos mapeados" valor={children.length} />}
-
-      {children.length > 0 && (
-        <Secao titulo="Loteamentos" icone={<LoteamentosIcon className="size-4 shrink-0" />}>
-          <div className="pt-1">
-            {children.map((lot) => (
-              <button
-                key={lot.name}
-                type="button"
-                onClick={() => onSelectLoteamento(lot.name)}
-                // Foco espelha o hover: navegar por teclado destaca o mesmo polígono.
-                onMouseEnter={() => onHoverLoteamento?.(lot.name)}
-                onMouseLeave={() => onHoverLoteamento?.(null)}
-                onFocus={() => onHoverLoteamento?.(lot.name)}
-                onBlur={() => onHoverLoteamento?.(null)}
-                className="mb-1.5 flex min-h-11 w-full items-center justify-between rounded-md border border-cv-border-soft bg-panel-2 px-2.75 py-2.25 text-left text-sm hover:border-cv-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                <span>{lot.name}</span>
-                <span
-                  className={cn(
-                    "cv-note-body text-[11px] not-italic",
-                    lot.isReliable === false && "font-medium text-uncertain",
-                  )}
-                >
-                  {lot.isReliable === false
-                    ? "geometria não confirmada"
-                    : "geometria confirmada"}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Secao>
-      )}
-
-      <SecoesCenso
-        dados={unidade}
-        estimado={false}
-        areaDensidadeKm2={unidade.area_domiciliada_km2}
-        rotuloDensidade="Densidade (área com domicílios)"
+      <NumerosChave
+        itens={[
+          { rotulo: "Moradores", valor: fmt.int(resumo.pop) },
+          { rotulo: "Domicílios", valor: fmt.int(resumo.domicilios) },
+          // Sobre a área com domicílios: a área total inclui mata, lagoa e vazios.
+          { rotulo: "Densidade", valor: densidade(resumo.pop, unidade.area_domiciliada_km2) },
+          { rotulo: "Área", valor: fmt.km2(unidade.area_km2) },
+        ]}
       />
-      <SecaoEscolas escolas={unidade.escolas} />
-      <SecaoEnderecos enderecos={unidade.enderecos_cnefe} />
-      <NotaSigilo blocos={unidade.contem_sigilo} />
+      <Comparacao series={series} />
 
-      {notes}
+      <div className="mt-5">
+        {children.length > 0 && (
+          <Secao
+            titulo={`Loteamentos (${children.length})`}
+            icone={<LoteamentosIcon className="size-4 shrink-0" />}
+          >
+            <ul className="pt-1">
+              {children.map((lot) => (
+                <li key={lot.name}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectLoteamento(lot.name)}
+                    // Foco espelha o hover: navegar por teclado destaca o mesmo polígono.
+                    onMouseEnter={() => onHoverLoteamento?.(lot.name)}
+                    onMouseLeave={() => onHoverLoteamento?.(null)}
+                    onFocus={() => onHoverLoteamento?.(lot.name)}
+                    onBlur={() => onHoverLoteamento?.(null)}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-2 text-left text-sm hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    <span>{lot.name}</span>
+                    {/* Só a exceção ganha marca: ícone tracejado (como o contorno no mapa) + texto, não só cor. */}
+                    {lot.isReliable === false && (
+                      <span className="flex shrink-0 items-center gap-1 text-[12px] text-uncertain">
+                        <IncertoIcon className="size-3.5" />
+                        aproximado
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Secao>
+        )}
+        <SecoesCenso
+          dados={unidade}
+          estimado={false}
+          areaDensidadeKm2={unidade.area_domiciliada_km2}
+          rotuloDensidade="Densidade (área com domicílios)"
+        />
+        <SecaoEscolas escolas={unidade.escolas} />
+        <SecaoEnderecos enderecos={unidade.enderecos_cnefe} />
+        {notes}
+      </div>
+      <NotaSigilo blocos={unidade.contem_sigilo} />
     </>
   );
 }
@@ -210,54 +245,70 @@ function BairroBody({
 function LoteamentoBody({
   notes,
   selection,
+  bairroPai,
+  municipio,
   areasPonderacao,
 }: {
   notes: ReactNode;
   selection: Selection;
+  bairroPai: UnidadeProperties | null;
+  municipio: Resumo | null;
   areasPonderacao: Map<string, AreaPonderacaoProperties>;
 }) {
   const lot = selection.properties as unknown as LoteamentoProperties;
   const isReliable = lot.is_reliable !== false;
+  const resumo = lot.estimativas ? resumir([lot.estimativas]) : null;
+  const series: Serie[] = [
+    ...(resumo ? [{ rotulo: "Este loteamento", resumo, cor: "var(--loteamento)" }] : []),
+    ...(bairroPai ? [{ rotulo: bairroPai.nome, resumo: resumir([bairroPai]), cor: "var(--bairro)" }] : []),
+    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)" }] : []),
+  ];
 
   return (
     <>
       {!isReliable && <CartographerNote />}
 
-      <div className="cv-sec-title mt-0">Informações</div>
-      <Linha rotulo="Bairro" valor={selection.parentBairro ?? "—"} />
-      <Linha
-        rotulo="Confiabilidade da geometria"
-        valor={isReliable ? "Confirmada" : "Não confirmada"}
-        incerto={!isReliable}
-      />
-      <Linha rotulo="Área" valor={fmt.km2(lot.area_km2)} />
-
-      {lot.estimativas ? (
+      {resumo ? (
         <>
-          <p className="cv-note-body mt-3">
-            Valores estimados (≈): os dados do Censo por setor foram repartidos entre os
-            loteamentos pela proporção de endereços residenciais do CNEFE.
+          <NumerosChave
+            itens={[
+              { rotulo: "Moradores", valor: aprox(resumo.pop) },
+              { rotulo: "Domicílios", valor: aprox(resumo.domicilios) },
+              { rotulo: "Densidade", valor: densidade(resumo.pop, lot.area_km2) },
+              { rotulo: "Área", valor: fmt.km2(lot.area_km2) },
+            ]}
+          />
+          <p className="cv-note-body mt-2">
+            ≈ estimativa: Censo por setor repartido pelos endereços do CNEFE.
           </p>
+          <Comparacao series={series} />
+        </>
+      ) : (
+        <>
+          <NumerosChave itens={[{ rotulo: "Área", valor: fmt.km2(lot.area_km2) }]} />
+          <p className="cv-note-body mt-2">
+            Sem endereços residenciais no CNEFE: não há estimativa de população nem de
+            domicílios.
+          </p>
+        </>
+      )}
+
+      <div className="mt-5">
+        {lot.estimativas && (
           <SecoesCenso
             dados={lot.estimativas}
             estimado
             areaDensidadeKm2={lot.area_km2}
             rotuloDensidade="Densidade"
           />
-        </>
-      ) : (
-        <p className="cv-note-body mt-3">
-          Sem endereços residenciais no CNEFE dentro deste loteamento: não há estimativa
-          de população nem de domicílios.
-        </p>
-      )}
-      <SecaoEscolas escolas={lot.escolas} foraEscola={lot.estimativas_sinteticas} />
-      <SecaoEnderecos enderecos={lot.enderecos_cnefe} />
-      <SecaoAreaPonderacao aps={lot.aps} areas={areasPonderacao} />
-      <SecaoQualidade qualidade={lot.qualidade} />
+        )}
+        <SecaoEscolas escolas={lot.escolas} foraEscola={lot.estimativas_sinteticas} />
+        <SecaoEnderecos enderecos={lot.enderecos_cnefe} />
+        <SecaoAreaPonderacao aps={lot.aps} areas={areasPonderacao} />
+        <SecaoQualidade qualidade={lot.qualidade} />
+        {notes}
+      </div>
       <NotaSigilo blocos={lot.qualidade.contem_sigilo} />
-
-      {notes}
     </>
   );
 }

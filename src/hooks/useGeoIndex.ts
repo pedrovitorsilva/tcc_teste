@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import type { FeatureCollection } from 'geojson';
 import { AREAS_PONDERACAO_URL, getLevel } from '@/config/levels';
 import { computeBBox, type BBox } from '@/lib/map/bbox';
-import type { AreaPonderacaoProperties, LevelId, UnidadeProperties } from '@/types/map';
+import { resumir, type Resumo } from '@/lib/resumo';
+import type { AreaPonderacaoProperties, BlocosCenso, LevelId, UnidadeProperties } from '@/types/map';
 
 export interface IndexedFeature {
   featureId: number;
@@ -29,6 +30,8 @@ interface GeoIndex {
   loteamentos: IndexedFeature[];
   /** Áreas de ponderação por `cd_ap` — dados da ficha do loteamento, sem camada. */
   areasPonderacao: Map<string, AreaPonderacaoProperties>;
+  /** Município inteiro (soma de bairros e distritos), referência das comparações da ficha. */
+  municipio: Resumo | null;
   /**
    * GeoJSON bruto, do mesmo `fetch` que monta o índice, repassado ao MapLibre
    * em vez de deixá-lo rebuscar a URL (docs/ARQUITETURA-CODIGO-E-MELHORIAS.md §4.2).
@@ -44,6 +47,7 @@ const INITIAL_STATE: GeoIndex = {
   bairros: [],
   loteamentos: [],
   areasPonderacao: new Map(),
+  municipio: null,
   bairrosData: null,
   loteamentosData: null,
   loading: true,
@@ -105,10 +109,14 @@ export function useGeoIndex(): GeoIndex {
           }),
         );
 
+        // Uma vez, no carregamento: a ficha só lê o resultado.
+        const municipio = resumir(bairros.map((b) => b.properties as unknown as BlocosCenso));
+
         setState({
           bairros,
           loteamentos,
           areasPonderacao,
+          municipio,
           bairrosData,
           loteamentosData,
           loading: false,

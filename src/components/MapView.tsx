@@ -50,7 +50,7 @@ export function MapView() {
   const night = theme === "dark";
   const tokens = useThemeTokens();
   const mapStyles = useMapStyles(theme, tokens);
-  const { bairros, loteamentos, areasPonderacao, bairrosData, loteamentosData } = useGeoIndex();
+  const { bairros, loteamentos, areasPonderacao, municipio, bairrosData, loteamentosData } = useGeoIndex();
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "mobile";
   const sidebarWidth = breakpoint === "tablet" ? 320 : 380;
@@ -237,7 +237,9 @@ export function MapView() {
       <div className="hidden md:block">
         <Sidebar
           selection={selection}
+          bairros={bairros}
           loteamentos={loteamentos}
+          municipio={municipio}
           areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}
@@ -253,7 +255,9 @@ export function MapView() {
       <div className="md:hidden">
         <BottomSheet
           selection={selection}
+          bairros={bairros}
           loteamentos={loteamentos}
+          municipio={municipio}
           areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}

@@ -7,7 +7,7 @@ export function BuildingsNote({ count, enabled }: { count: number; enabled: bool
   if (count === 0) return null;
 
   return (
-    <NoteCard className={`${enabled ? '' : 'hidden '}pointer-events-none max-w-[min(420px,calc(100vw-36px))] my-10 px-3 py-2`}>
+    <NoteCard className={`${enabled ? '' : 'hidden '}pointer-events-none my-2 px-3 py-2`}>
       <p className="cv-note-body">
         <strong>{count.toLocaleString('pt-BR')} edificações</strong> por detecção
         automática (Overture · Google Open Buildings · Microsoft ML). Altura

@@ -4,12 +4,16 @@ import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetai
 import { CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
 import { rotuloUnidade } from '@/config/levels';
+import type { Resumo } from '@/lib/resumo';
 import { useBottomSheetDrag } from '@/hooks/useBottomSheetDrag';
 import type { AreaPonderacaoProperties, LevelId, Selection, SheetSnap } from '@/types/map';
 
 interface BottomSheetProps {
   selection: Selection | null;
+  /** Bairros e distritos — comparação do loteamento com o bairro pai. */
+  bairros: IndexedFeature[];
   loteamentos: IndexedFeature[];
+  municipio: Resumo | null;
   /** Áreas de ponderação por `cd_ap` — indicadores da ficha do loteamento. */
   areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
@@ -29,7 +33,9 @@ interface BottomSheetProps {
  */
 export function BottomSheet({
   selection,
+  bairros,
   loteamentos,
+  municipio,
   areasPonderacao,
   buildingCount,
   vehiclesCount,
@@ -115,7 +121,9 @@ export function BottomSheet({
         {selection && (
           <FeatureDetails
             selection={selection}
+            bairros={bairros}
             loteamentos={loteamentos}
+            municipio={municipio}
             areasPonderacao={areasPonderacao}
             buildingCount={buildingCount}
             vehiclesCount={vehiclesCount}

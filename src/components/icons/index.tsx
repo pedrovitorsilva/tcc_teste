@@ -34,6 +34,7 @@ import {
   BusFront,
   PlaneLanding,
   Accessibility,
+  CircleDashed,
 } from 'lucide-react';
 import { MdOutlineFamilyRestroom } from 'react-icons/md';
 import { DollarCircleSolid, Neighbourhood, Pipe3d, Planimetry } from 'iconoir-react';
@@ -98,3 +99,6 @@ export const InternetIcon = createIcon(Wifi);
 export const MobilidadeIcon = createIcon(BusFront);
 export const MigracaoIcon = createIcon(PlaneLanding);
 export const AcessibilidadeIcon = createIcon(Accessibility);
+
+/** Geometria aproximada: tracejado, como o contorno do loteamento incerto no mapa. */
+export const IncertoIcon = createIcon(CircleDashed);

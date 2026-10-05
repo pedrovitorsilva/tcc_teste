@@ -17,7 +17,9 @@ export const fmt = {
   /** Fração 0–1 → "12,3%". */
   pct: (v: number | null | undefined) => (v == null ? SEM_VALOR : `${decimal.format(v * 100)}%`),
   brl: (v: number | null | undefined) => (v == null ? SEM_VALOR : reais.format(v)),
-  km2: (v: number | null | undefined) => (v == null ? SEM_VALOR : `${decimal.format(v)} km²`),
+  /** Abaixo de 1 km² vira hectare: "0,1 km²" esconderia a diferença entre loteamentos pequenos. */
+  km2: (v: number | null | undefined) =>
+    v == null ? SEM_VALOR : v < 1 ? `${inteiro.format(v * 100)} ha` : `${decimal.format(v)} km²`,
 };
 
 export const IDADE: Record<string, string> = {

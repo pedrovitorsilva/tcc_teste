@@ -4,11 +4,15 @@ import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetai
 import { CloseIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
 import { rotuloUnidade } from '@/config/levels';
+import type { Resumo } from '@/lib/resumo';
 import type { AreaPonderacaoProperties, LevelId, Selection } from '@/types/map';
 
 interface SidebarProps {
   selection: Selection | null;
+  /** Bairros e distritos — comparação do loteamento com o bairro pai. */
+  bairros: IndexedFeature[];
   loteamentos: IndexedFeature[];
+  municipio: Resumo | null;
   /** Áreas de ponderação por `cd_ap` — indicadores da ficha do loteamento. */
   areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
@@ -26,7 +30,9 @@ interface SidebarProps {
 
 export function Sidebar({
   selection,
+  bairros,
   loteamentos,
+  municipio,
   areasPonderacao,
   buildingCount,
   vehiclesCount,
@@ -86,7 +92,9 @@ export function Sidebar({
           {selection && (
             <FeatureDetails
               selection={selection}
+              bairros={bairros}
               loteamentos={loteamentos}
+              municipio={municipio}
               areasPonderacao={areasPonderacao}
               buildingCount={buildingCount}
               vehiclesCount={vehiclesCount}

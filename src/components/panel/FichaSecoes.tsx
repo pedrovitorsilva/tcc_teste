@@ -55,18 +55,31 @@ export function Linha({
   valor,
   incerto,
   titulo,
+  proporcao,
 }: {
   rotulo: ReactNode;
   valor: ReactNode;
   incerto?: boolean;
   /** Dica no hover do valor (ex.: por que está "—"). */
   titulo?: string;
+  /** Fração 0–1: barra fina sob a linha, para ver a forma da distribuição sem ler os números. */
+  proporcao?: number | null;
 }) {
-  return (
-    <div className="cv-rec-row gap-3">
+  const conteudo = (
+    <>
       <span className="cv-rec-label">{rotulo}</span>
       <span className={cn("cv-rec-value shrink-0 text-right", incerto && "text-uncertain")} title={titulo}>
         {valor}
+      </span>
+    </>
+  );
+  if (proporcao === undefined) return <div className="cv-rec-row gap-3">{conteudo}</div>;
+  return (
+    // A barra já separa as linhas: sem o pontilhado e com menos respiro, a lista fica compacta.
+    <div className="cv-rec-row flex-col gap-1 border-b-0 py-1.5">
+      <div className="flex justify-between gap-3">{conteudo}</div>
+      <span aria-hidden className="h-1 overflow-hidden rounded-full bg-panel-2">
+        <span className="block h-full rounded-full bg-ink-faint" style={{ width: `${(proporcao ?? 0) * 100}%` }} />
       </span>
     </div>
   );
@@ -127,18 +140,20 @@ const ICONE_AP: Record<string, ReactNode> = {
 const qtd = (v: number | null | undefined, estimado: boolean) =>
   estimado && v != null ? `≈ ${fmt.int(v)}` : fmt.int(v);
 
-/** Categorias exaustivas de um bloco: quantidade e fatia do total. */
+/** Categorias exaustivas de um bloco: quantidade e fatia do total. Categoria
+ * zerada some (é ruído: "≈ 0 · 0,0%"); a de sigilo fica, com "—". */
 function Distribuicao({ rotulos, dados, estimado }: { rotulos: Record<string, string>; dados: Contagens; estimado: boolean }) {
   const base = Object.keys(rotulos).reduce((s, k) => s + (dados[k] ?? 0), 0);
   return (
     <>
-      {Object.entries(rotulos).map(([k, rotulo]) => {
+      {Object.entries(rotulos).filter(([k]) => dados[k] !== 0).map(([k, rotulo]) => {
         const v = dados[k];
         return (
           <Linha
             key={k}
             rotulo={rotulo}
             valor={v == null ? fmt.int(v) : `${qtd(v, estimado)} · ${fmt.pct(base ? v / base : null)}`}
+            proporcao={v == null || !base ? null : v / base}
           />
         );
       })}

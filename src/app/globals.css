@@ -276,6 +276,18 @@ body {
   }
   .cv-rec-row .cv-rec-value {
     font-weight: 500;
+    /* Algarismos de largura fixa: valores alinhados à direita viram uma coluna legível. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Número-chave do topo da ficha (valor grande, rótulo em .cv-kicker acima) */
+  .cv-kpi {
+    font-family: var(--font-display), 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
   }
 
   /* Rótulo de seção — versalete gravado */
