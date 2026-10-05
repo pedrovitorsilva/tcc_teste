@@ -32,6 +32,9 @@ export interface Serie {
   resumo: Resumo;
   /** Variável CSS do design system (ex.: `var(--loteamento)`). */
   cor: string;
+  /** Só contorno: marca a série de referência (município) pela forma, não só por cor —
+   * as cores das três séries ficam a 1,2–2,3:1 entre si. */
+  referencia?: boolean;
 }
 
 const COMPARACOES: {
@@ -69,7 +72,8 @@ export function Comparacao({ series }: { series: Serie[] }) {
                         className="block h-full rounded-full"
                         style={{
                           width: `${v == null || !teto ? 0 : Math.min(100, (v / teto) * 100)}%`,
-                          background: s.cor,
+                          // Referência em contorno: hachura já significa "incerto" no mapa (tema antigo).
+                          ...(s.referencia ? { boxShadow: `inset 0 0 0 1.5px ${s.cor}` } : { background: s.cor }),
                         }}
                       />
                     </span>

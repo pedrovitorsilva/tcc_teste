@@ -98,11 +98,7 @@ export function MapView() {
         ? { crumb: rotuloUnidade(previewTarget.tipo), main: previewTarget.name }
         : { crumb: previewTarget.parentBairro ?? "", main: previewTarget.name };
     }
-    if (selection) {
-      return selection.level === "bairro"
-        ? { crumb: `${rotuloUnidade(selection.properties.tipo as string)} selecionado`, main: selection.name }
-        : { crumb: selection.parentBairro ?? "", main: selection.name };
-    }
+    // A seleção não entra: o nome já está na ficha (ou no botão que a reabre).
     // Loteamento vence bairro: é o alvo mais específico.
     if (hoveredLoteamento) {
       return {
@@ -114,7 +110,7 @@ export function MapView() {
       return { crumb: rotuloUnidade(hoveredBairro.tipo), main: hoveredBairro.name };
     }
     return null;
-  }, [previewTarget, selection, hoveredLoteamento, hoveredBairro]);
+  }, [previewTarget, hoveredLoteamento, hoveredBairro]);
 
   // Padding assimétrico no mobile, para a seleção ficar acima da folha. Depende
   // só do breakpoint: a folha sempre reabre em "prévia" numa seleção nova.

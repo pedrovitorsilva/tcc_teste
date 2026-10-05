@@ -178,7 +178,7 @@ function BairroBody({
   const tipo = rotuloUnidade(unidade.tipo);
   const series: Serie[] = [
     { rotulo: tipo === "distrito" ? "Este distrito" : "Este bairro", resumo, cor: "var(--bairro)" },
-    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)" }] : []),
+    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)", referencia: true }] : []),
   ];
 
   return (
@@ -261,7 +261,7 @@ function LoteamentoBody({
   const series: Serie[] = [
     ...(resumo ? [{ rotulo: "Este loteamento", resumo, cor: "var(--loteamento)" }] : []),
     ...(bairroPai ? [{ rotulo: bairroPai.nome, resumo: resumir([bairroPai]), cor: "var(--bairro)" }] : []),
-    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)" }] : []),
+    ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)", referencia: true }] : []),
   ];
 
   return (

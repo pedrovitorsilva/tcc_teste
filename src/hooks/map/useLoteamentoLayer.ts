@@ -131,6 +131,10 @@ export function useLoteamentoLayer({
       fillOpacities.hover,
       isPreview,
       fillOpacities.preview,
+      // Selecionado acende como no hover: só o contorno se perdia entre as vias
+      // escuras do basemap no tema claro.
+      isActive,
+      fillOpacities.hover,
       showCondition,
       ['case', ['==', ['get', 'is_reliable'], false], fillOpacities.unreliable, fillOpacities.reliable],
       0,
