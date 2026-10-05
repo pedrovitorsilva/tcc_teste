@@ -128,6 +128,8 @@ export function StreetLamps3D({
   const nightRef = useRef(night);
   nightRef.current = night;
   const [lamps, setLamps] = useState<Lamp[] | null>(null);
+  /** Postes recortados por alvo — estáticos, o recorte não muda. */
+  const clipCacheRef = useRef(new Map<string, Lamp[]>());
 
   const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
 
@@ -268,18 +270,29 @@ export function StreetLamps3D({
     const refs = sceneRef.current;
     if (!map || !refs) return;
 
-    const placed: LampScene["placed"] = [];
+    let clipped: Lamp[] = [];
     if (target && lamps) {
-      const [w, s, e, n] = target.bbox ?? [-Infinity, -Infinity, Infinity, Infinity];
-      for (const [lng, lat, heading] of lamps) {
-        if (placed.length >= MAX_LAMPS_TOTAL) break;
-        if (lng < w || lng > e || lat < s || lat > n) continue;
-        if (!pointInPolygon([lng, lat], target.geometry)) continue;
-        const { x, z } = lngLatToLocalMeters(refs.origin, [lng, lat]);
-        placed.push([x, z, heading]);
+      const cached = clipCacheRef.current.get(target.key);
+      if (cached) {
+        clipped = cached;
+      } else {
+        // ponytail: varredura linear + pointInPolygon sem índice espacial — ~1 s
+        // na zona rural (anel em volta da cidade: a bbox não filtra nada). Pago
+        // uma vez por alvo graças ao cache; grade espacial se isso incomodar.
+        const [w, s, e, n] = target.bbox ?? [-Infinity, -Infinity, Infinity, Infinity];
+        for (const lamp of lamps) {
+          if (clipped.length >= MAX_LAMPS_TOTAL) break;
+          const [lng, lat] = lamp;
+          if (lng < w || lng > e || lat < s || lat > n) continue;
+          if (pointInPolygon([lng, lat], target.geometry)) clipped.push(lamp);
+        }
+        clipCacheRef.current.set(target.key, clipped);
       }
     }
-    refs.placed = placed;
+    refs.placed = clipped.map(([lng, lat, heading]) => {
+      const { x, z } = lngLatToLocalMeters(refs.origin, [lng, lat]);
+      return [x, z, heading];
+    });
     writeMatrices(refs);
     map.triggerRepaint();
   }, [map, isLoaded, enabled, target, lamps]);
