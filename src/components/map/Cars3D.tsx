@@ -6,13 +6,10 @@
 // anda ida-e-volta só no segmento onde nasceu, sem atravessar interseção
 // (grafo de `connectors` do Overture fica documentado, não implementado).
 //
-// Modelos: pack glTF combinado em public/cars/scene.gltf (14 tipos de
-// veículo na mesma cena; usamos 4). Corpo+rodas de cada tipo são nós
-// irmãos sem transform próprio (offset já embutido na geometria) — ao
-// invés de InstancedMesh por peça (corpo/roda × tipo), cada carro na cena é
-// um `THREE.Group.clone(true)` do prefab do seu tipo: mais simples, e a
-// contagem de carros (dezenas, não milhares como as árvores) não justifica
-// o custo de manter ~20 InstancedMesh sincronizadas.
+// Modelo: glTF de um carro único em public/cars/scene.gltf. Cada carro na
+// cena é um `THREE.Group.clone(true)` do prefab: mais simples que
+// InstancedMesh, e a contagem de carros (dezenas, não milhares como as
+// árvores) não justifica o custo.
 import { useEffect, useRef } from "react";
 import type { Geometry, Position } from "geojson";
 import type { CustomLayerInterface, Map as MapLibreMap, MapSourceDataEvent } from "maplibre-gl";
@@ -35,13 +32,11 @@ import {
   CAR_SCALE_FACTOR_MAX,
   CAR_SCALE_FACTOR_MIN,
   CAR_SPEED_MPS,
-  CAR_TYPES,
   NON_CAR_CLASSES,
   ROAD_WIDTH_DEFAULT_M,
   ROAD_STYLE_LAYER,
   ROAD_WIDTH_M,
   ROAD_WIDTH_REF_M,
-  CAR_WHEEL_POSITIONS,
   CARS_ATTRIBUTION,
   CARS_MIN_ZOOM,
   CARS_PMTILES_URL,
@@ -50,7 +45,6 @@ import {
   CARS_SOURCE_LAYER,
   MAX_CARS_PER_SEGMENT,
   MAX_CARS_TOTAL,
-  type CarType,
 } from "@/config/cars";
 import { WATER_LIGHT_DIR } from "@/config/water";
 import { lightingFor } from "@/config/lighting";
@@ -221,16 +215,12 @@ interface CarScene {
   lights: CarLights;
   origin: MercatorOrigin;
   /** `null` até o glTF terminar de carregar — carros só aparecem depois disso. */
-  prefabs: Map<CarType, THREE.Group> | null;
+  prefab: THREE.Group | null;
   /** Cena bruta do glTF, mantida só para dispose (prefabs/clones compartilham geometria/material com ela). */
   rawGltfScene: THREE.Object3D | null;
   active: ActiveCar[];
 }
 
-/** Centraliza o grupo no plano XZ (mantém Y como veio do modelo) — sem isso o
- * pivot do carro fica na posição em que o tipo foi desenhado dentro do pack
- * (uma fileira de 14 veículos lado a lado), e girar o grupo pra orientar o
- * carro faria ele "orbitar" um ponto distante em vez de girar no próprio eixo. */
 function applyCarLight(refs: Pick<CarScene, "ambient" | "sun" | "lights">, night: boolean) {
   const lighting = lightingFor(night);
   refs.ambient.color.set(lighting.color);
@@ -240,6 +230,7 @@ function applyCarLight(refs: Pick<CarScene, "ambient" | "sun" | "lights">, night
   for (const material of [refs.lights.head, refs.lights.tail, refs.lights.glow]) material.visible = night;
 }
 
+/** Centraliza o grupo no plano XZ (mantém Y) — o pivot do modelo não é o centro do carro, e girar o grupo faria ele "orbitar" em vez de girar no próprio eixo. */
 function recenterGroupXZ(group: THREE.Group): void {
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
@@ -307,27 +298,13 @@ function addCarLights(group: THREE.Group, lights: CarLights): void {
   group.add(glow);
 }
 
-function buildCarPrefabs(gltfScene: THREE.Object3D, lights: CarLights): Map<CarType, THREE.Group> {
-  const prefabs = new Map<CarType, THREE.Group>();
-
-  for (const type of CAR_TYPES) {
-    const body = gltfScene.getObjectByName(type);
-    if (!body) continue;
-
-    const group = new THREE.Group();
-    group.add(worldClone(body));
-    for (const position of CAR_WHEEL_POSITIONS) {
-      const wheel = gltfScene.getObjectByName(`${type} wheel ${position}`);
-      if (wheel) group.add(worldClone(wheel));
-    }
-
-    recenterGroupXZ(group);
-    addCarLights(group, lights);
-    group.scale.setScalar(CAR_MODEL_SCALE);
-    prefabs.set(type, group);
-  }
-
-  return prefabs;
+function buildCarPrefab(gltfScene: THREE.Object3D, lights: CarLights): THREE.Group {
+  const group = new THREE.Group();
+  group.add(worldClone(gltfScene));
+  recenterGroupXZ(group);
+  addCarLights(group, lights);
+  group.scale.setScalar(CAR_MODEL_SCALE);
+  return group;
 }
 
 function disposeObject3D(root: THREE.Object3D): void {
@@ -433,7 +410,8 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
   const publishCars = (roads: Road[]) => {
     const refs = sceneRef.current;
     if (!refs || !map) return;
-    if (!refs.prefabs) return; // reexecutado via publishCarsRef quando o glTF terminar de carregar
+    const { prefab } = refs;
+    if (!prefab) return; // reexecutado via publishCarsRef quando o glTF terminar de carregar
 
     const graph: RoadGraph = { roads: new Map(), nodes: new Map() };
     for (const road of roads) {
@@ -471,10 +449,6 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
       const rand = mulberry32(seedFromRing(road.coordinates));
       const count = Math.min(MAX_CARS_PER_SEGMENT, Math.floor(measure.total / CAR_MIN_SPACING_M));
       for (let i = 0; i < count && refs.active.length < MAX_CARS_TOTAL; i += 1) {
-        const type = CAR_TYPES[Math.floor(rand() * CAR_TYPES.length)];
-        const prefab = refs.prefabs.get(type);
-        if (!prefab) continue;
-
         const group = prefab.clone(true);
         refs.scene.add(group);
         refs.active.push({
@@ -605,13 +579,13 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
           applyCarLight({ ambient, sun, lights }, nightRef.current);
           scene.add(ambient, sun);
 
-          sceneRef.current = { scene, renderer, ambient, sun, lights, origin, prefabs: null, rawGltfScene: null, active: [] };
+          sceneRef.current = { scene, renderer, ambient, sun, lights, origin, prefab: null, rawGltfScene: null, active: [] };
 
           new GLTFLoader().load(CAR_GLTF_URL, (gltf) => {
             const refs = sceneRef.current;
             if (!refs) return; // layer já removida antes do load terminar
             refs.rawGltfScene = gltf.scene;
-            refs.prefabs = buildCarPrefabs(gltf.scene, refs.lights);
+            refs.prefab = buildCarPrefab(gltf.scene, refs.lights);
             publishCarsRef.current?.(lastRoadsRef.current);
           });
         },

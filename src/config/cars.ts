@@ -1,6 +1,6 @@
 // Fonte dos carros 3D: Overture Maps, tema `transportation`, source-layer
 // `segment` (mesmo bucket/release de config/buildings.ts). Modelos: pack
-// glTF local em public/cars/ (ver public/cars/license.txt — CC-BY-4.0).
+// glTF local (carro único) em public/cars/ (ver public/cars/license.txt — CC-BY-4.0).
 
 import { OVERTURE_RELEASE } from './buildings';
 
@@ -20,24 +20,8 @@ export const CARS_PROBE_LAYER_ID = 'overture-transportation-probe';
 /** Zoom mínimo pra exibir carros — mesmo critério de escala das outras camadas 3D. */
 export const CARS_MIN_ZOOM = 13;
 
-/** Caminho do glTF combinado (pack inteiro, todos os tipos de veículo). */
+/** Caminho do glTF do carro. */
 export const CAR_GLTF_URL = '/cars/scene.gltf';
-
-/**
- * Tipos de veículo escolhidos (dos ~14 do pack) — nomes exatos dos nós no
- * glTF, usados com `scene.getObjectByName`. MVP: só carros "normais", sem
- * caminhão/ônibus/ambulância/monster truck.
- */
-export const CAR_TYPES = ['Sedan', 'Hatchback', 'SUV', 'Pickup'] as const;
-export type CarType = (typeof CAR_TYPES)[number];
-
-/** As 4 posições de roda, sufixo do nome do nó: `"${tipo} wheel ${posição}"`. */
-export const CAR_WHEEL_POSITIONS = [
-  'front right',
-  'rear right',
-  'front left',
-  'rear left',
-] as const;
 
 /** Velocidade média dos carros (m/s) — ~25 km/h, trânsito de bairro. */
 export const CAR_SPEED_MPS = 15;
@@ -79,22 +63,22 @@ export const CAR_SCALE_FACTOR_MAX = 2.5;
 
 /** Classes sem carro (calçadas, ciclovias, trilhas). */
 export const NON_CAR_CLASSES = new Set([
-  'footway', 'pedestrian', 'steps', 'path', 'cycleway', 'bridleway', 'track',
+  'footway', 'pedestrian', 'steps', 'path', 'cycleway', 'bridleway', 'track', 'service',
 ]);
 
 /** Comprimento mínimo de via (m) por carro — evita amontoar carros num segmento curto. */
-export const CAR_MIN_SPACING_M = 15;
+export const CAR_MIN_SPACING_M = 40;
 
 /** Teto de carros por segmento e no total, mesmo espírito de MAX_TREES_*. */
-export const MAX_CARS_PER_SEGMENT = 3;
+export const MAX_CARS_PER_SEGMENT = 2;
 export const MAX_CARS_TOTAL = 150;
 
 /**
- * Escala aplicada ao modelo clonado. Medido (Sedan, após `worldClone`):
- * ~1,57 m de comprimento em escala 1 — pequeno demais pra um carro real
- * (~4,5 m), por isso o fator ~2,9 abaixo. Reajustar se trocar o pack.
+ * Escala aplicada ao modelo clonado. Medido (após `worldClone`): ~3,4
+ * unidades de comprimento em escala 1; 0,19 mantém o tamanho visual anterior.
+ * Reajustar se trocar o modelo.
  */
-export const CAR_MODEL_SCALE = 0.4;
+export const CAR_MODEL_SCALE = 1.19;
 
 /** Destaque extra (multiplicador) para carros nas rodovias. */
 export const CAR_CLASS_BOOST: Record<string, number> = {
@@ -108,7 +92,7 @@ export const CAR_CLASS_BOOST: Record<string, number> = {
  * eixo "de frente" com que o modelo foi modelado, caso não seja +Z. Ajustar
  * depois de conferir visualmente.
  */
-export const CAR_MODEL_FORWARD_OFFSET = 0;
+export const CAR_MODEL_FORWARD_OFFSET = Math.PI; // frente do modelo em -Z
 
 /**
  * Faróis/lanternas, só à noite. As peças são MeshBasicMaterial (sem luz, sem
@@ -136,6 +120,6 @@ export const CAR_HEADLIGHT_INTENSITY = 0.6;
 export const CARS_ATTRIBUTION =
   '<a href="https://overturemaps.org" target="_blank" rel="noreferrer">© Overture Maps Foundation</a>';
 
-/** Autor do pack de veículos (public/cars/license.txt), montado no (i) por ModelsAttribution. */
+/** Autor do modelo de carro (public/cars/license.txt), montado no (i) por ModelsAttribution. */
 export const CAR_MODEL_CREDIT =
-  '<a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">RgsDev</a> (carros)';
+  '<a href="https://sketchfab.com/moonlight2023" target="_blank" rel="noreferrer">Moonlight</a> (carros)';

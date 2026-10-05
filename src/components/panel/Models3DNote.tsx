@@ -1,7 +1,6 @@
 'use client';
 
 import { NoteCard } from '@/components/panel/NoteCard';
-import { CAR_TYPES } from '@/config/cars';
 
 /** Créditos dos modelos 3D de terceiros (carros e postes), com a licença CC-BY citada uma vez. */
 export function Models3DNote({ enabled }: { enabled: boolean }) {
@@ -12,15 +11,15 @@ export function Models3DNote({ enabled }: { enabled: boolean }) {
         <br />
         Carros:{' '}
         <a
-          href="https://sketchfab.com/3d-models/free-low-poly-vehicles-pack-cb7640039e7a40679a53be705ebff50e"
+          href="https://sketchfab.com/3d-models/free-retro-american-car-cartoon-low-poly-920afc941ac44b6599e6191631e8979b"
           target="_blank"
           rel="noreferrer"
         >
-          {CAR_TYPES.join(', ')}
+          &ldquo;FREE Retro American Car Cartoon (Low Poly)&rdquo;
         </a>{' '}
         por{' '}
-        <a href="https://sketchfab.com/rgsdev" target="_blank" rel="noreferrer">
-          RgsDev
+        <a href="https://sketchfab.com/moonlight2023" target="_blank" rel="noreferrer">
+          Moonlight
         </a>
         <br />
         Postes:{' '}

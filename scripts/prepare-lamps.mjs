@@ -23,7 +23,7 @@ const OVERPASS_URLS = [
 ];
 const USER_AGENT = 'cadastro-vivo-tcc/0.1 (prepare-lamps; build-time)';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const SPACING_M = 32;
+const SPACING_M = 55;
 const SIDEWALK_OFFSET_M = 1.5;
 
 // Cópia de ROAD_WIDTH_M (src/config/cars.ts) — o node não importa .ts direto.
@@ -140,7 +140,7 @@ const bairros = { ...unidades, features: unidades.features.filter((f) => f.prope
 const osm = await loadOsm(bboxOf(bairros));
 if (!osm) process.exit(0);
 
-const ways = osm.elements.filter((el) => el.type === 'way' && el.geometry?.length > 1);
+const ways = osm.elements.filter((el) => el.type === 'way' && el.geometry?.length > 1 && el.tags.highway !== 'service');
 const osmLamps = osm.elements.filter((el) => el.type === 'node');
 console.log(`  Overpass: ${ways.length} vias, ${osmLamps.length} node[highway=street_lamp]`);
 
