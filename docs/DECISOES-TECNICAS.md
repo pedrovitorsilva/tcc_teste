@@ -123,7 +123,7 @@ navegar apenas pelos loteamentos.
 
 Realce e seleção usam, sempre que possível, o id gerado pelo MapLibre. O nome só é
 usado quando é a única informação disponível (`selection.parentBairro`, que vem
-do dado como string, sem id associado).
+do `nm_bairro` do loteamento como string, sem id associado).
 
 Isso evita ambiguidades, pois existem bairros com o mesmo nome de loteamentos.
 

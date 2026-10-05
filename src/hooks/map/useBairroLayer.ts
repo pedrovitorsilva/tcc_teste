@@ -60,14 +60,14 @@ export function useBairroLayer({
 
     // "Locked" = bairro selecionado ou bairro-pai do loteamento selecionado.
     // Casa por id; só usa nome quando é a única informação disponível
-    // (`parentBairro` vem como string) — ver docs/DECISOES-TECNICAS.md §2.
+    // (`nm_bairro` do loteamento vem como string) — ver docs/DECISOES-TECNICAS.md §2.
     const isBairroLocked: ExpressionSpecification = [
       'any',
       selection?.level === 'bairro'
         ? (['==', ['id'], selection.featureId] as ExpressionSpecification)
         : false,
       selection?.level === 'loteamento' && selection.parentBairro
-        ? (['==', ['get', 'name'], selection.parentBairro] as ExpressionSpecification)
+        ? (['==', ['get', 'nome'], selection.parentBairro] as ExpressionSpecification)
         : false,
     ];
     const isBairroPreview: ExpressionSpecification | boolean =

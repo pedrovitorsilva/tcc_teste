@@ -1,8 +1,8 @@
 import type { LayerToggles, LevelConfig, LevelId } from '@/types/map';
 
 /**
- * Metadata for the three administrative levels: GeoJSON URLs, source/layer IDs,
- * tooltip fields, and stroke width.
+ * Metadata for the three administrative levels: GeoJSON URLs (output do ETL em
+ * dados/etl/output, copiado para public/data), source/layer IDs and stroke width.
  *
  * Colors are not here — they're resolved at runtime from the active theme tokens
  * (hooks/useThemeTokens.ts), so theme changes don't require code updates.
@@ -11,12 +11,11 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 'bairro',
     label: 'Bairro',
-    url: '/data/bairros.geojson',
+    // Bairros e distritos na mesma camada; `tipo` diferencia os dois.
+    url: '/data/bairros_e_distritos.geojson',
     sourceId: 'bairro-source',
     fillLayerId: 'bairro-fill',
     lineLayerId: 'bairro-line',
-    nameProperty: 'name',
-    tooltipFields: [],
     colorToken: 'bairro',
     lineWidth: 1.6,
     lineWidthHover: 2.3,
@@ -29,9 +28,6 @@ export const LEVELS: LevelConfig[] = [
     sourceId: 'loteamento-source',
     fillLayerId: 'loteamento-fill',
     lineLayerId: 'loteamento-line',
-    parentsProperty: 'parentBairro',
-    nameProperty: 'name',
-    tooltipFields: [],
     colorToken: 'loteamento',
     lineWidth: 1,
     lineWidthHover: 2.15,
@@ -44,16 +40,6 @@ export const LEVELS: LevelConfig[] = [
     sourceId: 'setor-source',
     fillLayerId: 'setor-fill',
     lineLayerId: 'setor-line',
-    parentsProperty: 'parentLoteamentos',
-    nameProperty: 'NM_BAIRRO',
-    tooltipFields: [
-      { label: 'Setor', property: 'CD_SETOR' },
-      {
-        label: 'Área',
-        property: 'AREA_KM2',
-        format: (v) => `${Number(v).toFixed(3)} km²`,
-      },
-    ],
     colorToken: 'setor',
     lineWidth: 0.7,
     lineWidthHover: 0.7,
@@ -75,3 +61,11 @@ export const DEFAULT_LAYER_TOGGLES: LayerToggles = {
   loteamento: false,
   setor: false,
 };
+
+/** Rótulo do nível `bairro` para quem o vê: a mesma camada traz bairros e distritos. */
+export function rotuloUnidade(tipo: string | undefined): 'bairro' | 'distrito' {
+  return tipo === 'distrito' ? 'distrito' : 'bairro';
+}
+
+/** Áreas de ponderação: só dados (indicadores da ficha do loteamento), sem camada no mapa. */
+export const AREAS_PONDERACAO_URL = '/data/areas_ponderacao.geojson';

@@ -1,14 +1,21 @@
 'use client';
 
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
-import { CloseIcon, DragHandleIcon } from '@/components/icons';
+import { CentralizarIcon, CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
+import { rotuloUnidade } from '@/config/levels';
+import type { Resumo } from '@/lib/resumo';
 import { useBottomSheetDrag } from '@/hooks/useBottomSheetDrag';
-import type { LevelId, Selection, SheetSnap } from '@/types/map';
+import type { AreaPonderacaoProperties, LevelId, Selection, SheetSnap } from '@/types/map';
 
 interface BottomSheetProps {
   selection: Selection | null;
+  /** Bairros e distritos — comparação do loteamento com o bairro pai. */
+  bairros: IndexedFeature[];
   loteamentos: IndexedFeature[];
+  municipio: Resumo | null;
+  /** Áreas de ponderação por `cd_ap` — indicadores da ficha do loteamento. */
+  areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
   vehiclesCount: number;
   buildingsEnabled: boolean;
@@ -18,6 +25,8 @@ interface BottomSheetProps {
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
   onNavigate: (level: LevelId, name: string) => void;
+  /** Reenquadra a seleção (depois de pan/zoom). */
+  onRecenter: () => void;
 }
 
 /**
@@ -26,7 +35,10 @@ interface BottomSheetProps {
  */
 export function BottomSheet({
   selection,
+  bairros,
   loteamentos,
+  municipio,
+  areasPonderacao,
   buildingCount,
   vehiclesCount,
   buildingsEnabled,
@@ -34,6 +46,7 @@ export function BottomSheet({
   lampsEnabled,
   snap,
   onSnapChange,
+  onRecenter,
   onClose,
   onNavigate,
 }: BottomSheetProps) {
@@ -86,10 +99,19 @@ export function BottomSheet({
         >
           <CloseIcon className="h-3.5 w-3.5" />
         </button>
+        <button
+          type="button"
+          onClick={onRecenter}
+          aria-label="Centralizar no mapa"
+          title="Centralizar no mapa"
+          className="absolute right-3 flex h-11 w-11 items-center justify-center rounded-full border border-cv-border text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <CentralizarIcon className="h-4 w-4" />
+        </button>
         <div className="cv-kicker truncate">
           {selection
             ? selection.level === 'bairro'
-              ? 'ficha do bairro'
+              ? `ficha do ${rotuloUnidade(selection.properties.tipo as string)}`
               : `loteamento — ${selection.parentBairro ?? ''}`
             : ''}
         </div>
@@ -111,7 +133,10 @@ export function BottomSheet({
         {selection && (
           <FeatureDetails
             selection={selection}
+            bairros={bairros}
             loteamentos={loteamentos}
+            municipio={municipio}
+            areasPonderacao={areasPonderacao}
             buildingCount={buildingCount}
             vehiclesCount={vehiclesCount}
             buildingsEnabled={buildingsEnabled}

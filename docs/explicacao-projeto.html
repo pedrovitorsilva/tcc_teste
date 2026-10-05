@@ -310,11 +310,11 @@
     <div class="grid2">
       <div class="card">
         <strong>Como os dados chegam hoje</strong>
-        <p class="small">Sem banco de dados ainda. Um script (<code>prepare-data.mjs</code>) lê os arquivos brutos, calcula a qual bairro cada loteamento pertence e grava arquivos GeoJSON estáticos, que o navegador busca diretamente — fazendo hoje, localmente, o papel que a ETL + MongoDB + API farão depois.</p>
+        <p class="small">Sem banco de dados ainda. O ETL (<code>dados/etl/etl.ipynb</code>) cruza Censo, CNEFE, INEP e loteamentos e grava arquivos GeoJSON estáticos, copiados para <code>public/data/</code>, que o navegador busca diretamente — fazendo hoje, localmente, o papel que o MongoDB + API farão depois.</p>
       </div>
       <div class="card">
         <strong>Os campos "inventados", e por quê</strong>
-        <p class="small">O campo de confiabilidade de cada loteament, no momento, é um MOCK. Ele existe só para provar que a interface consegue <em>comunicar incerteza visualmente</em> — exatamente o requisito levantado na fundamentação teórica sobre visualização de incertezas espaciais.</p>
+        <p class="small">O campo de confiabilidade de cada loteamento (<code>is_reliable</code>) marca as geometrias aproximadas na consolidação dos polígonos. A interface o usa para <em>comunicar incerteza visualmente</em> — exatamente o requisito levantado na fundamentação teórica sobre visualização de incertezas espaciais.</p>
       </div>
     </div>
   </section>

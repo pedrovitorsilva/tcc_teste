@@ -39,6 +39,8 @@ interface MapLayersProps {
   onSelect: (selection: Selection) => void;
   /** Padding for `fitBounds`; on mobile it's asymmetric so selection rises above the sheet. */
   fitPadding?: number | { top: number; bottom: number; left: number; right: number };
+  /** Muda a cada clique em "centralizar": reenquadra a seleção depois de pan/zoom. */
+  recenterKey?: number;
 }
 
 export function MapLayers({
@@ -55,6 +57,7 @@ export function MapLayers({
   onHoverLoteamento,
   onSelect,
   fitPadding = 40,
+  recenterKey = 0,
 }: MapLayersProps) {
   const { map, isLoaded } = useMap();
 
@@ -126,7 +129,9 @@ export function MapLayers({
       duration: 800,
       pitch: SELECTION_PITCH,
     });
-  }, [map, isLoaded, selection, fitPadding]);
+    // `recenterKey` só existe para disparar o efeito de novo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, isLoaded, selection, fitPadding, recenterKey]);
 
   return null;
 }

@@ -74,7 +74,8 @@ export function useMapLayerHandlers({
       if (!selection && feature.id !== undefined) {
         onHoverBairro({
           featureId: feature.id,
-          name: String(feature.properties?.name ?? ''),
+          name: String(feature.properties?.nome ?? ''),
+          tipo: feature.properties?.tipo,
         });
       }
       map.getCanvas().style.cursor = 'pointer';
@@ -106,11 +107,11 @@ export function useMapLayerHandlers({
       if (!feature || feature.id === undefined) return;
       const props = feature.properties ?? {};
       const parentBairro =
-        typeof props.parentBairro === 'string' ? props.parentBairro : undefined;
+        typeof props.nm_bairro === 'string' ? props.nm_bairro : undefined;
       if (!bairroOff && parentBairro !== activeBairro) return;
       onHoverLoteamento({
         featureId: feature.id,
-        name: String(props.name ?? ''),
+        name: String(props.nome ?? ''),
         parentBairro,
       });
     };
@@ -171,7 +172,7 @@ export function useMapLayerHandlers({
       if (loteamentoFeature && loteamentoFeature.id !== undefined) {
         const props = loteamentoFeature.properties ?? {};
         const parentBairro =
-          typeof props.parentBairro === 'string' ? props.parentBairro : undefined;
+          typeof props.nm_bairro === 'string' ? props.nm_bairro : undefined;
 
         // Hierarquia: sem o bairro em contexto, o clique cai para o bairro-pai;
         // o segundo clique é que desce para o loteamento. A busca por texto não
@@ -180,7 +181,7 @@ export function useMapLayerHandlers({
           onSelect({
             level: 'loteamento',
             featureId: loteamentoFeature.id,
-            name: String(props.name ?? ''),
+            name: String(props.nome ?? ''),
             properties: props,
             parentBairro,
             bbox: computeBBox(loteamentoFeature.geometry),
@@ -201,7 +202,7 @@ export function useMapLayerHandlers({
       onSelect({
         level: 'bairro',
         featureId: bairroFeature.id,
-        name: String(bairroFeature.properties?.name ?? ''),
+        name: String(bairroFeature.properties?.nome ?? ''),
         properties: bairroFeature.properties ?? {},
         bbox: computeBBox(bairroFeature.geometry),
       });

@@ -5,13 +5,8 @@
 
 // --- Nível / config de camada ---------------------------------------------
 
+/** `bairro` é o nível das unidades (bairros e distritos), separadas por `tipo`. */
 export type LevelId = 'bairro' | 'loteamento' | 'setor';
-
-export interface TooltipField {
-  label: string;
-  property: string;
-  format?: (value: unknown) => string;
-}
 
 /** Color token name (`--bairro` | `--loteamento` | `--setor` | `--uncertain`) that this layer reads at runtime. */
 export type ColorToken = 'bairro' | 'loteamento' | 'setor';
@@ -23,10 +18,6 @@ export interface LevelConfig {
   sourceId: string;
   fillLayerId: string;
   lineLayerId: string;
-  /** Property (array) of this feature listing parent names. Absent at root level (bairro). */
-  parentsProperty?: string;
-  nameProperty: string;
-  tooltipFields: TooltipField[];
   colorToken: ColorToken;
 
   /** Stroke widths: default / hover / preview (search result). */
@@ -44,14 +35,84 @@ export interface LayerToggles {
   setor: boolean;
 }
 
-// --- Dado de feature --------------------------------------------------------
+// --- Dado de feature (esquema do ETL: dados/etl/model/hierarquia_dados.md) ---
+
+/** Bloco de contagens por categoria; `null` = sigilo do IBGE (ver `contem_sigilo`). */
+export type Contagens = Record<string, number | null>;
+
+/** Blocos censitários comuns a bairro/distrito (contagem) e loteamento (estimativa). */
+export interface BlocosCenso {
+  demografia: { pop: number | null; homens: number | null; mulheres: number | null; idade: Contagens };
+  domicilios: {
+    total: number | null;
+    particulares: number | null;
+    coletivos: number | null;
+    ocupados: number | null;
+    uso_ocasional: number | null;
+    vagos: number | null;
+    media_moradores: number | null;
+    pct_imputados: number | null;
+    tipo: Contagens;
+  };
+  saneamento: Record<'agua' | 'agua_canalizada' | 'banheiro' | 'esgoto' | 'lixo', Contagens>;
+  alfabetizacao: { alfabetizados_15_mais: number | null; nao_alfabetizados_15_mais: number | null };
+  renda_responsavel: { responsaveis: number | null; moradores: number | null; rendimento_medio: number | null };
+}
+
+/** Escolas por rede e porte (faixa de matrículas). */
+export type Escolas = Record<'publicas' | 'particulares', Record<string, number>>;
+
+/** Bairro ou distrito (`bairros_e_distritos.geojson`). */
+export interface UnidadeProperties extends BlocosCenso {
+  cd_unidade: string;
+  nome: string;
+  tipo: 'bairro' | 'distrito';
+  situacao: string;
+  area_km2: number;
+  area_domiciliada_km2: number | null;
+  enderecos_cnefe: Record<string, number>;
+  escolas: Escolas;
+  contem_sigilo: string[];
+}
 
 export interface LoteamentoProperties {
-  name: string;
-  styleUrl?: string;
-  parentBairro?: string;
-  is_reliable?: boolean;
-  [key: string]: unknown;
+  cd_loteamento: string;
+  nome: string;
+  area_km2: number;
+  cd_bairro: string;
+  nm_bairro: string;
+  /** `false` = limites aproximados (hachura/tracejado no mapa). */
+  is_reliable: boolean;
+  /** Blocos censitários alocados dos setores pelos endereços do CNEFE; `null` sem endereço. */
+  estimativas: ({ metodo: string } & BlocosCenso) | null;
+  enderecos_cnefe: Record<string, number>;
+  escolas: Escolas;
+  /** Áreas de ponderação que cobrem o loteamento, com a fração da população em cada uma. */
+  aps: { cd_ap: string; peso_pop: number }[];
+  estimativas_sinteticas: Record<string, { valor: number | null; aps: string[] }> | null;
+  qualidade: {
+    sobreposicao_pct: number;
+    enderecos_compartilhados: number;
+    contem_sigilo: string[];
+    pct_coord_precisas: number | null;
+  };
+}
+
+/** Indicador amostral: `suprimido` (n < 30) chega com `valor: null`. */
+export interface IndicadorAP {
+  valor: number | null;
+  n: number;
+  suprimido: boolean;
+}
+
+/** Área de ponderação (`areas_ponderacao.geojson`) — só aparece na ficha do loteamento. */
+export interface AreaPonderacaoProperties {
+  cd_ap: string;
+  nome: string;
+  n_pessoas: number;
+  n_domicilios: number;
+  indicadores: Record<string, Record<string, IndicadorAP>>;
+  fonte: string;
 }
 
 // --- Estado de interação -----------------------------------------------
@@ -71,6 +132,8 @@ export interface Selection {
 export interface HoveredBairro {
   featureId: string | number;
   name: string;
+  /** Bairro ou distrito — muda só o rótulo exibido. */
+  tipo?: UnidadeProperties['tipo'];
 }
 
 /** Loteamento under the cursor. Has two sources (polygon on map and list in details panel) that converge here for identical highlighting. */
@@ -86,6 +149,7 @@ export interface PreviewTarget {
   featureId: string | number;
   name: string;
   parentBairro?: string;
+  tipo?: UnidadeProperties['tipo'];
 }
 
 /** Modo de encaixe da folha (mobile): "preview" mostra uma prévia baixa, "expanded" ocupa quase a tela. */

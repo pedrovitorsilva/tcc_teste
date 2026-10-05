@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Map, MapControls } from "@/components/ui/map";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useThemeTokens } from "@/hooks/useThemeTokens";
@@ -9,7 +9,7 @@ import { useGeoIndex } from "@/hooks/useGeoIndex";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useMapInteraction } from "@/hooks/useMapInteraction";
 import { PREVIEW_FRACTION } from "@/hooks/useBottomSheetDrag";
-import { DEFAULT_LAYER_TOGGLES } from "@/config/levels";
+import { DEFAULT_LAYER_TOGGLES, rotuloUnidade } from "@/config/levels";
 import type {
   FloatingTitleState,
   LayerToggles,
@@ -27,6 +27,7 @@ import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
 import { ThemeSwitcherPopoverButton } from "./buttons/themeSwitcher/ThemeSwitcherPopoverButton";
 import { SearchBox } from "./SearchBox";
+import { MostrarFichaIcon } from "./icons";
 import { Sidebar } from "./panel/Sidebar";
 import { BottomSheet } from "./panel/BottomSheet";
 
@@ -50,7 +51,7 @@ export function MapView() {
   const night = theme === "dark";
   const tokens = useThemeTokens();
   const mapStyles = useMapStyles(theme, tokens);
-  const { bairros, loteamentos, bairrosData, loteamentosData } = useGeoIndex();
+  const { bairros, loteamentos, areasPonderacao, municipio, bairrosData, loteamentosData } = useGeoIndex();
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "mobile";
   const sidebarWidth = breakpoint === "tablet" ? 320 : 380;
@@ -82,17 +83,22 @@ export function MapView() {
     handleHoverLoteamentoByName,
   } = useMapInteraction(bairros, loteamentos);
 
+  // Ficha recolhida: a seleção continua no mapa, só o painel sai da frente.
+  // Uma seleção nova reabre — quem clicou numa área quer ver a ficha dela.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [recenterKey, setRecenterKey] = useState(0);
+  useEffect(() => {
+    setSidebarCollapsed(false);
+  }, [selection?.featureId, selection?.level]);
+  const handleRecenter = () => setRecenterKey((k) => k + 1);
+
   const floatingTitle: FloatingTitleState | null = useMemo(() => {
     if (previewTarget) {
       return previewTarget.level === "bairro"
-        ? { crumb: "bairro", main: previewTarget.name }
+        ? { crumb: rotuloUnidade(previewTarget.tipo), main: previewTarget.name }
         : { crumb: previewTarget.parentBairro ?? "", main: previewTarget.name };
     }
-    if (selection) {
-      return selection.level === "bairro"
-        ? { crumb: "bairro selecionado", main: selection.name }
-        : { crumb: selection.parentBairro ?? "", main: selection.name };
-    }
+    // A seleção não entra: o nome já está na ficha (ou no botão que a reabre).
     // Loteamento vence bairro: é o alvo mais específico.
     if (hoveredLoteamento) {
       return {
@@ -101,10 +107,10 @@ export function MapView() {
       };
     }
     if (hoveredBairro) {
-      return { crumb: "bairro", main: hoveredBairro.name };
+      return { crumb: rotuloUnidade(hoveredBairro.tipo), main: hoveredBairro.name };
     }
     return null;
-  }, [previewTarget, selection, hoveredLoteamento, hoveredBairro]);
+  }, [previewTarget, hoveredLoteamento, hoveredBairro]);
 
   // Padding assimétrico no mobile, para a seleção ficar acima da folha. Depende
   // só do breakpoint: a folha sempre reabre em "prévia" numa seleção nova.
@@ -159,6 +165,7 @@ export function MapView() {
             onHoverLoteamento={setHoveredLoteamento}
             onSelect={handleSelect}
             fitPadding={fitPadding}
+            recenterKey={recenterKey}
           />
           <Buildings3D
             tokens={tokens}
@@ -213,7 +220,7 @@ export function MapView() {
                 loteamentos={loteamentos}
                 onPreview={handlePreview}
                 onSelect={handleNavigate}
-                placeholder={isMobile ? "Pesquisar..." : "Buscar bairro ou loteamento..."}
+                placeholder={isMobile ? "Pesquisar..." : "Buscar bairro, distrito ou loteamento..."}
               />
             </div>
 
@@ -227,6 +234,17 @@ export function MapView() {
             </div>
           </div>
 
+          {selection && sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(false)}
+              className="pointer-events-auto absolute top-[76px] right-[18px] hidden min-h-11 max-w-[240px] items-center gap-2 rounded-full border border-cv-border bg-panel px-4 text-sm text-ink shadow-[0_4px_16px_rgba(0,0,0,.08)] hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex"
+            >
+              <MostrarFichaIcon className="size-4 shrink-0" />
+              <span className="truncate">{selection.name}</span>
+            </button>
+          )}
+
           <div className="pointer-events-auto absolute bottom-[18px] left-[18px] flex items-end gap-2">
             <OptionsList {...optionsListProps} />
           </div>
@@ -237,7 +255,10 @@ export function MapView() {
       <div className="hidden md:block">
         <Sidebar
           selection={selection}
+          bairros={bairros}
           loteamentos={loteamentos}
+          municipio={municipio}
+          areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
@@ -246,13 +267,19 @@ export function MapView() {
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
+          collapsed={sidebarCollapsed}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onRecenter={handleRecenter}
           width={sidebarWidth}
         />
       </div>
       <div className="md:hidden">
         <BottomSheet
           selection={selection}
+          bairros={bairros}
           loteamentos={loteamentos}
+          municipio={municipio}
+          areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
@@ -260,6 +287,7 @@ export function MapView() {
           lampsEnabled={lampsEnabled}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
+          onRecenter={handleRecenter}
           onClose={handleClose}
           onNavigate={handleNavigate}
         />
