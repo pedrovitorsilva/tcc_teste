@@ -34,6 +34,8 @@ import { BottomSheet } from "./panel/BottomSheet";
 const CENTER: [number, number] = [-40.84, -14.86];
 const ZOOM = 11;
 const MIN_ZOOM = 9;
+const MAX_ZOOM = 18;
+
 // Sudoeste/nordeste de Vitória da Conquista — trava o pan pra não deixar o
 // mapa vazio fora da região de interesse.
 const MAX_BOUNDS: [[number, number], [number, number]] = [
@@ -146,6 +148,7 @@ export function MapView() {
           center={CENTER}
           zoom={ZOOM}
           minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
           maxBounds={MAX_BOUNDS}
           styles={mapStyles}
           className="h-full w-full"
