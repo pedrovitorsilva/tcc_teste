@@ -3,12 +3,15 @@
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
 import { CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
+import { rotuloUnidade } from '@/config/levels';
 import { useBottomSheetDrag } from '@/hooks/useBottomSheetDrag';
-import type { LevelId, Selection, SheetSnap } from '@/types/map';
+import type { AreaPonderacaoProperties, LevelId, Selection, SheetSnap } from '@/types/map';
 
 interface BottomSheetProps {
   selection: Selection | null;
   loteamentos: IndexedFeature[];
+  /** Áreas de ponderação por `cd_ap` — indicadores da ficha do loteamento. */
+  areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
   vehiclesCount: number;
   buildingsEnabled: boolean;
@@ -27,6 +30,7 @@ interface BottomSheetProps {
 export function BottomSheet({
   selection,
   loteamentos,
+  areasPonderacao,
   buildingCount,
   vehiclesCount,
   buildingsEnabled,
@@ -89,7 +93,7 @@ export function BottomSheet({
         <div className="cv-kicker truncate">
           {selection
             ? selection.level === 'bairro'
-              ? 'ficha do bairro'
+              ? `ficha do ${rotuloUnidade(selection.properties.tipo as string)}`
               : `loteamento — ${selection.parentBairro ?? ''}`
             : ''}
         </div>
@@ -112,6 +116,7 @@ export function BottomSheet({
           <FeatureDetails
             selection={selection}
             loteamentos={loteamentos}
+            areasPonderacao={areasPonderacao}
             buildingCount={buildingCount}
             vehiclesCount={vehiclesCount}
             buildingsEnabled={buildingsEnabled}

@@ -16,7 +16,7 @@ interface SearchBoxProps {
 }
 
 /**
- * Map Search Bar Engine. Search for neightborhoods and districts.
+ * Busca por nome em bairros, distritos e loteamentos (áreas de ponderação ficam de fora).
 */
 export function SearchBox({
   bairros,
@@ -24,7 +24,7 @@ export function SearchBox({
   onPreview,
   onSelect,
   className,
-  placeholder = "Buscar bairro ou loteamento...",
+  placeholder = "Buscar bairro, distrito ou loteamento...",
 }: SearchBoxProps) {
 
   const [query, setQuery] = useState("");
@@ -69,7 +69,7 @@ export function SearchBox({
           onChange={(event) => handleChange(event.target.value)}
           placeholder={placeholder}
           autoComplete="off"
-          aria-label="Buscar bairro ou loteamento"
+          aria-label="Buscar bairro, distrito ou loteamento"
           aria-expanded={showResults}
           className="w-full rounded-[22px] border border-cv-border bg-panel py-2.5 pl-10 pr-4 text-[15px] text-ink placeholder:text-ink-faint placeholder:italic focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         />
@@ -128,7 +128,9 @@ function SearchResult({ feature, onPreview, onSelect }: SearchResultProps) {
       <span>{feature.name}</span>
 
       <span className="cv-note-body text-[10.5px] not-italic text-ink-soft">
-        {feature.level === "bairro" ? "Bairro" : "Loteamento"}
+        {feature.level === "bairro"
+          ? feature.tipo === "distrito" ? "Distrito" : "Bairro"
+          : "Loteamento"}
       </span>
     </div>
   );

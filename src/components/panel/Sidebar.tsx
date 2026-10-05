@@ -3,11 +3,14 @@
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
 import { CloseIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
-import type { LevelId, Selection } from '@/types/map';
+import { rotuloUnidade } from '@/config/levels';
+import type { AreaPonderacaoProperties, LevelId, Selection } from '@/types/map';
 
 interface SidebarProps {
   selection: Selection | null;
   loteamentos: IndexedFeature[];
+  /** Áreas de ponderação por `cd_ap` — indicadores da ficha do loteamento. */
+  areasPonderacao: Map<string, AreaPonderacaoProperties>;
   buildingCount: number;
   vehiclesCount: number;
   buildingsEnabled: boolean;
@@ -24,6 +27,7 @@ interface SidebarProps {
 export function Sidebar({
   selection,
   loteamentos,
+  areasPonderacao,
   buildingCount,
   vehiclesCount,
   buildingsEnabled,
@@ -58,7 +62,7 @@ export function Sidebar({
           <div className="cv-kicker">
             {selection
               ? selection.level === 'bairro'
-                ? 'ficha do bairro'
+                ? `ficha do ${rotuloUnidade(selection.properties.tipo as string)}`
                 : `loteamento — ${selection.parentBairro ?? ''}`
               : ''}
           </div>
@@ -83,6 +87,7 @@ export function Sidebar({
             <FeatureDetails
               selection={selection}
               loteamentos={loteamentos}
+              areasPonderacao={areasPonderacao}
               buildingCount={buildingCount}
               vehiclesCount={vehiclesCount}
               buildingsEnabled={buildingsEnabled}

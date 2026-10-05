@@ -193,8 +193,8 @@ criação de camadas (estrutura) de aplicação de dados/cores (semântica).
 ```mermaid
 flowchart LR
     subgraph prep["Preparação — roda à mão, fora do site"]
-        raw["neatogeo_*.geojson<br/>dado bruto de origem"] --> script["scripts/prepare-data.mjs"]
-        script --> pub["public/data/*.geojson<br/>(com MOCK: is_reliable)"]
+        etl["dados/etl/etl.ipynb<br/>Censo, CNEFE, INEP, loteamentos"] --> out["dados/etl/output/*"]
+        out -->|cópia| pub["public/data/*.geojson"]
     end
     pub --> hook["useGeoIndex<br/>fetch único + índice"]
     hook --> mv["MapView<br/>índice + dados brutos"]
@@ -202,12 +202,20 @@ flowchart LR
     mv --> busca["SearchBox<br/>busca por nome"]
 ```
 
-O comando `npm run prepare-data` pega os arquivos brutos, faz duas coisas — descobre
-a qual bairro cada loteamento pertence e marca alguns com `is_reliable` (campo MOCK)
-— e grava o resultado em `public/data/`. Isso **não** roda junto com o
+Os arquivos de `public/data/` (exceto `postes.json`) são o output do ETL em
+`dados/etl/output/`, copiados sem alteração: `bairros_e_distritos.geojson`,
+`loteamentos.geojson`, `setores.geojson`, `areas_ponderacao.geojson` e
+`metadados.json`. O esquema de cada um está em `dados/etl/model/hierarquia_dados.md`.
+Quando o ETL roda de novo, basta copiar os arquivos. Isso **não** roda junto com o
 site: é um passo manual, feito quando o dado de origem muda.
 
-**Isso é feito para mockar os dados. Quando houver banco de dados, esse passo não será necessário.**
+O frontend lê as chaves do ETL direto (`nome`, `nm_bairro`, `tipo`, `is_reliable`…).
+As áreas de ponderação não têm camada nem entram na busca: só aparecem como
+indicadores na ficha do loteamento, cruzadas pelo `cd_ap`.
+
+`npm run prepare-data` agora só gera `postes.json` (`scripts/prepare-lamps.mjs`).
+
+**Quando houver banco de dados, a cópia para `public/data/` deixa de ser necessária.**
 
 No navegador, o hook `useGeoIndex` busca esses arquivos **uma única vez** e entrega
 o resultado ao `MapView`: tanto o índice (para busca) quanto os dados brutos
@@ -223,8 +231,10 @@ flowchart LR
     overture["Overture Maps<br/>contorno dos prédios"] --> app
 ```
 
-**O que é inventado (e por quê).** Sendo um MVP:
-- Campo `is_reliable` nos loteamentos é **MOCK explícito** (4.4 ✅)
+**O que é inventado ou aproximado (e por quê).** Sendo um MVP:
+- `is_reliable` dos loteamentos vem do arquivo de entrada do ETL
+  (`dados/etl/input/bairros_e_loteamentos/loteamentos.geojson`): marca as geometrias
+  aproximadas na consolidação dos polígonos. Não é mais mock.
 - Altura dos prédios é **MOCK explícito** (4.4 ✅)
 
 Marcados no código com comentário `MOCK (MVP)`, saem quando existir fonte real.
@@ -413,7 +423,8 @@ exatamente a mesma cor por cima — sem esse problema.
 | Ajustar cor, ondulação ou brilho da água | `src/config/water.ts` |
 | Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
 | Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
-| Mudar como os dados são preparados | `scripts/prepare-data.mjs` (e rodar `npm run prepare-data`) |
+| Mudar os dados de bairro/loteamento/setor | `dados/etl/etl.ipynb` (rodar e copiar `dados/etl/output/*` para `public/data/`) |
+| Mudar rótulos e formatação da ficha | `src/config/indicadores.ts` e `src/components/panel/FichaSecoes.tsx` |
 | Mudar visibilidade de camadas (bairro/loteamento/setor) | `src/hooks/map/use*Layer.ts` (Fase 3) |
 | Adicionar um novo controle flutuante | `src/components/MapView.tsx` (é ele que posiciona todos) |
 

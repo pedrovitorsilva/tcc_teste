@@ -44,11 +44,19 @@ export function useMapInteraction(
   const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('preview');
 
-  const handleSelect = useCallback((next: Selection) => {
-    setSelection(next);
-    setHoveredBairro(null);
-    setHoveredLoteamento(null);
-  }, []);
+  const handleSelect = useCallback(
+    (next: Selection) => {
+      // O MapLibre devolve propriedades aninhadas (demografia, estimativas…) como
+      // texto JSON. O índice tem os objetos originais na mesma posição do
+      // `featureId` (`generateId` numera na ordem do arquivo).
+      const pool = next.level === 'bairro' ? bairros : loteamentos;
+      const indexed = pool[Number(next.featureId)];
+      setSelection(indexed ? { ...next, properties: indexed.properties } : next);
+      setHoveredBairro(null);
+      setHoveredLoteamento(null);
+    },
+    [bairros, loteamentos],
+  );
 
   /** Hover vindo da lista da ficha, que só sabe o nome. Casa nome + bairro-pai porque há homônimos no dataset. */
   const handleHoverLoteamentoByName = useCallback(
@@ -116,6 +124,7 @@ export function useMapInteraction(
             featureId: feature.featureId,
             name: feature.name,
             parentBairro: feature.parentBairro,
+            tipo: feature.tipo,
           }
         : null,
     );

@@ -9,7 +9,7 @@ import { useGeoIndex } from "@/hooks/useGeoIndex";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useMapInteraction } from "@/hooks/useMapInteraction";
 import { PREVIEW_FRACTION } from "@/hooks/useBottomSheetDrag";
-import { DEFAULT_LAYER_TOGGLES } from "@/config/levels";
+import { DEFAULT_LAYER_TOGGLES, rotuloUnidade } from "@/config/levels";
 import type {
   FloatingTitleState,
   LayerToggles,
@@ -50,7 +50,7 @@ export function MapView() {
   const night = theme === "dark";
   const tokens = useThemeTokens();
   const mapStyles = useMapStyles(theme, tokens);
-  const { bairros, loteamentos, bairrosData, loteamentosData } = useGeoIndex();
+  const { bairros, loteamentos, areasPonderacao, bairrosData, loteamentosData } = useGeoIndex();
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "mobile";
   const sidebarWidth = breakpoint === "tablet" ? 320 : 380;
@@ -85,12 +85,12 @@ export function MapView() {
   const floatingTitle: FloatingTitleState | null = useMemo(() => {
     if (previewTarget) {
       return previewTarget.level === "bairro"
-        ? { crumb: "bairro", main: previewTarget.name }
+        ? { crumb: rotuloUnidade(previewTarget.tipo), main: previewTarget.name }
         : { crumb: previewTarget.parentBairro ?? "", main: previewTarget.name };
     }
     if (selection) {
       return selection.level === "bairro"
-        ? { crumb: "bairro selecionado", main: selection.name }
+        ? { crumb: `${rotuloUnidade(selection.properties.tipo as string)} selecionado`, main: selection.name }
         : { crumb: selection.parentBairro ?? "", main: selection.name };
     }
     // Loteamento vence bairro: é o alvo mais específico.
@@ -101,7 +101,7 @@ export function MapView() {
       };
     }
     if (hoveredBairro) {
-      return { crumb: "bairro", main: hoveredBairro.name };
+      return { crumb: rotuloUnidade(hoveredBairro.tipo), main: hoveredBairro.name };
     }
     return null;
   }, [previewTarget, selection, hoveredLoteamento, hoveredBairro]);
@@ -213,7 +213,7 @@ export function MapView() {
                 loteamentos={loteamentos}
                 onPreview={handlePreview}
                 onSelect={handleNavigate}
-                placeholder={isMobile ? "Pesquisar..." : "Buscar bairro ou loteamento..."}
+                placeholder={isMobile ? "Pesquisar..." : "Buscar bairro, distrito ou loteamento..."}
               />
             </div>
 
@@ -238,6 +238,7 @@ export function MapView() {
         <Sidebar
           selection={selection}
           loteamentos={loteamentos}
+          areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}
@@ -253,6 +254,7 @@ export function MapView() {
         <BottomSheet
           selection={selection}
           loteamentos={loteamentos}
+          areasPonderacao={areasPonderacao}
           buildingCount={buildingCount}
           vehiclesCount={vehiclesCount}
           buildingsEnabled={buildingsEnabled}

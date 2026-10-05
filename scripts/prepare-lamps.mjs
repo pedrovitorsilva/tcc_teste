@@ -1,6 +1,6 @@
 // Gera public/data/postes.json — postes de iluminação ao longo das vias do
 // OpenStreetMap (© OpenStreetMap contributors, ODbL), via Overpass, recortados
-// pelos bairros. Saída: [[lng, lat, heading], ...], heading em radianos [0, 2π)
+// pelos bairros (só tipo = bairro: a área urbana; distritos ficam de fora). Saída: [[lng, lat, heading], ...], heading em radianos [0, 2π)
 // = direção em que a luminária aponta (do poste pro eixo da via), medida a
 // partir do leste no sentido anti-horário (leste=0, norte=π/2).
 //
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const bairrosPath = path.join(root, 'public', 'data', 'bairros.geojson');
+const bairrosPath = path.join(root, 'public', 'data', 'bairros_e_distritos.geojson');
 const outPath = path.join(root, 'public', 'data', 'postes.json');
 const cachePath = path.join(root, 'temp', 'postes-osm-cache.json');
 
@@ -135,7 +135,8 @@ function lampsAlongWay(way) {
   return out;
 }
 
-const bairros = JSON.parse(readFileSync(bairrosPath, 'utf8'));
+const unidades = JSON.parse(readFileSync(bairrosPath, 'utf8'));
+const bairros = { ...unidades, features: unidades.features.filter((f) => f.properties.tipo === 'bairro') };
 const osm = await loadOsm(bboxOf(bairros));
 if (!osm) process.exit(0);
 

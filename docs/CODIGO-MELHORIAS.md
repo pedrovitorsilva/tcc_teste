@@ -31,9 +31,9 @@ renderização dinâmica pode ser tomada junto, documentada na mesma mudança.
 > **Veredito pós-debate: 🟡 Carona, não autônomo.** Só faz sentido junto/depois
 > de 1 acontecer — não como mudança isolada hoje.
 
-**Hoje:** a leitura de dado mockado está espalhada — `useGeoIndex` sabe a URL
-`/data/bairros.geojson`, `config/levels.ts` também sabe essa URL,
-separadamente.
+**Hoje:** as URLs dos dados ficam em `config/levels.ts` (e `AREAS_PONDERACAO_URL`),
+lidas por `useGeoIndex` e pelas camadas; não há ainda uma camada de acesso a dados
+que esconda se a origem é arquivo estático ou API.
 
 **Quando fazer:** como um passo de nomeação/organização de custo quase zero,
 *quando* 1 acontecer (quem passar a possuir a leitura do arquivo é o

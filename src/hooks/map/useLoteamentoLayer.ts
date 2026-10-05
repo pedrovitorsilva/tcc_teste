@@ -98,10 +98,10 @@ export function useLoteamentoLayer({
       'any',
       layerToggleLoteamento,
       hoveredBairroName
-        ? ['==', hoveredBairroName, ['get', 'parentBairro']]
+        ? ['==', hoveredBairroName, ['get', 'nm_bairro']]
         : false,
       lockedBairroName
-        ? ['==', lockedBairroName, ['get', 'parentBairro']]
+        ? ['==', lockedBairroName, ['get', 'nm_bairro']]
         : false,
     ];
 
