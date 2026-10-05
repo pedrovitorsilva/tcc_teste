@@ -4,8 +4,6 @@
 
 Diminuir tamanho dos arquivos Buildings3D.tsx, Cars3D.tsx, Trees3D.tsx e Water3D.tsx, agrupando logica em arquivo .tsx ou .ts generico na medida do possivel.
 
-### Modo noturno com luzes em postes e luzes nos carros
-
 
 ### Buscar o GeoJSON em Server Component, não em `useEffect`/hook client
 
