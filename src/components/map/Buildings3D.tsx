@@ -1,9 +1,9 @@
 "use client";
 
 // Fonte das edificações 3D: Overture Maps, por HTTP range request.
-import { useEffect, useMemo, useRef } from "react";
-import type { FeatureCollection, Geometry } from "geojson";
-import type { GeoJSONSource, MapSourceDataEvent } from "maplibre-gl";
+import { useEffect, useRef } from "react";
+import type { FeatureCollection } from "geojson";
+import type { GeoJSONSource } from "maplibre-gl";
 import { useMap } from "@/components/ui/map";
 import {
   BUILDINGS_ATTRIBUTION,
@@ -24,6 +24,10 @@ import {
   ringCentroid,
   syntheticHeight,
 } from "@/lib/map/buildingClip";
+import { viewportBBox } from "@/lib/map/bbox";
+import { addProbedVectorSource, removeProbedVectorSource } from "@/lib/map/layerHelpers";
+import { useClipEffect } from "@/hooks/map/useClipEffect";
+import { useClipTarget } from "@/hooks/map/useClipTarget";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { ThemeTokens } from "@/hooks/useThemeTokens";
 import type { HoveredBairro, Selection } from "@/types/map";
@@ -33,7 +37,15 @@ const EMPTY: FeatureCollection = {
   features: [],
 };
 
-const CLIP_DEBOUNCE_MS = 120;
+const SOURCE = {
+  sourceId: BUILDINGS_SOURCE_ID,
+  probeLayerId: BUILDINGS_PROBE_LAYER_ID,
+  url: BUILDINGS_PMTILES_URL,
+  sourceLayer: BUILDINGS_SOURCE_LAYER,
+  minzoom: BUILDINGS_MIN_ZOOM,
+  attribution: BUILDINGS_ATTRIBUTION,
+};
+const SOURCE_IDS = [BUILDINGS_SOURCE_ID];
 
 interface Buildings3DProps {
   tokens: ThemeTokens;
@@ -45,13 +57,6 @@ interface Buildings3DProps {
   loteamentos: IndexedFeature[];
   /** Informa quantas edificações estão sendo exibidas. */
   onCountChange?: (count: number) => void;
-}
-
-interface ClipTarget {
-  key: string;
-  geometry: Geometry;
-  /** BBox usada como filtro antes do teste espacial. */
-  bbox?: [number, number, number, number];
 }
 
 /** Exibe as edificações 3D do bairro ou loteamento em foco.
@@ -68,74 +73,17 @@ export function Buildings3D({
   onCountChange,
 }: Buildings3DProps) {
   const { map, isLoaded } = useMap();
-
-  const cacheRef = useRef(new Map<string, FeatureCollection>());
   const onCountChangeRef = useRef(onCountChange);
-
   onCountChangeRef.current = onCountChange;
 
-  const target: ClipTarget | null = useMemo(() => {
-    if (!enabled) return null;
-
-    if (selection) {
-      const features = selection.level === "loteamento" ? loteamentos : bairros;
-
-      const feature = features.find(
-        (item) => item.featureId === selection.featureId,
-      );
-
-      if (!feature?.geometry) return null;
-
-      return {
-        key: `${selection.level}:${selection.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    if (hoveredBairro) {
-      const feature = bairros.find(
-        (item) => item.featureId === hoveredBairro.featureId,
-      );
-
-      if (!feature?.geometry) return null;
-
-      return {
-        key: `bairro:${hoveredBairro.featureId}`,
-        geometry: feature.geometry,
-        bbox: feature.bbox,
-      };
-    }
-
-    return null;
-  }, [enabled, selection, hoveredBairro, bairros, loteamentos]);
+  const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
 
   // Lifecycle de source/layers — só existem enquanto `enabled` é true, pra
   // não continuar baixando tiles de prédio em segundo plano com o toggle off.
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
 
-    if (!map.getSource(BUILDINGS_SOURCE_ID)) {
-      map.addSource(BUILDINGS_SOURCE_ID, {
-        type: "vector",
-        url: BUILDINGS_PMTILES_URL,
-        attribution: BUILDINGS_ATTRIBUTION,
-      });
-    }
-
-    // Camada invisível que mantém os tiles carregados.
-    if (!map.getLayer(BUILDINGS_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: BUILDINGS_PROBE_LAYER_ID,
-        type: "fill",
-        source: BUILDINGS_SOURCE_ID,
-        "source-layer": BUILDINGS_SOURCE_LAYER,
-        minzoom: BUILDINGS_MIN_ZOOM,
-        paint: {
-          "fill-opacity": 0,
-        },
-      });
-    }
+    addProbedVectorSource(map, SOURCE);
 
     if (!map.getSource(BUILDINGS_CLIP_SOURCE_ID)) {
       map.addSource(BUILDINGS_CLIP_SOURCE_ID, {
@@ -164,8 +112,7 @@ export function Buildings3D({
     return () => {
       if (map.getLayer(BUILDINGS_CLIP_LAYER_ID)) map.removeLayer(BUILDINGS_CLIP_LAYER_ID);
       if (map.getSource(BUILDINGS_CLIP_SOURCE_ID)) map.removeSource(BUILDINGS_CLIP_SOURCE_ID);
-      if (map.getLayer(BUILDINGS_PROBE_LAYER_ID)) map.removeLayer(BUILDINGS_PROBE_LAYER_ID);
-      if (map.getSource(BUILDINGS_SOURCE_ID)) map.removeSource(BUILDINGS_SOURCE_ID);
+      removeProbedVectorSource(map, SOURCE);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
@@ -179,37 +126,23 @@ export function Buildings3D({
   }, [map, isLoaded, enabled, tokens.building]);
 
   // Recorte por bairro/loteamento selecionado ou em hover.
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    const source = map.getSource(BUILDINGS_CLIP_SOURCE_ID) as
-      | GeoJSONSource
-      | undefined;
-
-    if (!source) return;
-
-    const publish = (data: FeatureCollection) => {
+  useClipEffect({
+    map,
+    isLoaded,
+    target,
+    sourceIds: SOURCE_IDS,
+    minZoom: BUILDINGS_MIN_ZOOM,
+    empty: EMPTY,
+    publish: (data) => {
+      const source = map?.getSource(BUILDINGS_CLIP_SOURCE_ID) as GeoJSONSource | undefined;
+      if (!source) return;
       source.setData(data);
       onCountChangeRef.current?.(data.features.length);
-    };
-
-    if (!target) {
-      publish(EMPTY);
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const compute = () => {
-      if (map.getZoom() < BUILDINGS_MIN_ZOOM) {
-        publish(EMPTY);
-        return;
-      }
-
-      const bounds = map.getBounds();
-      const minArea = lodMinAreaM2(map.getZoom());
-
-      const features = map.querySourceFeatures(BUILDINGS_SOURCE_ID, {
+    },
+    compute: (target): FeatureCollection => {
+      const [west, south, east, north] = viewportBBox(map!);
+      const minArea = lodMinAreaM2(map!.getZoom());
+      const features = map!.querySourceFeatures(BUILDINGS_SOURCE_ID, {
         sourceLayer: BUILDINGS_SOURCE_LAYER,
       });
 
@@ -219,42 +152,21 @@ export function Buildings3D({
 
       for (const feature of features) {
         const ring = outerRing(feature.geometry);
-
         if (!ring) continue;
 
-        const centroid = ringCentroid(ring);
+        const [lng, lat] = ringCentroid(ring);
 
         // Frustum culling: descarta o que está fora da tela antes do teste
         // point-in-polygon (mais caro) — importa mesmo dentro de um bairro
         // grande, quando o usuário deu pan/zoom pra ver só uma parte dele.
-        if (
-          centroid[0] < bounds.getWest() ||
-          centroid[0] > bounds.getEast() ||
-          centroid[1] < bounds.getSouth() ||
-          centroid[1] > bounds.getNorth()
-        ) {
-          continue;
-        }
-
-        if (
-          bbox &&
-          (centroid[0] < bbox[0] ||
-            centroid[0] > bbox[2] ||
-            centroid[1] < bbox[1] ||
-            centroid[1] > bbox[3])
-        ) {
-          continue;
-        }
-
-        if (!pointInPolygon(centroid, target.geometry)) {
-          continue;
-        }
+        if (lng < west || lng > east || lat < south || lat > north) continue;
+        if (bbox && (lng < bbox[0] || lng > bbox[2] || lat < bbox[1] || lat > bbox[3])) continue;
+        if (!pointInPolygon([lng, lat], target.geometry)) continue;
 
         const area = approxAreaM2(ring);
         if (area < minArea) continue; // LOD: prédio pequeno demais pro zoom atual
 
         const id = feature.properties?.id;
-
         if (typeof id === "string") {
           if (seen.has(id)) continue;
           seen.add(id);
@@ -270,53 +182,9 @@ export function Buildings3D({
         });
       }
 
-      const data: FeatureCollection = {
-        type: "FeatureCollection",
-        features: clipped,
-      };
-
-      // Apenas recortes completos entram no cache.
-      if (map.isSourceLoaded(BUILDINGS_SOURCE_ID)) {
-        cacheRef.current.set(target.key, data);
-      }
-
-      publish(data);
-    };
-
-    const schedule = () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-
-      timer = setTimeout(compute, CLIP_DEBOUNCE_MS);
-    };
-
-    const handleSourceData = (event: MapSourceDataEvent) => {
-      if (event.sourceId === BUILDINGS_SOURCE_ID && event.isSourceLoaded) {
-        schedule();
-      }
-    };
-
-    const cached = cacheRef.current.get(target.key);
-
-    if (cached) {
-      publish(cached);
-    } else {
-      schedule();
-    }
-
-    map.on("sourcedata", handleSourceData);
-    map.on("moveend", schedule);
-
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-
-      map.off("sourcedata", handleSourceData);
-      map.off("moveend", schedule);
-    };
-  }, [map, isLoaded, target]);
+      return { type: "FeatureCollection", features: clipped };
+    },
+  });
 
   return null;
 }

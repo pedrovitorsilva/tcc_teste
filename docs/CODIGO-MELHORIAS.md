@@ -1,9 +1,5 @@
 # Mapa — Pontos de melhoria
 
-### Agrupar elementos 3D .tsx em codigo central
-
-Diminuir tamanho dos arquivos Buildings3D.tsx, Cars3D.tsx, Trees3D.tsx e Water3D.tsx, agrupando logica em arquivo .tsx ou .ts generico na medida do possivel.
-
 
 ### Buscar o GeoJSON em Server Component, não em `useEffect`/hook client
 

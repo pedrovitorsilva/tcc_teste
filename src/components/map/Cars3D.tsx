@@ -2,17 +2,15 @@
 
 // Fonte dos carros 3D: Overture Maps (tema `transportation`, layer
 // `segment`, `subtype=road`) — mesmo esqueleto de source/probe/recorte das
-// outras 3 camadas. MVP sem cruzamento (decisão do usuário): cada carro
-// anda ida-e-volta só no segmento onde nasceu, sem atravessar interseção
-// (grafo de `connectors` do Overture fica documentado, não implementado).
+// outras camadas. Nos cruzamentos o carro sempre vira à direita (grafo
+// montado pelas pontas das vias carregadas — ver `advanceAtEnd`).
 //
 // Modelo: glTF de um carro único em public/cars/scene.gltf. Cada carro na
 // cena é um `THREE.Group.clone(true)` do prefab: mais simples que
 // InstancedMesh, e a contagem de carros (dezenas, não milhares como as
 // árvores) não justifica o custo.
 import { useEffect, useRef } from "react";
-import type { Geometry, Position } from "geojson";
-import type { CustomLayerInterface, Map as MapLibreMap, MapSourceDataEvent } from "maplibre-gl";
+import type { Position } from "geojson";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useMap } from "@/components/ui/map";
@@ -33,9 +31,6 @@ import {
   CAR_SCALE_FACTOR_MIN,
   CAR_SPEED_MPS,
   NON_CAR_CLASSES,
-  ROAD_WIDTH_DEFAULT_M,
-  ROAD_STYLE_LAYER,
-  ROAD_WIDTH_M,
   ROAD_WIDTH_REF_M,
   CARS_ATTRIBUTION,
   CARS_MIN_ZOOM,
@@ -56,17 +51,27 @@ import {
   seedFromRing,
 } from "@/lib/map/buildingClip";
 import { radialGlowTexture } from "@/lib/map/glowTexture";
-import {
-  mercatorOrigin,
-  projectionMatrixFor,
-  type MercatorOrigin,
-} from "@/lib/map/threeCustomLayer";
+import { createThreeLayer, type ThreeBase } from "@/lib/map/threeCustomLayer";
+import { viewportBBox } from "@/lib/map/bbox";
+import { addProbedVectorSource, removeProbedVectorSource } from "@/lib/map/layerHelpers";
+import { drawnWidthM } from "@/lib/map/roadWidth";
 import { measurePath, positionAtFraction, type PathMeasure } from "@/lib/map/pathProgress";
+import { useAnimationFrame } from "@/hooks/map/useAnimationFrame";
+import { useClipEffect } from "@/hooks/map/useClipEffect";
+import { useClipTarget } from "@/hooks/map/useClipTarget";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import type { HoveredBairro, Selection } from "@/types/map";
 
 const CARS_LAYER_ID = "cars-3d-layer";
-const CLIP_DEBOUNCE_MS = 120;
+const SOURCE = {
+  sourceId: CARS_SOURCE_ID,
+  probeLayerId: CARS_PROBE_LAYER_ID,
+  url: CARS_PMTILES_URL,
+  sourceLayer: CARS_SOURCE_LAYER,
+  minzoom: CARS_MIN_ZOOM,
+  attribution: CARS_ATTRIBUTION,
+};
+const SOURCE_IDS = [CARS_SOURCE_ID];
 
 interface Cars3DProps {
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile/modelo. */
@@ -81,18 +86,13 @@ interface Cars3DProps {
   onCountChange?: (count: number) => void;
 }
 
-interface ClipTarget {
-  key: string;
-  geometry: Geometry;
-  bbox?: [number, number, number, number];
-}
-
 interface Road {
   /** Id estável (classe + extremos) — permite manter os carros ao recalcular vias. */
   id: string;
   coordinates: Position[];
   roadClass: string;
 }
+const NO_ROADS: Road[] = [];
 
 interface ActiveCar {
   roadId: string;
@@ -207,13 +207,10 @@ function disposeCarLights(lights: CarLights): void {
   for (const material of [lights.head, lights.tail, lights.glow]) material.dispose();
 }
 
-interface CarScene {
-  scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
+interface CarScene extends ThreeBase {
   ambient: THREE.AmbientLight;
   sun: THREE.DirectionalLight;
   lights: CarLights;
-  origin: MercatorOrigin;
   /** `null` até o glTF terminar de carregar — carros só aparecem depois disso. */
   prefab: THREE.Group | null;
   /** Cena bruta do glTF, mantida só para dispose (prefabs/clones compartilham geometria/material com ela). */
@@ -322,92 +319,34 @@ function disposeObject3D(root: THREE.Object3D): void {
   });
 }
 
-/** Pixels por metro no zoom/latitude (tiles de 512 px do MapLibre). */
-export function pixelsPerMeter(zoom: number, lat: number): number {
-  return (512 * 2 ** zoom) / (40075016.686 * Math.cos((lat * Math.PI) / 180));
-}
-
-const stopsCache = new Map<string, [number, number][] | null>();
-
-/** `line-width` (px) da layer do basemap que desenha `roadClass` em `zoom`; `null` se não achar. */
-export function drawnWidthPx(map: MapLibreMap, roadClass: string, zoom: number): number | null {
-  const layerId = ROAD_STYLE_LAYER[roadClass];
-  if (!layerId || !map.getLayer(layerId)) return null;
-  let stops = stopsCache.get(layerId);
-  if (stops === undefined) {
-    const width = map.getPaintProperty(layerId, "line-width") as
-      | number
-      | { stops?: [number, number][] }
-      | undefined;
-    stops = typeof width === "object" && width?.stops ? width.stops : null;
-    // ponytail: só o formato legado `stops` do CARTO; expressões `interpolate` caem no fallback em metros.
-    stopsCache.set(layerId, stops);
-  }
-  if (!stops || stops.length === 0) return null;
-  if (zoom <= stops[0][0]) return stops[0][1];
-  for (let i = 1; i < stops.length; i += 1) {
-    if (zoom <= stops[i][0]) {
-      const [z0, w0] = stops[i - 1];
-      const [z1, w1] = stops[i];
-      return w0 + ((w1 - w0) * (zoom - z0)) / (z1 - z0);
-    }
-  }
-  return stops[stops.length - 1][1];
-}
-
 /** Exibe carros 3D andando pelas vias (sempre virando à direita nos cruzamentos) do bairro ou loteamento em foco.
  *
  * Fonte: Overture Maps (tema `transportation`, layer `segment`), fonte
- * vetorial remota. Modelos: pack glTF local. Animada: mantém um
- * `requestAnimationFrame` próprio, ligado só enquanto `enabled` e houver
- * alvo — mesmo padrão de `Water3D.tsx`.
+ * vetorial remota. Modelo: glTF local. Animada: `requestAnimationFrame`
+ * ligado só enquanto houver alvo — mesmo padrão de `Water3D.tsx`.
  */
 export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, loteamentos, onCountChange }: Cars3DProps) {
   const { map, isLoaded } = useMap();
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
 
-  const cacheRef = useRef(new Map<string, Road[]>());
   const lastRoadsRef = useRef<Road[]>([]);
   const sceneRef = useRef<CarScene | null>(null);
-  const rafRef = useRef<number | null>(null);
   const publishCarsRef = useRef<((roads: Road[]) => void) | null>(null);
   const graphRef = useRef<RoadGraph>({ roads: new Map(), nodes: new Map() });
   /** Vias que já receberam carros — carros migram entre vias, então "tem carro agora" não serve. */
   const spawnedRef = useRef(new Set<string>());
-  const targetRef = useRef<ClipTarget | null>(null);
+  const lastZoomRef = useRef(NaN);
   // Lido no onAdd: a cena pode nascer (toggle ligado) já à noite.
   const nightRef = useRef(night);
   nightRef.current = night;
 
-  const target: ClipTarget | null = enabled
-    ? selection
-      ? (() => {
-          const features = selection.level === "loteamento" ? loteamentos : bairros;
-          const feature = features.find((item) => item.featureId === selection.featureId);
-          if (!feature?.geometry) return null;
-          return {
-            key: `${selection.level}:${selection.featureId}`,
-            geometry: feature.geometry,
-            bbox: feature.bbox,
-          };
-        })()
-      : hoveredBairro
-        ? (() => {
-            const feature = bairros.find((item) => item.featureId === hoveredBairro.featureId);
-            if (!feature?.geometry) return null;
-            return {
-              key: `bairro:${hoveredBairro.featureId}`,
-              geometry: feature.geometry,
-              bbox: feature.bbox,
-            };
-          })()
-        : null
-    : null;
+  const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
 
   // Incremental: carros de vias que continuam presentes são mantidos (senão
   // todo pan/zoom os recriaria e eles "pulariam").
   const publishCars = (roads: Road[]) => {
+    lastRoadsRef.current = roads;
     const refs = sceneRef.current;
     if (!refs || !map) return;
     const { prefab } = refs;
@@ -470,159 +409,79 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
     map.triggerRepaint();
   };
   publishCarsRef.current = publishCars;
-  targetRef.current = target;
 
-  const stopAnimation = () => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-  };
-
-  const startAnimation = () => {
-    if (rafRef.current !== null || !map) return;
-
-    let lastZoom = NaN;
-    let lastNow = performance.now();
-    const tick = (now: number) => {
-      const dtS = Math.min(0.1, Math.max(0, (now - lastNow) / 1000)); // teto: aba em background não catapulta carros
-      lastNow = now;
-      const refs = sceneRef.current;
-      if (refs && refs.active.length > 0) {
-        const zoom = map.getZoom();
-        const rescale = zoom !== lastZoom;
-        lastZoom = zoom;
-        const pxPerMeter = pixelsPerMeter(zoom, map.getCenter().lat);
-        for (const car of refs.active) {
-          car.dist += car.dir * CAR_SPEED_MPS * car.speedFactor * dtS;
-          if (car.dir > 0 ? car.dist >= car.measure.total : car.dist <= 0) {
-            advanceAtEnd(car, graphRef.current);
-          }
-          const fraction = car.measure.total > 0 ? Math.min(1, Math.max(0, car.dist / car.measure.total)) : 0;
-          const reverse = car.dir < 0;
-          if (rescale || car.laneOffset === 0) {
-            // Largura desenhada da via (px) → metros no zoom atual: o carro
-            // acompanha a via como ela aparece, não a largura real.
-            const px = drawnWidthPx(map, car.roadClass, zoom);
-            const widthM = px === null ? (ROAD_WIDTH_M[car.roadClass] ?? ROAD_WIDTH_DEFAULT_M) : px / pxPerMeter;
-            const factor = Math.min(CAR_SCALE_FACTOR_MAX, Math.max(CAR_SCALE_FACTOR_MIN, widthM / ROAD_WIDTH_REF_M));
-            car.group.scale.setScalar(CAR_MODEL_SCALE * factor * (CAR_CLASS_BOOST[car.roadClass] ?? 1));
-            car.laneOffset = widthM / 4;
-          }
-          const point = positionAtFraction(car.measure, fraction);
-          const heading = point.heading + (reverse ? Math.PI : 0);
-          // Mão direita: normal à direita do sentido de marcha (x=leste, z=sul).
-          const dx = Math.sin(heading);
-          const dz = Math.cos(heading);
-          car.group.position.set(
-            point.x - dz * car.laneOffset,
-            0,
-            point.z + dx * car.laneOffset,
-          );
-          car.group.rotation.set(0, heading + CAR_MODEL_FORWARD_OFFSET, 0);
-        }
-        map.triggerRepaint();
+  useAnimationFrame(target !== null, (_now, dtS) => {
+    const refs = sceneRef.current;
+    if (!map || !refs || refs.active.length === 0) return;
+    const zoom = map.getZoom();
+    const rescale = zoom !== lastZoomRef.current;
+    lastZoomRef.current = zoom;
+    for (const car of refs.active) {
+      car.dist += car.dir * CAR_SPEED_MPS * car.speedFactor * dtS;
+      if (car.dir > 0 ? car.dist >= car.measure.total : car.dist <= 0) {
+        advanceAtEnd(car, graphRef.current);
       }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  };
+      const fraction = car.measure.total > 0 ? Math.min(1, Math.max(0, car.dist / car.measure.total)) : 0;
+      if (rescale || car.laneOffset === 0) {
+        const widthM = drawnWidthM(map, car.roadClass);
+        const factor = Math.min(CAR_SCALE_FACTOR_MAX, Math.max(CAR_SCALE_FACTOR_MIN, widthM / ROAD_WIDTH_REF_M));
+        car.group.scale.setScalar(CAR_MODEL_SCALE * factor * (CAR_CLASS_BOOST[car.roadClass] ?? 1));
+        car.laneOffset = widthM / 4;
+      }
+      const point = positionAtFraction(car.measure, fraction);
+      const heading = point.heading + (car.dir < 0 ? Math.PI : 0);
+      // Mão direita: normal à direita do sentido de marcha (x=leste, z=sul).
+      const dx = Math.sin(heading);
+      const dz = Math.cos(heading);
+      car.group.position.set(point.x - dz * car.laneOffset, 0, point.z + dx * car.laneOffset);
+      car.group.rotation.set(0, heading + CAR_MODEL_FORWARD_OFFSET, 0);
+    }
+    map.triggerRepaint();
+  });
 
   // Lifecycle: source vetorial + layer-sonda + custom layer (cena Three.js +
   // carregamento do glTF). Só existem enquanto `enabled` é true.
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
 
-    if (!map.getSource(CARS_SOURCE_ID)) {
-      map.addSource(CARS_SOURCE_ID, {
-        type: "vector",
-        url: CARS_PMTILES_URL,
-        attribution: CARS_ATTRIBUTION,
-      });
-    }
-
-    if (!map.getLayer(CARS_PROBE_LAYER_ID)) {
-      map.addLayer({
-        id: CARS_PROBE_LAYER_ID,
-        type: "fill",
-        source: CARS_SOURCE_ID,
-        "source-layer": CARS_SOURCE_LAYER,
-        minzoom: CARS_MIN_ZOOM,
-        paint: { "fill-opacity": 0 },
-      });
-    }
+    addProbedVectorSource(map, SOURCE);
 
     if (!map.getLayer(CARS_LAYER_ID)) {
-      const customLayer: CustomLayerInterface = {
-        id: CARS_LAYER_ID,
-        type: "custom",
-        renderingMode: "3d",
-        onAdd(mapInstance, gl) {
-          const center = mapInstance.getCenter();
-          const origin = mercatorOrigin(center.lng, center.lat);
+      map.addLayer(
+        createThreeLayer(CARS_LAYER_ID, sceneRef, {
+          setup(base) {
+            // Os materiais do glTF são PBR (MeshStandardMaterial) — sem luz
+            // na cena eles renderizam pretos, diferente do MeshBasicMaterial
+            // usado em Trees3D. Mesma direção de luz de Water3D, por consistência.
+            const ambient = new THREE.AmbientLight();
+            const sun = new THREE.DirectionalLight();
+            sun.position.set(WATER_LIGHT_DIR[0], WATER_LIGHT_DIR[1], WATER_LIGHT_DIR[2]);
+            const lights = createCarLights();
+            applyCarLight({ ambient, sun, lights }, nightRef.current);
+            base.scene.add(ambient, sun);
 
-          const scene = new THREE.Scene();
-          const renderer = new THREE.WebGLRenderer({
-            canvas: mapInstance.getCanvas(),
-            context: gl,
-            antialias: true,
-          });
-          renderer.autoClear = false;
-
-          // Os materiais do glTF são PBR (MeshStandardMaterial) — sem luz
-          // na cena eles renderizam pretos, diferente do MeshBasicMaterial
-          // usado em Trees3D. Mesma direção de luz de Water3D, por consistência.
-          const ambient = new THREE.AmbientLight();
-          const sun = new THREE.DirectionalLight();
-          sun.position.set(WATER_LIGHT_DIR[0], WATER_LIGHT_DIR[1], WATER_LIGHT_DIR[2]);
-          const lights = createCarLights();
-          applyCarLight({ ambient, sun, lights }, nightRef.current);
-          scene.add(ambient, sun);
-
-          sceneRef.current = { scene, renderer, ambient, sun, lights, origin, prefab: null, rawGltfScene: null, active: [] };
-
-          new GLTFLoader().load(CAR_GLTF_URL, (gltf) => {
-            const refs = sceneRef.current;
-            if (!refs) return; // layer já removida antes do load terminar
-            refs.rawGltfScene = gltf.scene;
-            refs.prefab = buildCarPrefab(gltf.scene, refs.lights);
-            publishCarsRef.current?.(lastRoadsRef.current);
-          });
-        },
-        render(gl, options) {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          const camera = new THREE.Camera();
-          camera.projectionMatrix = projectionMatrixFor(
-            refs.origin,
-            options.defaultProjectionData.mainMatrix,
-          );
-
-          refs.renderer.resetState();
-          refs.renderer.render(refs.scene, camera);
-        },
-        onRemove() {
-          const refs = sceneRef.current;
-          if (!refs) return;
-
-          for (const car of refs.active) refs.scene.remove(car.group);
-          if (refs.rawGltfScene) disposeObject3D(refs.rawGltfScene);
-          disposeCarLights(refs.lights);
-          refs.renderer.dispose();
-          sceneRef.current = null;
-        },
-      };
-
-      map.addLayer(customLayer);
+            const refs: CarScene = { ...base, ambient, sun, lights, prefab: null, rawGltfScene: null, active: [] };
+            new GLTFLoader().load(CAR_GLTF_URL, (gltf) => {
+              if (sceneRef.current !== refs) return; // layer já removida antes do load terminar
+              refs.rawGltfScene = gltf.scene;
+              refs.prefab = buildCarPrefab(gltf.scene, refs.lights);
+              publishCarsRef.current?.(lastRoadsRef.current);
+            });
+            return refs;
+          },
+          dispose(refs) {
+            for (const car of refs.active) refs.scene.remove(car.group);
+            if (refs.rawGltfScene) disposeObject3D(refs.rawGltfScene);
+            disposeCarLights(refs.lights);
+          },
+        }),
+      );
     }
 
     return () => {
       onCountChangeRef.current?.(0);
-      stopAnimation();
       if (map.getLayer(CARS_LAYER_ID)) map.removeLayer(CARS_LAYER_ID);
-      if (map.getLayer(CARS_PROBE_LAYER_ID)) map.removeLayer(CARS_PROBE_LAYER_ID);
-      if (map.getSource(CARS_SOURCE_ID)) map.removeSource(CARS_SOURCE_ID);
+      removeProbedVectorSource(map, SOURCE);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled]);
@@ -634,36 +493,18 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
     map.triggerRepaint();
   }, [map, night]);
 
-  // Recorte por bairro/loteamento selecionado ou em hover — mesmo padrão de
-  // debounce/moveend/sourcedata das outras camadas 3D.
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    if (!target) {
-      stopAnimation();
-      lastRoadsRef.current = [];
-      publishCars([]);
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const compute = () => {
-      const target = targetRef.current;
-      if (!target) return;
-      if (map.getZoom() < CARS_MIN_ZOOM) {
-        publishCars([]);
-        return;
-      }
-
-      const bounds = map.getBounds();
-      const viewportBBox: [number, number, number, number] = [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ];
-      const features = map.querySourceFeatures(CARS_SOURCE_ID, {
+  // Recorte por bairro/loteamento selecionado ou em hover.
+  useClipEffect({
+    map,
+    isLoaded,
+    target,
+    sourceIds: SOURCE_IDS,
+    minZoom: CARS_MIN_ZOOM,
+    empty: NO_ROADS,
+    publish: publishCars,
+    compute: (target) => {
+      const viewport = viewportBBox(map!);
+      const features = map!.querySourceFeatures(CARS_SOURCE_ID, {
         sourceLayer: CARS_SOURCE_LAYER,
         filter: ["==", ["get", "subtype"], "road"],
       });
@@ -686,7 +527,7 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
         if (!coordinates || coordinates.length < 2) continue;
 
         const lineBBox = ringBBox(coordinates);
-        if (!bboxIntersects(lineBBox, viewportBBox)) continue;
+        if (!bboxIntersects(lineBBox, viewport)) continue;
         if (bbox && !bboxIntersects(lineBBox, bbox)) continue;
 
         const midpoint = coordinates[Math.floor(coordinates.length / 2)] as [number, number];
@@ -698,52 +539,12 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
         if (seen.has(id)) continue; // tiles vizinhos repetem a mesma via
         seen.add(id);
 
-        roads.push({
-          id,
-          coordinates,
-          roadClass,
-        });
+        roads.push({ id, coordinates, roadClass });
       }
 
-      lastRoadsRef.current = roads;
-      if (map.isSourceLoaded(CARS_SOURCE_ID)) {
-        cacheRef.current.set(target.key, roads);
-      }
-
-      publishCars(roads);
-    };
-
-    const schedule = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(compute, CLIP_DEBOUNCE_MS);
-    };
-
-    const handleSourceData = (event: MapSourceDataEvent) => {
-      if (event.sourceId === CARS_SOURCE_ID && event.isSourceLoaded) schedule();
-    };
-
-    const cached = cacheRef.current.get(target.key);
-    if (cached) {
-      lastRoadsRef.current = cached;
-      publishCars(cached);
-    } else {
-      schedule();
-    }
-
-    startAnimation();
-
-    map.on("sourcedata", handleSourceData);
-    map.on("moveend", schedule);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      stopAnimation();
-      map.off("sourcedata", handleSourceData);
-      map.off("moveend", schedule);
-    };
-    // `target` é recriado a cada render (hover); só a chave importa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, target?.key]);
+      return roads;
+    },
+  });
 
   return null;
 }
