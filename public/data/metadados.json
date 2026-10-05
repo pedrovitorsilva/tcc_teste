@@ -1,0 +1,179 @@
+{
+ "_id": "metadados",
+ "gerado_em": "2026-10-05T11:27:30",
+ "municipio": {
+  "cd_mun": "2933307",
+  "nm_mun": "Vitória da Conquista",
+  "uf": "BA"
+ },
+ "codigo_microdados": "BRQMOA",
+ "fontes": [
+  {
+   "id": "malha_setores",
+   "citacao": "IBGE. Malha de Setores Censitários, Censo Demográfico 2022."
+  },
+  {
+   "id": "agregados",
+   "citacao": "IBGE. Censo Demográfico 2022: Agregados por Setores Censitários (básico, demografia, características do domicílio 1 e 2, alfabetização, rendimento do responsável)."
+  },
+  {
+   "id": "area_domiciliada",
+   "citacao": "IBGE. Área efetivamente domiciliada e densidade ajustada dos Setores Censitários, Censo Demográfico 2022."
+  },
+  {
+   "id": "areas_ponderacao",
+   "citacao": "IBGE. Censo Demográfico 2022: Composição e Lista das Áreas de Ponderação."
+  },
+  {
+   "id": "microdados",
+   "citacao": "IBGE. Censo Demográfico 2022: microdados da amostra – acesso controlado. Código: BRQMOA.",
+   "nota": "Fonte: IBGE, Censo Demográfico 2022, Microdados da Amostra (acesso controlado, cód. BRQMOA). Elaboração própria. Estimativa amostral ponderada por Área de Ponderação."
+  },
+  {
+   "id": "cnefe",
+   "citacao": "IBGE. Cadastro Nacional de Endereços para Fins Estatísticos (CNEFE), Censo Demográfico 2022."
+  },
+  {
+   "id": "inep",
+   "citacao": "INEP. Catálogo de Escolas."
+  },
+  {
+   "id": "loteamentos",
+   "citacao": "Camada de loteamentos de Vitória da Conquista (neatogeo), elaboração própria."
+  }
+ ],
+ "regras": {
+  "n_minimo": 30,
+  "max_variaveis_cruzadas": 2,
+  "sigilo_ibge": "X → null; somas que incluem setor em sigilo listam o bloco em contem_sigilo",
+  "alocacao": "peso = endereços residenciais do CNEFE (espécies 1 e 2) na interseção setor × loteamento / endereços do setor; resíduo = 1 − Σ peso",
+  "estimativa_sintetica": "população alocada da faixa etária × taxa pct_fora_escola_<faixa> da AP do setor",
+  "crs": "EPSG:4326, 6 casas decimais"
+ },
+ "validacao": {
+  "pop_total_setores": 370879,
+  "pop_alocada_loteamentos": 294160.4,
+  "pop_residuo_bairros": 24578.6,
+  "pop_sem_alocacao_distritos_zona_rural": 52140.0,
+  "enderecos_em_loteamentos_fora_de_bairro": 79.5,
+  "pares_loteamentos_sobrepostos": [],
+  "escolas_excluidas": {
+   "ESCOLA PARALISADA": 169,
+   "ESCOLA EXCLUSIVA DE ATENDIMENTO EDUCACIONAL ESPECIALIZADO": 1,
+   "ESCOLA EXCLUSIVA DE ATIVIDADE COMPLEMENTAR": 1
+  },
+  "escolas_por_metodo_vinculo": {
+   "coordenada": 184,
+   "endereco_cep": 32,
+   "endereco_nome": 12,
+   "nao_vinculado": 8
+  },
+  "setores_sem_area_domiciliada": 119,
+  "setores_sem_agregado_tematico": 5,
+  "indicadores_ap_suprimidos": 4
+ },
+ "descartes": [
+  {
+   "etapa": 3,
+   "fonte": "malha de setores",
+   "o_que": "Name, CD_REGIAO, NM_REGIAO, CD_UF, NM_UF, NM_MUN, CD_SUBDIST, CD_AGLOM, NM_AGLOM, CD_RGINT, NM_RGINT, CD_RGI, NM_RGI, CD_CONCURB, NM_CONCURB",
+   "motivo": "constantes em VdC, Name = CD_SETOR, ou não usadas no modelo"
+  },
+  {
+   "etapa": 3,
+   "fonte": "malha de setores",
+   "o_que": "coordenada Z",
+   "motivo": "sempre 0"
+  },
+  {
+   "etapa": 3,
+   "fonte": "composição das APs",
+   "o_que": "Código do Município, Nome do Município",
+   "motivo": "constantes (já filtrado por VdC)"
+  },
+  {
+   "etapa": 3,
+   "fonte": "lista das APs",
+   "o_que": "Tipo, Setores, Pessoas_*, Domicílios_*",
+   "motivo": "deriváveis dos setores; n amostral vem dos microdados"
+  },
+  {
+   "etapa": 3,
+   "fonte": "loteamentos",
+   "o_que": "styleUrl",
+   "motivo": "estilo do Google My Maps, não é dado"
+  },
+  {
+   "etapa": 3,
+   "fonte": "loteamentos",
+   "o_que": "coordenada Z",
+   "motivo": "sempre 0"
+  },
+  {
+   "etapa": 3,
+   "fonte": "CNEFE",
+   "o_que": "COD_SETOR",
+   "motivo": "código preliminar (sufixo P); setor obtido por ponto no polígono"
+  },
+  {
+   "etapa": 3,
+   "fonte": "CNEFE",
+   "o_que": "COD_UF, COD_MUNICIPIO",
+   "motivo": "constantes"
+  },
+  {
+   "etapa": 3,
+   "fonte": "CNEFE",
+   "o_que": "NUM_QUADRA, NUM_FACE, COMPLEMENTO, COD_TIPO_ESPECI, DSC_ESTABELECIMENTO",
+   "motivo": "não usados no modelo"
+  },
+  {
+   "etapa": 3,
+   "fonte": "escolas INEP",
+   "o_que": "171 escolas",
+   "motivo": "não estão em funcionamento sem restrição: {'ESCOLA PARALISADA': 169, 'ESCOLA EXCLUSIVA DE ATENDIMENTO EDUCACIONAL ESPECIALIZADO': 1, 'ESCOLA EXCLUSIVA DE ATIVIDADE COMPLEMENTAR': 1}"
+  },
+  {
+   "etapa": 3,
+   "fonte": "escolas INEP",
+   "o_que": "telefone, categoria, localização, regulamentação, etapas e demais colunas",
+   "motivo": "fora do modelo (escolas viram contagens rede × porte)"
+  },
+  {
+   "etapa": 4,
+   "fonte": "CNEFE",
+   "o_que": "8 endereços",
+   "motivo": "fora de todos os setores (não entram em nenhuma contagem)"
+  },
+  {
+   "etapa": 4,
+   "fonte": "escolas INEP",
+   "o_que": "8 escolas",
+   "motivo": "sem coordenada e sem CEP/nome de bairro que identifique a unidade"
+  },
+  {
+   "etapa": 6,
+   "fonte": "agregados",
+   "o_que": "V01006, V00644–V00656, V00748–V00760",
+   "motivo": "usados só na validação 5.3 (repetem v0001 e V00900/V00901)"
+  },
+  {
+   "etapa": 6,
+   "fonte": "modelo",
+   "o_que": "densidade demográfica",
+   "motivo": "derivável: pop / area_km2 ou pop / area_domiciliada_km2 (calculada no front)"
+  },
+  {
+   "etapa": 6,
+   "fonte": "modelo",
+   "o_que": "população por bairro/distrito/AP vinda de outras fontes (9923, Pessoas_Univ)",
+   "motivo": "derivável da soma dos setores"
+  },
+  {
+   "etapa": 6,
+   "fonte": "modelo",
+   "o_que": "taxas das APs repetidas nos setores",
+   "motivo": "setor guarda só cd_ap; a taxa fica no documento da AP"
+  }
+ ]
+}
