@@ -32,8 +32,8 @@ import {
 import {
   BLOCOS,
   ENDERECOS_CNEFE,
+  FAIXAS_ETARIAS,
   FORA_ESCOLA_SINTETICA,
-  IDADE,
   INDICADORES_AP,
   SANEAMENTO,
   TIPO_DOMICILIO,
@@ -161,6 +161,35 @@ function Distribuicao({ rotulos, dados, estimado }: { rotulos: Record<string, st
   );
 }
 
+/** Pirâmide etária (só total — o Censo por setor não cruza sexo × idade):
+ * grupos de 10 anos, o mais velho no topo, barra centrada proporcional ao maior
+ * grupo. Grupo com alguma faixa em sigilo fica "—", sem barra. */
+function PiramideEtaria({ dados, estimado }: { dados: Contagens; estimado: boolean }) {
+  const grupos = FAIXAS_ETARIAS.map(({ rotulo, chaves }) => ({
+    rotulo,
+    v: chaves.some((k) => dados[k] == null) ? null : chaves.reduce((s, k) => s + (dados[k] ?? 0), 0),
+  }));
+  const base = grupos.reduce((s, g) => s + (g.v ?? 0), 0);
+  const max = Math.max(0, ...grupos.map((g) => g.v ?? 0));
+  return (
+    <div className="mt-1.5 flex flex-col gap-1">
+      {[...grupos].reverse().map(({ rotulo, v }) => (
+        <div key={rotulo} className="flex items-center gap-2 py-0.5">
+          <span className="cv-rec-label w-12 shrink-0">{rotulo}</span>
+          <span aria-hidden className="flex h-3 flex-1 justify-center">
+            {v != null && max > 0 && (
+              <span className="block h-full rounded-full bg-ink-faint" style={{ width: `${(v / max) * 100}%` }} />
+            )}
+          </span>
+          <span className="cv-rec-value w-28 shrink-0 text-right">
+            {v == null ? fmt.int(null) : `${qtd(v, estimado)} · ${fmt.pct(base ? v / base : null)}`}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SecoesCenso({
   dados,
   estimado,
@@ -185,7 +214,7 @@ export function SecoesCenso({
         <Linha rotulo="Homens" valor={qtd(dem.homens, estimado)} />
         <Linha rotulo="Mulheres" valor={qtd(dem.mulheres, estimado)} />
         <Subtitulo icone={<FaixaEtariaIcon className={ICONE_SUB} />}>Faixa etária</Subtitulo>
-        <Distribuicao rotulos={IDADE} dados={dem.idade} estimado={estimado} />
+        <PiramideEtaria dados={dem.idade} estimado={estimado} />
       </Secao>
 
       <Secao titulo="Domicílios" icone={<DomiciliosIcon className="size-4 shrink-0" />}>

@@ -22,19 +22,21 @@ export const fmt = {
     v == null ? SEM_VALOR : v < 1 ? `${inteiro.format(v * 100)} ha` : `${decimal.format(v)} km²`,
 };
 
-export const IDADE: Record<string, string> = {
-  '0_4': '0 a 4 anos',
-  '5_9': '5 a 9 anos',
-  '10_14': '10 a 14 anos',
-  '15_19': '15 a 19 anos',
-  '20_24': '20 a 24 anos',
-  '25_29': '25 a 29 anos',
-  '30_39': '30 a 39 anos',
-  '40_49': '40 a 49 anos',
-  '50_59': '50 a 59 anos',
-  '60_69': '60 a 69 anos',
-  '70_mais': '70 anos ou mais',
-};
+/**
+ * Grupos de 10 anos sobre as 11 faixas do IBGE (V01031–V01041), da mais nova
+ * à mais velha. As faixas do Censo têm larguras desiguais (5 anos até 29, 10
+ * depois) — somadas em grupos iguais, as barras da pirâmide são comparáveis.
+ */
+export const FAIXAS_ETARIAS: { rotulo: string; chaves: string[] }[] = [
+  { rotulo: '0–9', chaves: ['0_4', '5_9'] },
+  { rotulo: '10–19', chaves: ['10_14', '15_19'] },
+  { rotulo: '20–29', chaves: ['20_24', '25_29'] },
+  { rotulo: '30–39', chaves: ['30_39'] },
+  { rotulo: '40–49', chaves: ['40_49'] },
+  { rotulo: '50–59', chaves: ['50_59'] },
+  { rotulo: '60–69', chaves: ['60_69'] },
+  { rotulo: '70+', chaves: ['70_mais'] },
+];
 
 /** `dppo` (particulares permanentes ocupados) é a base dos tipos, não um tipo. */
 export const TIPO_DOMICILIO: Record<string, string> = {
