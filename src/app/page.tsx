@@ -1,11 +1,11 @@
 import {
   LandingHeader, Hero, ProblemSection, ImportanceSection, CtaSection,
-  ProposalSection, TransparencySection, LandingFooter, StickyMobileCta,
+  ProposalSection, TransparencySection, LandingFooter,
 } from '@/components/landing';
 
 export default function Landing() {
   return (
-    <div className="pt-16 md:pt-0">
+    <div>
       <LandingHeader showCta />
       <main>
         <Hero
@@ -65,7 +65,6 @@ export default function Landing() {
         />
       </main>
       <LandingFooter />
-      <StickyMobileCta />
     </div>
   );
 }

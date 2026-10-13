@@ -238,8 +238,11 @@ body {
 
   /* Hero da landing page — compacto */
   .cv-title-hero {
-    font-size: clamp(20px, 4vw, 48px);
+    font-size: clamp(20px, 5.5vw, 48px);
     line-height: 1.2;
+  }
+  @media (min-width: 768px) {
+    .cv-title-hero { font-size: clamp(20px, 4vw, 48px); }
   }
 
   /* Título flutuante — breadcrumb */
