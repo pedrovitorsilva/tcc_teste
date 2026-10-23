@@ -28,6 +28,10 @@ interface ProbedVectorSource {
  * Source vetorial remota + layer-sonda invisível (idempotente). Sem a sonda o
  * MapLibre não tila a source e `querySourceFeatures` não retorna nada.
  * Vale pra toda camada 3D que recorta tiles.
+ *
+ * O filtro nunca casa: `querySourceFeatures` lê o tile bruto, não a geometria
+ * da layer — sem ele o worker triangulava (e subia pra GPU) todo polígono do
+ * tile só pra pintar com opacidade 0.
  */
 export function addProbedVectorSource(map: MaplibreMap, opts: ProbedVectorSource) {
   if (!map.getSource(opts.sourceId)) {
@@ -40,6 +44,7 @@ export function addProbedVectorSource(map: MaplibreMap, opts: ProbedVectorSource
       source: opts.sourceId,
       'source-layer': opts.sourceLayer,
       minzoom: opts.minzoom,
+      filter: ['has', '__sonda__'],
       paint: { 'fill-opacity': 0 },
     });
   }

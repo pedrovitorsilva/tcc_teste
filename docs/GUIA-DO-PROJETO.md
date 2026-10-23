@@ -345,12 +345,13 @@ gigabytes e mora num servidor público. O mapa baixa só o pedaço correspondent
 de milhares de formas ilegíveis.
 
 Os prédios também não aparecem todos: só os que estão **dentro do bairro ou
-loteamento selecionado** *e* dentro da área que está sendo exibida na tela naquele
-momento (se o bairro for grande e você navegar pra ver só um canto dele, o resto não
-é processado — chama-se *frustum culling*). Prédios muito pequenos também só
-aparecem quando o zoom está bem próximo — de longe, eles seriam pontinhos ilegíveis
-(*level of detail*, ou LOD). Essa filtragem é feita em JavaScript, prédio a prédio, e
-a altura, como dito na seção 6, é estimada a partir da área.
+loteamento selecionado**. Esse recorte é feito em JavaScript, **um pedaço (tile) do
+mapa por vez**, e o resultado de cada pedaço fica guardado. Arrastar ou dar zoom só
+processa os pedaços que ainda não tinham aparecido, e o resto vem pronto da memória.
+Prédios muito pequenos só aparecem quando o zoom está bem próximo, porque de longe
+seriam pontinhos ilegíveis (*level of detail*, ou LOD). Quem esconde esses prédios
+é o próprio MapLibre, por filtro, sem refazer o recorte a cada zoom. A altura, como
+dito na seção 6, é estimada a partir da área.
 
 ---
 

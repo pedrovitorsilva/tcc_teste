@@ -278,29 +278,50 @@ bairro não repita a varredura.
 carregada**. Um recorte parcial armazenado em cache continuaria parcial nas próximas
 execuções.
 
-### Frustum culling — somente o que está na tela
+### Recorte por tile canônico, com cache — pan e zoom quase de graça
 
-Mesmo dentro de um bairro grande, se o usuário fez pan/zoom e está vendo apenas
-uma parte dele, não é necessário executar point-in-polygon nos prédios que estão
-fora da tela.
+O recorte (`recortarPorTile`, em `src/lib/map/buildingTiles.ts`) trabalha por
+**tile canônico** (o tile z14 de origem de cada feature) e guarda o resultado por
+`(alvo, tile)`. A tela mostra a união dos tiles presentes, sem duplicata de borda.
 
-O `compute()` primeiro elimina features pelo centroide usando `map.getBounds()`.
-Esse teste de retângulo é O(1) e evita o teste O(vértices) do point-in-polygon
-para tudo que está fora do viewport.
+Antes, o recorte descartava o que estava fora da tela (*frustum culling* pelo
+centroide) e aplicava o LOD dentro do próprio cálculo. O resultado dependia da
+câmera, e todo `moveend` refazia tudo. Agora o resultado de um tile não depende de
+onde a câmera está: pan e zoom só pagam os tiles **novos**, e descartar o que está
+fora da tela fica com a GPU, que já faz isso.
 
-Como `compute()` roda novamente a cada `moveend`, o recorte acompanha a posição
-atual do mapa sem invalidar o cache ou alterar a forma como os dados são publicados.
+Três atalhos evitam converter a geometria (`feature.geometry` é preguiçosa no
+MapLibre, e converter é a parte cara):
+
+* **Tile já cacheado** para o alvo: pulado inteiro.
+* **Tile fora da bbox do alvo**: pulado inteiro, comparando só a bbox do tile.
+* **Cópias de tile ampliado**: acima do z14, cada tile ampliado devolve o tile
+  canônico inteiro de novo, na mesma ordem. Rever o primeiro prédio do tile
+  significa que começou uma cópia já processada.
+
+Medido em 9 tiles em volta do Centro, cada um repetido 3 vezes como no zoom 16:
+
+* o recorte converteu **55,7 mil** geometrias em vez de 226 mil e devolveu o mesmo
+  conjunto de 5.202 prédios;
+* repetir com os mesmos tiles (um pan) converteu **zero** geometrias e levou ~23 ms.
+
+O cache guarda os tiles dos últimos 3 alvos. A publicação também é incremental:
+`updateData({ add, remove })` manda ao worker só os prédios que entraram e saíram.
+`setData` completo fica para a source recém-criada (inclusive na troca de tema) e
+para a troca de cores do mapa de calor (§6).
 
 ### LOD (level of detail) por área — prédios pequenos somem em zoom baixo
 
-`lodMinAreaM2(zoom)` (`src/lib/map/buildingClip.ts`) diminui linearmente de
-`LOD_MIN_AREA_M2` (60 m²) no `BUILDINGS_MIN_ZOOM` (13) até 0 no
-`LOD_FULL_DETAIL_ZOOM` (16).
-
 Um prédio muito pequeno custa praticamente a mesma tessellation 3D que um grande,
-mas não é perceptível de longe. No zoom mínimo, apenas footprints com pelo menos
-cerca de 60 m² recebem extrusão. A partir do zoom 16, todos aparecem, inclusive
-os pequenos.
+mas não é perceptível de longe.
+
+O LOD é o `filter` da layer de extrusão, não o recorte:
+`['>=', ['get', 'area'], ['step', ['zoom'], …LOD_MIN_AREA_STEPS]]`. Os degraus
+(`config/buildings.ts`) são 60 m² abaixo do z14, 40 m² no z14, 20 m² no z15 e
+todos a partir do z16. É a mesma curva do `lodMinAreaM2`, discretizada por zoom
+inteiro, porque o MapLibre avalia filtros pelo zoom de cada tile. Assim, mudar o
+zoom não refaz o recorte. A área de cada prédio vai como propriedade (`area`) na
+feature publicada.
 
 ### A layer-sonda invisível
 
@@ -310,6 +331,13 @@ Layers com `visibility: none` não baixam os tiles, mas uma layer com
 
 Por isso existe uma layer "sonda" invisível, cuja única função é forçar o download
 dos tiles.
+
+A sonda tem um `filter` que nunca casa (`['has', '__sonda__']`). O
+`querySourceFeatures` lê o **tile bruto** (`rawTileData`), não a geometria da layer.
+Sem o filtro, o worker triangulava e subia para a GPU cada polígono do tile (até
+~17 mil prédios por tile z14) só para pintá-lo com opacidade 0. O mesmo helper
+(`addProbedVectorSource`) serve vegetação, água e carros, que ganham o mesmo
+corte.
 
 ### A cor das extrusions
 
