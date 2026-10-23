@@ -3,6 +3,7 @@
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
 import { CentralizarIcon, CloseIcon, RecolherIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
+import type { Choropleth } from '@/hooks/useChoropleth';
 import { rotuloUnidade } from '@/config/levels';
 import type { Resumo } from '@/lib/resumo';
 import type { AreaPonderacaoProperties, LevelId, Selection } from '@/types/map';
@@ -20,6 +21,7 @@ interface SidebarProps {
   buildingsEnabled: boolean;
   carsEnabled: boolean;
   lampsEnabled: boolean;
+  choropleth: Choropleth | null;
   onClose: () => void;
   onNavigate: (level: LevelId, name: string) => void;
   /** Mirrors loteamento list hover to polygon on map. */
@@ -44,6 +46,7 @@ export function Sidebar({
   buildingsEnabled,
   carsEnabled,
   lampsEnabled,
+  choropleth,
   onClose,
   onNavigate,
   onHoverLoteamento,
@@ -119,6 +122,7 @@ export function Sidebar({
               buildingsEnabled={buildingsEnabled}
               carsEnabled={carsEnabled}
               lampsEnabled={lampsEnabled}
+              choropleth={choropleth}
               onSelectLoteamento={(name) => onNavigate('loteamento', name)}
               onHoverLoteamento={onHoverLoteamento}
             />

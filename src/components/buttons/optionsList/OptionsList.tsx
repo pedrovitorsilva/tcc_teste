@@ -2,10 +2,14 @@
 
 import { LayerControlsPopoverButton } from './LayerControlsPopoverButton';
 import { PalettePopoverButton } from './PalettePopoverButton';
+import { VisualizacoesPopoverButton } from './VisualizacoesPopoverButton';
 import { BuildingIcon, VegetationIcon, WaterIcon, CarIcon, LampIcon } from '@/components/icons';
+import type { VisualizacaoId } from '@/config/visualizacoes';
 import type { LayerToggles } from '@/types/map';
 
 interface OptionsListProps {
+  visualizacao: VisualizacaoId | null;
+  onVisualizacaoChange: (id: VisualizacaoId | null) => void;
   layerToggles: LayerToggles;
   onLayerTogglesChange: (toggles: LayerToggles) => void;
   buildingsEnabled: boolean;
@@ -22,9 +26,11 @@ interface OptionsListProps {
 
 const ICONE = 'h-4 w-4';
 
-/** Controles do canto do mapa: "Camadas" (limites + 3D) e "Paleta". Dois botões
- * em vez de sete — o 3D ambienta, não é o que se consulta a todo momento. */
+/** Controles do canto do mapa: "Camadas" (limites + 3D), "Visualizações" e
+ * "Paleta" — o 3D ambienta, não é o que se consulta a todo momento. */
 export function OptionsList({
+  visualizacao,
+  onVisualizacaoChange,
   layerToggles,
   onLayerTogglesChange,
   buildingsEnabled,
@@ -52,6 +58,7 @@ export function OptionsList({
         ]}
         className="relative"
       />
+      <VisualizacoesPopoverButton value={visualizacao} onChange={onVisualizacaoChange} className="relative" />
       <PalettePopoverButton className="relative" />
     </>
   );

@@ -18,26 +18,38 @@ export interface Camada3D {
   onChange: (enabled: boolean) => void;
 }
 
-function Caixa({
+/**
+ * Linha de opção dos painéis do mapa. Checkbox por padrão; com `radio` (nome
+ * do grupo) vira radio — o mesmo `name` garante a seleção única no grupo.
+ */
+export function Caixa({
   checked,
   onChange,
   icon,
+  radio,
   children,
 }: {
   checked: boolean;
   onChange: () => void;
   icon?: ReactNode;
+  radio?: string;
   children: ReactNode;
 }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] text-ink select-none hover:bg-panel-2">
-      <input type="checkbox" checked={checked} onChange={onChange} className="peer sr-only" />
+      <input
+        type={radio ? 'radio' : 'checkbox'}
+        name={radio}
+        checked={checked}
+        onChange={onChange}
+        className="peer sr-only"
+      />
       <span
         aria-hidden="true"
-        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border-[1.4px] border-ink-soft text-[10px] leading-none peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink"
-        style={checked ? { background: 'var(--ink)', borderColor: 'var(--ink)', color: 'var(--page)' } : undefined}
+        className={`flex h-4 w-4 shrink-0 items-center justify-center border-[1.4px] border-ink-soft peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${radio ? 'rounded-full' : 'rounded-[3px] text-[10px] leading-none'}`}
+        style={checked && !radio ? { background: 'var(--ink)', borderColor: 'var(--ink)', color: 'var(--page)' } : undefined}
       >
-        {checked ? '✓' : ''}
+        {radio ? checked && <span className="h-2 w-2 rounded-full bg-ink" /> : checked ? '✓' : ''}
       </span>
       {icon && <span className="text-ink-soft">{icon}</span>}
       {children}

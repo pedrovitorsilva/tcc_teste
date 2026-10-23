@@ -25,7 +25,9 @@ interface MapLayersProps {
   /**
    * GeoJSON já buscado por `useGeoIndex` (`null` até resolver). Objeto e não URL,
    * para o MapLibre não rebuscar o arquivo
-   * Setor não tem consumidor duplo e segue por URL.
+   * Setor segue por URL: o outro consumidor (mapa de calor por setor,
+   * `useChoropleth`) é sob demanda e busca o próprio — passar objeto aqui
+   * faria o thread principal parsear 2,4 MB em toda abertura do mapa.
    */
   bairroData: FeatureCollection | null;
   loteamentoData: FeatureCollection | null;

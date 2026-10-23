@@ -3,6 +3,7 @@
 import { FeatureDetails, FeatureBackLink } from '@/components/panel/FeatureDetails';
 import { CentralizarIcon, CloseIcon, DragHandleIcon } from '@/components/icons';
 import type { IndexedFeature } from '@/hooks/useGeoIndex';
+import type { Choropleth } from '@/hooks/useChoropleth';
 import { rotuloUnidade } from '@/config/levels';
 import type { Resumo } from '@/lib/resumo';
 import { useBottomSheetDrag } from '@/hooks/useBottomSheetDrag';
@@ -21,6 +22,7 @@ interface BottomSheetProps {
   buildingsEnabled: boolean;
   carsEnabled: boolean;
   lampsEnabled: boolean;
+  choropleth: Choropleth | null;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
   onClose: () => void;
@@ -44,6 +46,7 @@ export function BottomSheet({
   buildingsEnabled,
   carsEnabled,
   lampsEnabled,
+  choropleth,
   snap,
   onSnapChange,
   onRecenter,
@@ -142,6 +145,7 @@ export function BottomSheet({
             buildingsEnabled={buildingsEnabled}
             carsEnabled={carsEnabled}
             lampsEnabled={lampsEnabled}
+            choropleth={choropleth}
             onSelectLoteamento={(name) => onNavigate('loteamento', name)}
           />
         )}
