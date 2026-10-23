@@ -480,6 +480,9 @@ export function Cars3D({ enabled, night, selection, hoveredBairro, bairros, lote
 
     return () => {
       onCountChangeRef.current?.(0);
+      // A cena (e seus carros) morre aqui; sem limpar, a próxima cena (religar
+      // o toggle, troca de tema) acha todas as vias "já servidas" e fica vazia.
+      spawnedRef.current.clear();
       if (map.getLayer(CARS_LAYER_ID)) map.removeLayer(CARS_LAYER_ID);
       removeProbedVectorSource(map, SOURCE);
     };

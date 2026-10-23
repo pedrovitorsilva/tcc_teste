@@ -13,7 +13,7 @@ export const VEGETATION_SOURCE_ID = 'overture-vegetation';
 /** Nome da layer de cobertura do solo dentro da source `base` do Overture. */
 export const VEGETATION_SOURCE_LAYER = 'land_cover';
 
-/** Layer invisível que mantém a source marcada como "used" (ver Buildings3D/§3). */
+/** Layer invisível que mantém a source marcada como "used". */
 export const VEGETATION_PROBE_LAYER_ID = 'overture-vegetation-probe';
 
 /**

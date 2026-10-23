@@ -24,7 +24,7 @@ interface MapLayersProps {
   tokens: ThemeTokens;
   /**
    * GeoJSON já buscado por `useGeoIndex` (`null` até resolver). Objeto e não URL,
-   * para o MapLibre não rebuscar o arquivo — docs/ARQUITETURA-CODIGO-E-MELHORIAS.md §4.2.
+   * para o MapLibre não rebuscar o arquivo
    * Setor não tem consumidor duplo e segue por URL.
    */
   bairroData: FeatureCollection | null;
@@ -127,7 +127,7 @@ export function MapLayers({
 
   // Enquadra a seleção. A bbox vem pronta (a source só enxerga tiles
   // renderizados e devolveria geometria fragmentada) e o pitch entra junto,
-  // porque extrusão de topo lê como preenchimento — §2.
+  // porque extrusão de topo lê como preenchimento
   useEffect(() => {
     if (!map || !isLoaded) return;
     if (!selection) {

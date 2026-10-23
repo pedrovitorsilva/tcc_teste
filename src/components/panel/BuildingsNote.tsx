@@ -2,7 +2,7 @@
 
 import { NoteCard } from '@/components/panel/NoteCard';
 
-/** Procedência das edificações 3D: o volume é sintético, e dizer isso importa mais que o efeito (§3). */
+/** Procedência das edificações 3D: o volume é sintético, e dizer isso importa mais que o efeito. */
 export function BuildingsNote({ count, enabled }: { count: number; enabled: boolean }) {
   if (count === 0) return null;
 

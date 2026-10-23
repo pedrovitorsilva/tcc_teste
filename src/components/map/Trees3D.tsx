@@ -360,10 +360,12 @@ export function Trees3D({
         }
       }
 
+      /*
       console.log(
         `[Trees3D] compute ${(performance.now() - startedAt).toFixed(1)} ms — ` +
           `${placed.forest.length} mata + ${placed.open.length} aberto (${target.key})`,
       );
+      */
       return [...placed.forest, ...placed.open];
     },
   });

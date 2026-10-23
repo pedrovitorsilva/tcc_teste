@@ -6,7 +6,7 @@ import { formatColor, oklabToRgb, parseColor, rgbToOklab } from '@/lib/color/okl
  * from their own tokens.
  *
  * It's a tone transfer (remaps any color by perceived lightness), not a lookup table,
- * and runs in OKLab to preserve lightness ordering. Why both choices: docs/DECISOES-TECNICAS.md §1.
+ * and runs in OKLab to preserve lightness ordering.
  */
 
 export interface TintTarget {
@@ -18,9 +18,9 @@ export interface TintTarget {
   ink: string;
   /** Flat park/landcover color. Omitted → parks follow the land→ink ramp. */
   park?: string;
-  /** Flat background. Default is `land`; in a dark style the two separate (§1). */
+  /** Flat background. Default is `land`; in a dark style the two separate. */
   background?: string;
-  /** How much of the paper→ink path the darkest feature traverses. Not 1 by design (§1). */
+  /** How much of the paper→ink path the darkest feature traverses. Not 1 by design. */
   contrast?: number;
 }
 
@@ -33,7 +33,7 @@ function layerName(layer: LayerSpecification): string {
   return `${layer.id} ${sourceLayer ?? ''}`;
 }
 
-/** Water is flat color, not remapped: remapping produces a beige that reads as shadow (§1). */
+/** Water is flat color, not remapped: remapping produces a beige that reads as shadow. */
 function isWaterLayer(layer: LayerSpecification): boolean {
   return /water|ocean|sea|river|lake/i.test(layerName(layer));
 }
@@ -78,7 +78,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
 
   // Measure the lightness range the style actually uses (Positron lives between
   // L≈0.80 and L≈1.00), not assuming 0..1 — without this the rendering disappears. Background and
-  // water are excluded because they're painted flat. See §1.
+  // water are excluded because they're painted flat.
   let minL = Infinity;
   let maxL = -Infinity;
   for (const layer of style.layers) {
@@ -117,7 +117,7 @@ export function tintStyle(style: StyleSpecification, target: TintTarget): StyleS
 
     // Straight interpolation from `land` to `ink` across all THREE OKLab axes, and `contrast`
     // scales the entire path. Interpolating only chroma made peachy paper with red ink turn
-    // orange — see §1.
+    // orange
     const t = darkness * contrast;
     return formatColor(
       oklabToRgb({

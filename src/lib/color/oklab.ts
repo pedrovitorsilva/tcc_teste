@@ -1,7 +1,7 @@
 /**
  * Conversão sRGB ↔ OKLab (Björn Ottosson, 2020) + parser de cor CSS. Escrita à
  * mão em vez de puxar o Culori, e em OKLab e não HSL — ver
- * docs/DECISOES-TECNICAS.md §1 e §5. Consumida por lib/map/tint.ts.
+ * Consumida por lib/map/tint.ts.
  */
 
 export interface Rgb {

@@ -44,7 +44,7 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 // Escopo do módulo, não efeito: precisa rodar antes do `new maplibregl.Map()`
-// que o <Map> dispara na montagem — ver docs/DECISOES-TECNICAS.md §6.
+// que o <Map> dispara na montagem
 ensurePMTilesProtocol();
 
 export function MapView() {

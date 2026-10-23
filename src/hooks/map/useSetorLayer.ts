@@ -20,7 +20,7 @@ const SETOR = getLevel('setor');
 const SETOR_FILL_LAYER_ID = SETOR.fillLayerId;
 
 // Opacidades de preenchimento. Valores medidos, não escolhidos: alpha mistura
-// luz e pode inverter a rampa do tema escuro — ver docs/DECISOES-TECNICAS.md §1.
+// luz e pode inverter a rampa do tema escuro
 const SETOR_FILL_OPACITY: Record<ThemeName, number> = {
   dark: 0.16,
   light: 0.1,

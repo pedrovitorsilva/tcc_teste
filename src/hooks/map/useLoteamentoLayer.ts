@@ -26,7 +26,7 @@ const UNRELIABLE_LINE_LAYER_ID = 'loteamento-unreliable-line';
 const UNRELIABLE_HATCH_LAYER_ID = 'loteamento-unreliable-hatch';
 
 // Opacidades de preenchimento. Valores medidos, não escolhidos: alpha mistura
-// luz e pode inverter a rampa do tema escuro — ver docs/DECISOES-TECNICAS.md §1.
+// luz e pode inverter a rampa do tema escuro
 const LOTEAMENTO_FILL_OPACITY: Record<
   ThemeName,
   { reliable: number; unreliable: number; hover: number; preview: number }

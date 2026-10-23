@@ -26,8 +26,8 @@ interface ProbedVectorSource {
 
 /**
  * Source vetorial remota + layer-sonda invisível (idempotente). Sem a sonda o
- * MapLibre não tila a source e `querySourceFeatures` não retorna nada
- * (docs/DECISOES-TECNICAS.md §3) — vale pra toda camada 3D que recorta tiles.
+ * MapLibre não tila a source e `querySourceFeatures` não retorna nada.
+ * Vale pra toda camada 3D que recorta tiles.
  */
 export function addProbedVectorSource(map: MaplibreMap, opts: ProbedVectorSource) {
   if (!map.getSource(opts.sourceId)) {
@@ -72,7 +72,7 @@ export function ensureFillLayer(
   });
 }
 
-/** Cria ou ignora (idempotente) o efeito de brilho, só visível no tema escuro (ver §2).
+/** Cria ou ignora (idempotente) o efeito de brilho, só visível no tema escuro.
  * Sempre criado oculto; visibilidade real é decidida pelos efeitos de estado abaixo. */
 export function ensureGlowLayer(
   map: MaplibreMap,
@@ -140,7 +140,7 @@ export function syncGlowLayer(
 export const GLOW_WIDTH_FACTOR = 6;
 export const GLOW_BLUR = 8;
 
-/** Halo (efeito de brilho - linha larga e borrada sob a nítida), só no tema escuro — ver docs/DECISOES-TECNICAS.md §2. */
+/** Halo (efeito de brilho - linha larga e borrada sob a nítida), só no tema escuro */
 export const GLOW_LAYER_IDS = {
   bairro: 'bairro-glow',
   loteamento: 'loteamento-glow',
@@ -148,7 +148,7 @@ export const GLOW_LAYER_IDS = {
 } as const;
 
 // Intensidade por estado no tema escuro. `dim` = "outra coisa está selecionada".
-// Malha inteira acesa vira ruído — ver docs/DECISOES-TECNICAS.md §2.
+// Malha inteira acesa vira ruído
 export const NIGHT_LINE = { active: 1, idle: 0.42, dim: 0.14 };
 export const NIGHT_GLOW = { active: 0.9, idle: 0.14, dim: 0.03 };
 export const NIGHT_WIDTH = { activeFactor: 1.5, idleFactor: 0.7 };

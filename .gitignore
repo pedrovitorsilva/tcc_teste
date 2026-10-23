@@ -5,3 +5,4 @@ node_modules
 temp/
 /public/data/postes.json
 .vibe-wise
+.playwright-mcp

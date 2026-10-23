@@ -5,9 +5,17 @@
 /**
  * Overture Maps release used as the source for buildings, vegetation and water
  * (`src/config/vegetation.ts`, `src/config/water.ts` reuse this — one release
- * pinned in one place). Must be updated when the release is no longer available.
+ * Placeholder: o handler `pmtiles://` (lib/map/pmtilesProtocol.ts) troca
+ * `/tiles/latest/` pela release mais nova listada no bucket — ele só mantém as
+ * ~2 últimas, então uma data fixa dava 404 a cada ~2 meses.
  */
-export const OVERTURE_RELEASE = '2026-08-19.0';
+export const OVERTURE_RELEASE = 'latest';
+
+/** Bucket S3 dos tiles do Overture (listagem pública com CORS). */
+export const OVERTURE_BUCKET_URL = 'https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com';
+
+/** Usada se a listagem do bucket falhar. */
+export const OVERTURE_FALLBACK_RELEASE = '2026-10-21.0';
 
 /**
  * URL of the Overture Maps PMTiles file for buildings.

@@ -34,7 +34,7 @@ interface GeoIndex {
   municipio: Resumo | null;
   /**
    * GeoJSON bruto, do mesmo `fetch` que monta o índice, repassado ao MapLibre
-   * em vez de deixá-lo rebuscar a URL (docs/ARQUITETURA-CODIGO-E-MELHORIAS.md §4.2).
+   * em vez de deixá-lo rebuscar a URL.
    */
   bairrosData: FeatureCollection | null;
   loteamentosData: FeatureCollection | null;

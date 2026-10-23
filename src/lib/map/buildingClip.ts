@@ -11,7 +11,7 @@ import {
 /**
  * Spatial clipping of buildings to a polygon (bairro/loteamento). Exists because
  * MapLibre's `within` doesn't evaluate polygons, and is written by hand instead of
- * promoting turf to a runtime dependency — docs/DECISOES-TECNICAS.md §3 and §5.
+ * promoting turf to a runtime dependency
  */
 
 /** Approximate centroid: average of the outer ring vertices. */
@@ -160,7 +160,7 @@ export function randomPointsInRing(ring: Position[], count: number): [number, nu
 
 const METERS_PER_DEGREE_LAT = 111_320;
 
-/** Ring area in m², equirectangular approximation — sufficient for a footprint (§5). */
+/** Ring area in m², equirectangular approximation — sufficient for a footprint. */
 export function approxAreaM2(ring: Position[]): number {
   if (ring.length < 4) return 0;
   const latRad = (ring[0][1] * Math.PI) / 180;
@@ -179,7 +179,7 @@ export function approxAreaM2(ring: Position[]): number {
 /**
  * MOCK (MVP): synthetic height — the source data carries almost no height. Grows
  * with footprint area and is deterministic, because the clip is recalculated on
- * each hover. See docs/DECISOES-TECNICAS.md §3.
+ * each hover.
  */
 export function syntheticHeight(areaM2: number): number {
   const extra = Math.min(

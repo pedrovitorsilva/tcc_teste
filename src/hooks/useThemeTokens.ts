@@ -73,7 +73,6 @@ function readTokens(): ThemeTokens {
  * Resolve os tokens (`--bairro`, `--loteamento`, ...) para o valor calculado,
  * relendo a cada troca de tema. Existe porque o `paint` do MapLibre não resolve
  * `var()`: quem pinta camadas precisa reaplicar a cada objeto novo daqui.
- * Ver docs/DECISOES-TECNICAS.md §6.
  */
 export function useThemeTokens(): ThemeTokens {
   const { theme, paletteOverride } = useTheme();

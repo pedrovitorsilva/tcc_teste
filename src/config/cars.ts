@@ -14,7 +14,7 @@ export const CARS_SOURCE_ID = 'overture-transportation';
 /** Nome da layer de vias dentro da source `transportation` do Overture. */
 export const CARS_SOURCE_LAYER = 'segment';
 
-/** Layer invisível que mantém a source marcada como "used" (ver Buildings3D/§3). */
+/** Layer invisível que mantém a source marcada como "used". */
 export const CARS_PROBE_LAYER_ID = 'overture-transportation-probe';
 
 /** Zoom mínimo pra exibir carros — mesmo critério de escala das outras camadas 3D. */
@@ -23,7 +23,7 @@ export const CARS_MIN_ZOOM = 13;
 /** Caminho do glTF do carro. */
 export const CAR_GLTF_URL = '/cars/scene.gltf';
 
-/** Velocidade média dos carros (m/s) — ~25 km/h, trânsito de bairro. */
+/** Velocidade média dos carros (m/s) */
 export const CAR_SPEED_MPS = 15;
 
 /** Largura aproximada (m) por `class` do Overture; desconhecida cai em `ROAD_WIDTH_DEFAULT_M`. */
@@ -74,9 +74,7 @@ export const MAX_CARS_PER_SEGMENT = 2;
 export const MAX_CARS_TOTAL = 150;
 
 /**
- * Escala aplicada ao modelo clonado. Medido (após `worldClone`): ~3,4
- * unidades de comprimento em escala 1; 0,19 mantém o tamanho visual anterior.
- * Reajustar se trocar o modelo.
+ * Escala dos carros (tamanho)
  */
 export const CAR_MODEL_SCALE = 1.19;
 

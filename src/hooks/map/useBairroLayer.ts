@@ -60,7 +60,7 @@ export function useBairroLayer({
 
     // "Locked" = bairro selecionado ou bairro-pai do loteamento selecionado.
     // Casa por id; só usa nome quando é a única informação disponível
-    // (`nm_bairro` do loteamento vem como string) — ver docs/DECISOES-TECNICAS.md §2.
+    // (`nm_bairro` do loteamento vem como string)
     const isBairroLocked: ExpressionSpecification = [
       'any',
       selection?.level === 'bairro'
@@ -79,7 +79,6 @@ export function useBairroLayer({
     const isNight = theme === 'dark';
 
     // À noite o bairro selecionado engrossa; nos outros temas afina (1.1 vs 1.6).
-    // Ver docs/DECISOES-TECNICAS.md §2.
     const lineWidth: ExpressionSpecification = [
       'case',
       ['boolean', ['feature-state', 'hover'], false],

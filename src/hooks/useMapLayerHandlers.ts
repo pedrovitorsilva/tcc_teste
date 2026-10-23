@@ -94,7 +94,7 @@ export function useMapLayerHandlers({
   }, [map, isLoaded, selection, onHoverBairro]);
 
   // Hover de loteamento vindo do mapa. Segue a hierarquia do clique: exige um
-  // bairro em contexto, exceto com o toggle "Bairros" desligado (§2).
+  // bairro em contexto, exceto com o toggle "Bairros" desligado.
   useEffect(() => {
     if (!map || !isLoaded) return;
     if (!map.getLayer(LOTEAMENTO.fillLayerId)) return;
@@ -155,7 +155,7 @@ export function useMapLayerHandlers({
   }, [map, isLoaded, hoveredLoteamento]);
 
   // Clique no mapa = seleção. Handler único global, consultando loteamento antes
-  // de bairro: um listener por layer faz o bairro roubar o clique — §2.
+  // de bairro: um listener por layer faz o bairro roubar o clique
   useEffect(() => {
     if (!map || !isLoaded) return;
     if (!map.getLayer(LOTEAMENTO.fillLayerId) || !map.getLayer(BAIRRO.fillLayerId)) return;
@@ -178,7 +178,7 @@ export function useMapLayerHandlers({
 
         // Hierarquia: sem o bairro em contexto, o clique cai para o bairro-pai;
         // o segundo clique é que desce para o loteamento. A busca por texto não
-        // passa por aqui e salta direto. Ver docs/DECISOES-TECNICAS.md §2.
+        // passa por aqui e salta direto.
         if (parentBairro !== undefined && (bairroOff || activeBairro === parentBairro)) {
           onSelect({
             level: 'loteamento',

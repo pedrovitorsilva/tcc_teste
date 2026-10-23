@@ -4,7 +4,7 @@ import type { ThemeName } from '@/lib/color/theme';
 /**
  * Troca de cores dos polígonos em runtime, escrevendo nas variáveis CSS em vez
  * de chamar `setPaintProperty` direto: assim mapa e interface mudam juntos, a
- * partir de uma fonte só. Ver docs/DECISOES-TECNICAS.md §1.
+ * partir de uma fonte só.
  */
 
 /** Tokens de cor que a paleta controla: os três níveis administrativos + prédios. */
@@ -20,7 +20,7 @@ export interface Palette {
   /**
    * Uma variante por tema: a mesma paleta precisa de lightness diferente para
    * continuar legível em cada fundo. Na variante `dark`, cada preset é uma rampa
-   * — muda a cor da luz, não a estrutura. Ver docs/DECISOES-TECNICAS.md §1.
+   * — muda a cor da luz, não a estrutura.
    * Prédios ficam fora da rampa à noite: é o prédio do claro sob luar (matiz
    * do claro, OKLCH L 0.40, croma reduzido), como `--building` em globals.css.
    */

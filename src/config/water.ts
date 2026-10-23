@@ -13,7 +13,7 @@ export const WATER_SOURCE_ID = 'overture-water';
 /** Nome da layer de água dentro da source `base` do Overture. */
 export const WATER_SOURCE_LAYER = 'water';
 
-/** Layer invisível que mantém a source marcada como "used" (ver Buildings3D/§3). */
+/** Layer invisível que mantém a source marcada como "used". */
 export const WATER_PROBE_LAYER_ID = 'overture-water-probe';
 
 /** Zoom mínimo pra exibir água — o tileset do tema `base` tem maxzoom 13. */

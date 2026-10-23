@@ -23,7 +23,7 @@ interface MapStyles {
 
 /**
  * Basemaps tingidos: os três temas repintam a geometria da CARTO a partir dos
- * tokens `--map-*`, em vez de servirem um style próprio (docs/DECISOES-TECNICAS.md §1).
+ * tokens `--map-*`, em vez de servirem um style próprio.
  *
  * O componente de mapa só resolve "light" e "dark" (vintage entra como light,
  * ver lib/color/theme.ts), então o style tingido vai nas duas chaves. Enquanto a
