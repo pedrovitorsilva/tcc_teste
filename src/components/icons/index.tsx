@@ -38,6 +38,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   LocateFixed,
+  Map as MapGlyph,
 } from 'lucide-react';
 import { MdOutlineFamilyRestroom } from 'react-icons/md';
 import { DollarCircleSolid, Neighbourhood, Pipe3d, Planimetry } from 'iconoir-react';
@@ -52,6 +53,7 @@ const createIcon =
 export const CloseIcon = createIcon(X);
 export const SearchIcon = createIcon(Search);
 export const LayersIcon = createIcon(Layers);
+export const MapIcon = createIcon(MapGlyph);
 export const DragHandleIcon = createIcon(GripHorizontal);
 export const SunIcon = createIcon(Sun);
 export const MoonIcon = createIcon(Moon);

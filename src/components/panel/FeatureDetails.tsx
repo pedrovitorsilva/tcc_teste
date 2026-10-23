@@ -6,6 +6,8 @@ import { BuildingsNote } from "@/components/panel/BuildingsNote";
 import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
 import { Models3DNote } from "@/components/panel/Models3DNote";
+import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
+import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
   Secao,
@@ -52,6 +54,8 @@ interface FeatureDetailsProps {
   buildingsEnabled: boolean;
   carsEnabled: boolean;
   lampsEnabled: boolean;
+  /** Mapa de calor ativo: a legenda sobe para o topo da ficha enquanto ela está aberta. */
+  choropleth: Choropleth | null;
   onSelectLoteamento: (name: string) => void;
   /** Mirrors hover from search list to corresponding polygon on map.
    *
@@ -110,9 +114,11 @@ export function FeatureDetails({
   buildingsEnabled,
   carsEnabled,
   lampsEnabled,
+  choropleth,
   onSelectLoteamento,
   onHoverLoteamento,
 }: FeatureDetailsProps) {
+  const legenda = <ChoroplethLegend choropleth={choropleth} embedded />;
   const has3d = buildingsEnabled || carsEnabled || lampsEnabled;
   // As notas falam das camadas 3D, não da área: ficam juntas, recolhidas, no fim.
   const notes = has3d && (
@@ -127,26 +133,32 @@ export function FeatureDetails({
 
   if (selection.level === "bairro") {
     return (
-      <BairroBody
-        bairroName={selection.name}
-        unidade={selection.properties as unknown as UnidadeProperties}
-        loteamentos={loteamentos}
-        municipio={municipio}
-        notes={notes}
-        onSelectLoteamento={onSelectLoteamento}
-        onHoverLoteamento={onHoverLoteamento}
-      />
+      <>
+        {legenda}
+        <BairroBody
+          bairroName={selection.name}
+          unidade={selection.properties as unknown as UnidadeProperties}
+          loteamentos={loteamentos}
+          municipio={municipio}
+          notes={notes}
+          onSelectLoteamento={onSelectLoteamento}
+          onHoverLoteamento={onHoverLoteamento}
+        />
+      </>
     );
   }
   const pai = bairros.find((b) => b.name === selection.parentBairro);
   return (
-    <LoteamentoBody
-      selection={selection}
-      bairroPai={pai ? (pai.properties as unknown as UnidadeProperties) : null}
-      municipio={municipio}
-      areasPonderacao={areasPonderacao}
-      notes={notes}
-    />
+    <>
+      {legenda}
+      <LoteamentoBody
+        selection={selection}
+        bairroPai={pai ? (pai.properties as unknown as UnidadeProperties) : null}
+        municipio={municipio}
+        areasPonderacao={areasPonderacao}
+        notes={notes}
+      />
+    </>
   );
 }
 

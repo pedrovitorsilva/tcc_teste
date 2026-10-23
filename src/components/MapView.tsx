@@ -6,6 +6,8 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { useThemeTokens } from "@/hooks/useThemeTokens";
 import { useMapStyles } from "@/hooks/useMapStyles";
 import { useGeoIndex } from "@/hooks/useGeoIndex";
+import { useChoropleth } from "@/hooks/useChoropleth";
+import type { VisualizacaoId } from "@/config/visualizacoes";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useMapInteraction } from "@/hooks/useMapInteraction";
 import { PREVIEW_FRACTION } from "@/hooks/useBottomSheetDrag";
@@ -23,6 +25,8 @@ import { Cars3D } from "./map/Cars3D";
 import { StreetLamps3D } from "./map/StreetLamps3D";
 import { ModelsAttribution } from "./map/ModelsAttribution";
 import { OptionsList } from "./buttons/optionsList/OptionsList";
+import { ChoroplethLayer } from "./map/ChoroplethLayer";
+import { ChoroplethLegend } from "./map/ChoroplethLegend";
 import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
 import { ThemeSwitcherPopoverButton } from "./buttons/themeSwitcher/ThemeSwitcherPopoverButton";
@@ -68,6 +72,8 @@ export function MapView() {
   const [waterEnabled, setWaterEnabled] = useState(false);
   const [carsEnabled, setCarsEnabled] = useState(false);
   const [lampsEnabled, setLampsEnabled] = useState(false);
+  const [visualizacao, setVisualizacao] = useState<VisualizacaoId | null>(null);
+  const choropleth = useChoropleth(visualizacao, theme, tokens.mapLand, bairrosData);
 
   const {
     selection,
@@ -93,6 +99,9 @@ export function MapView() {
     setSidebarCollapsed(false);
   }, [selection?.featureId, selection?.level]);
   const handleRecenter = () => setRecenterKey((k) => k + 1);
+  // Legenda do mapa de calor: no topo da ficha quando ela está à mostra; no
+  // mapa só no desktop/tablet com a ficha fechada. Mobile: só na ficha.
+  const mapLegend = !isMobile && !(selection !== null && !sidebarCollapsed);
 
   const floatingTitle: FloatingTitleState | null = useMemo(() => {
     if (previewTarget) {
@@ -127,6 +136,8 @@ export function MapView() {
   }, [isMobile]);
 
   const optionsListProps = {
+    visualizacao,
+    onVisualizacaoChange: setVisualizacao,
     layerToggles,
     onLayerTogglesChange: setLayerToggles,
     buildingsEnabled,
@@ -170,8 +181,10 @@ export function MapView() {
             fitPadding={fitPadding}
             recenterKey={recenterKey}
           />
+          <ChoroplethLayer choropleth={choropleth} />
           <Buildings3D
             tokens={tokens}
+            choropleth={choropleth}
             enabled={buildingsEnabled}
             selection={selection}
             hoveredBairro={hoveredBairro}
@@ -250,6 +263,7 @@ export function MapView() {
 
           <div className="pointer-events-auto absolute bottom-4.5 left-4.5 flex items-end gap-2">
             <OptionsList {...optionsListProps} />
+            {mapLegend && <ChoroplethLegend choropleth={choropleth} />}
           </div>
         </div>
       </div>
@@ -267,6 +281,7 @@ export function MapView() {
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
           lampsEnabled={lampsEnabled}
+          choropleth={choropleth}
           onClose={handleClose}
           onNavigate={handleNavigate}
           onHoverLoteamento={handleHoverLoteamentoByName}
@@ -288,6 +303,7 @@ export function MapView() {
           buildingsEnabled={buildingsEnabled}
           carsEnabled={carsEnabled}
           lampsEnabled={lampsEnabled}
+          choropleth={choropleth}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
           onRecenter={handleRecenter}
