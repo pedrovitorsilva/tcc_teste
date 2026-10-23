@@ -2,8 +2,8 @@
 
 // Fonte das edificações 3D: Overture Maps, por HTTP range request.
 import { useEffect, useMemo, useRef } from "react";
-import type { FeatureCollection, Geometry } from "geojson";
-import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
+import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { ExpressionSpecification, FilterSpecification, GeoJSONSource } from "maplibre-gl";
 import { useMap } from "@/components/ui/map";
 import {
   BUILDINGS_ATTRIBUTION,
@@ -15,16 +15,11 @@ import {
   BUILDINGS_SOURCE_ID,
   BUILDINGS_SOURCE_LAYER,
   BUILDING_EXTRUSION_OPACITY,
+  LOD_MIN_AREA_STEPS,
 } from "@/config/buildings";
-import {
-  approxAreaM2,
-  lodMinAreaM2,
-  outerRing,
-  pointInPolygon,
-  ringCentroid,
-  syntheticHeight,
-} from "@/lib/map/buildingClip";
-import { computeBBox, viewportBBox, type BBox } from "@/lib/map/bbox";
+import { pointInPolygon } from "@/lib/map/buildingClip";
+import { recortarPorTile, type PrediosPorTile } from "@/lib/map/buildingTiles";
+import { computeBBox, type BBox } from "@/lib/map/bbox";
 import { corDoValor } from "@/lib/map/choropleth";
 import { addProbedVectorSource, removeProbedVectorSource } from "@/lib/map/layerHelpers";
 import { useClipEffect } from "@/hooks/map/useClipEffect";
@@ -49,7 +44,15 @@ const SOURCE = {
 };
 const SOURCE_IDS = [BUILDINGS_SOURCE_ID];
 
-type Area = { bbox: BBox; geometry: Geometry; valor: number };
+/** LOD nativo: prédio pequeno some em zoom baixo sem refazer o recorte (o MapLibre avalia por tile). */
+const LOD_FILTER = ["step", ["zoom"], ...LOD_MIN_AREA_STEPS] as unknown as ExpressionSpecification;
+const FILTRO_LOD: FilterSpecification = [">=", ["get", "area"], LOD_FILTER];
+
+// ponytail: cache por tile dos últimos 3 alvos (Map em ordem de inserção,
+// descarta o mais antigo); LRU de verdade se voltar a alvos antigos for comum.
+const MAX_ALVOS_EM_CACHE = 3;
+
+type Area ={ bbox: BBox; geometry: Geometry; valor: number };
 
 /** Só as áreas com valor: área sob sigilo não tem cor a dar (cai no próximo nível). */
 function areasComValor(fc: FeatureCollection | null): Area[] {
@@ -142,25 +145,51 @@ export function Buildings3D({
   const corDoPredioRef = useRef(corDoPredio);
   corDoPredioRef.current = corDoPredio;
 
+  /** Recorte por tile canônico, por alvo (ver `recortarPorTile`). */
+  const tileCacheRef = useRef(new Map<string, PrediosPorTile>());
+  const cacheDoAlvo = (key: string): PrediosPorTile => {
+    const caches = tileCacheRef.current;
+    let cache = caches.get(key);
+    if (!cache) {
+      cache = new Map();
+      caches.set(key, cache);
+      if (caches.size > MAX_ALVOS_EM_CACHE) caches.delete(caches.keys().next().value!);
+    }
+    return cache;
+  };
+
   /** Último recorte (sem cor): trocar de variável repinta sem refazer o recorte. */
   const lastClipRef = useRef<FeatureCollection>(EMPTY);
-  const publish = (data: FeatureCollection) => {
+  /** Ids já na source GeoJSON; `null` = source nova (criada agora ou recriada pela troca de tema). */
+  const publishedRef = useRef<Set<string> | null>(null);
+
+  /**
+   * Publica só a diferença (`updateData`): pan/zoom trocam alguns tiles e o
+   * resto já está no worker. `setData` completo só com source nova ou quando a
+   * cor de todos muda (`completo`).
+   */
+  const publish = (data: FeatureCollection, completo = false) => {
     lastClipRef.current = data;
     const source = map?.getSource(BUILDINGS_CLIP_SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
     const cor = corDoPredioRef.current;
-    source.setData(
-      cor
-        ? {
-            type: "FeatureCollection",
-            features: data.features.map((f) => {
-              const { id, lng, lat } = f.properties!;
-              return { ...f, properties: { ...f.properties, cor: cor(id ?? `${lng},${lat}`, [lng, lat]) } };
-            }),
-          }
-        : data,
-    );
-    onCountChangeRef.current?.(data.features.length);
+    const comCor = (f: Feature): Feature => {
+      if (!cor) return f;
+      const { id, lng, lat } = f.properties!;
+      return { ...f, properties: { ...f.properties, cor: cor(id, [lng, lat]) } };
+    };
+
+    const ids = new Set(data.features.map((f) => f.properties!.id as string));
+    const anteriores = publishedRef.current;
+    if (!anteriores || completo) {
+      source.setData({ type: "FeatureCollection", features: data.features.map(comCor) });
+    } else {
+      const add = data.features.filter((f) => !anteriores.has(f.properties!.id)).map(comCor);
+      const remove = [...anteriores].filter((id) => !ids.has(id));
+      if (add.length || remove.length) source.updateData({ add, remove });
+    }
+    publishedRef.current = ids;
+    onCountChangeRef.current?.(ids.size);
   };
 
   // `cor` por feature, com a cor do tema como guarda (sem mapa de calor / sem valor).
@@ -179,6 +208,7 @@ export function Buildings3D({
         data: EMPTY,
         promoteId: "id",
       });
+      publishedRef.current = null; // source vazia: a próxima publicação é completa
     }
 
     if (!map.getLayer(BUILDINGS_CLIP_LAYER_ID)) {
@@ -187,6 +217,7 @@ export function Buildings3D({
         type: "fill-extrusion",
         source: BUILDINGS_CLIP_SOURCE_ID,
         minzoom: BUILDINGS_MIN_ZOOM,
+        filter: FILTRO_LOD,
         paint: {
           "fill-extrusion-color": corPaint,
           "fill-extrusion-base": 0,
@@ -217,7 +248,7 @@ export function Buildings3D({
   // Mapa de calor mudou (variável, tema, ligou/desligou): repinta o último recorte.
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
-    publish(lastClipRef.current);
+    publish(lastClipRef.current, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, enabled, corDoPredio]);
 
@@ -230,53 +261,15 @@ export function Buildings3D({
     minZoom: BUILDINGS_MIN_ZOOM,
     empty: EMPTY,
     publish,
+    // Só os tiles canônicos ainda não recortados para este alvo custam algo.
     compute: (target): FeatureCollection => {
-      const [west, south, east, north] = viewportBBox(map!);
-      const minArea = lodMinAreaM2(map!.getZoom());
       const features = map!.querySourceFeatures(BUILDINGS_SOURCE_ID, {
         sourceLayer: BUILDINGS_SOURCE_LAYER,
       });
-
-      const seen = new Set<string>();
-      const clipped: FeatureCollection["features"] = [];
-      const { bbox } = target;
-
-      for (const feature of features) {
-        const ring = outerRing(feature.geometry);
-        if (!ring) continue;
-
-        const [lng, lat] = ringCentroid(ring);
-
-        // Frustum culling: descarta o que está fora da tela antes do teste
-        // point-in-polygon (mais caro) — importa mesmo dentro de um bairro
-        // grande, quando o usuário deu pan/zoom pra ver só uma parte dele.
-        if (lng < west || lng > east || lat < south || lat > north) continue;
-        if (bbox && (lng < bbox[0] || lng > bbox[2] || lat < bbox[1] || lat > bbox[3])) continue;
-        if (!pointInPolygon([lng, lat], target.geometry)) continue;
-
-        const area = approxAreaM2(ring);
-        if (area < minArea) continue; // LOD: prédio pequeno demais pro zoom atual
-
-        const id = feature.properties?.id;
-        if (typeof id === "string") {
-          if (seen.has(id)) continue;
-          seen.add(id);
-        }
-
-        clipped.push({
-          type: "Feature",
-          geometry: feature.geometry,
-          properties: {
-            id: typeof id === "string" ? id : undefined,
-            height: syntheticHeight(area),
-            // Centroide: ponto que decide de qual setor/bairro o prédio pega a cor.
-            lng,
-            lat,
-          },
-        });
-      }
-
-      return { type: "FeatureCollection", features: clipped };
+      return {
+        type: "FeatureCollection",
+        features: recortarPorTile(features, target, cacheDoAlvo(target.key)),
+      };
     },
   });
 

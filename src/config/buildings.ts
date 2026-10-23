@@ -71,6 +71,13 @@ export const LOD_MIN_AREA_M2 = 60;
 export const LOD_FULL_DETAIL_ZOOM = 16;
 
 /**
+ * The same LOD curve as integer-zoom steps, applied by the extrusion layer's
+ * `filter` (MapLibre evaluates filters per tile zoom), so zooming never forces
+ * a new clip. Format: [min area (m²) below the first step, zoom, area, ...].
+ */
+export const LOD_MIN_AREA_STEPS = [60, 14, 40, 15, 20, 16, 0] as const;
+
+/**
  * Required attribution for the data source.
  * Displayed automatically by the map attribution control.
  */
