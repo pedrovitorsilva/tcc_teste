@@ -21,7 +21,9 @@ O mapa mostra três níveis de divisão do território, do maior para o menor:
 
 Clicando num bairro, ele é enquadrado no mapa e uma ficha lateral mostra os
 loteamentos que existem ali dentro. Três botões deixam ligar, por cima da área
-selecionada, prédios, vegetação e água em 3D (seções 9, 10 e 11). Além disso, o
+selecionada, prédios, vegetação e água em 3D (seções 9, 10 e 11). O botão
+"Visualizações" pinta o mapa como um **mapa de calor** de uma variável do Censo,
+como densidade, renda ou esgoto (seção 12). Além disso, o
 usuário pode buscar um lugar pelo nome, ligar e desligar cada nível, e trocar entre
 três temas visuais (claro, escuro e "antigo", que imita um mapa de pergaminho).
 
@@ -115,13 +117,15 @@ src/
 │   ├── buttons/            Controles flutuantes (refatorados em Fase 3)
 │   │   ├── ToggleButton.tsx
 │   │   ├── IconPopoverButton.tsx
-│   │   ├── optionsList/    Paleta e camadas
+│   │   ├── optionsList/    Camadas, visualizações (mapa de calor) e paleta
 │   │   └── themeSwitcher/  Troca de tema
 │   ├── map/                O que é desenhado no mapa
 │   │   ├── MapLayers.tsx   Criação de camadas (refatorado em Fase 3)
 │   │   ├── Buildings3D.tsx Prédios 3D
 │   │   ├── Trees3D.tsx     Vegetação 3D (seção 10)
 │   │   ├── Water3D.tsx     Água 3D (seção 11)
+│   │   ├── ChoroplethLayer.tsx  Pintura do mapa de calor (seção 12)
+│   │   ├── ChoroplethLegend.tsx Legenda do mapa de calor (seção 12)
 │   │   └── FloatingTitle.tsx Rótulo no topo
 │   ├── panel/              A ficha lateral (desktop) e a folha inferior (mobile)
 │   ├── theme/              Tema (ThemeProvider)
@@ -133,12 +137,13 @@ src/
 │   ├── useThemeTokens.ts Cores do tema
 │   ├── useMapStyles.ts   Estilo do basemap
 │   ├── useMapInteraction.ts Seleção/hover/preview (novo em Fase 3)
+│   ├── useChoropleth.ts  Dados, faixas e cores do mapa de calor (seção 12)
 │   ├── map/              Hooks de camadas do mapa (novo em Fase 3)
 │   └── ... (mais utilitários)
 ├── lib/                  Funções de apoio, sem tela
 │   ├── color/              Tema, paletas e conversão de cores
 │   └── map/                Contas e utilidades de mapa
-├── config/               Valores ajustáveis (quais níveis existem, prédios, vegetação, água)
+├── config/               Valores ajustáveis (quais níveis existem, prédios, vegetação, água, visualizações)
 └── types/                Vocabulário de tipos compartilhado
 
 public/data/              Os arquivos GeoJSON servidos para o navegador
@@ -410,7 +415,56 @@ exatamente a mesma cor por cima — sem esse problema.
 
 ---
 
-## 12. Onde mexer para...
+## 12. Visualizações e mapas de calor
+
+```mermaid
+flowchart LR
+    menu["Botão Visualizações<br/>uma opção por vez"] --> mv["MapView<br/>guarda a visualização ativa"]
+    mv --> hook["useChoropleth<br/>valor por área, faixas e cores"]
+    dados["setores.geojson<br/>bairros_e_distritos.geojson"] --> hook
+    hook --> camada["ChoroplethLayer<br/>pinta as áreas"]
+    hook --> legenda["ChoroplethLegend<br/>no mapa ou na ficha"]
+    hook --> predios["Buildings3D<br/>prédios na cor da área"]
+```
+
+O botão "Visualizações" (ícone de mapa, ao lado de "Camadas" e "Paleta") abre um
+menu organizado em grupos. Hoje existe um grupo, **Mapa de calor**, com três
+variáveis:
+
+| Variável | Pintada por | Cor |
+|---|---|---|
+| Densidade demográfica (hab/km²) | setor censitário | vermelho/laranja |
+| Renda média do responsável | setor censitário | verde |
+| Domicílios sem rede de esgoto | bairro e distrito | vermelho (carência) |
+
+Só **uma visualização fica ativa por vez**, mesmo entre grupos diferentes. A
+opção "Nenhuma" volta ao mapa normal.
+
+Como funciona, em linhas gerais:
+
+- **Cada área é pintada pelo próprio valor.** Os valores são divididos em 5
+  faixas com a mesma quantidade de áreas em cada uma (quantis), e cada faixa
+  ganha um tom. Tecnicamente é um *coroplético*, não um mapa de calor de pontos.
+- **As cores partem da cor do terreno.** A menor faixa fica perto da cor base do
+  mapa, e a maior é a cor forte da variável. No claro e no antigo, o valor alto é
+  o mais escuro; no escuro, o valor alto é o mais claro e "acende".
+- **Setor por padrão, bairro quando há sigilo.** O IBGE omite dados de setores
+  muito pequenos. No esgoto, isso atinge 23% dos setores, então essa variável é
+  pintada por bairro. Área sem dado fica **cinza**, nunca como zero.
+- **A legenda acompanha a ficha.** No desktop, ela flutua ao lado dos botões e
+  sobe para o topo da ficha quando a ficha está aberta. No celular, aparece só
+  dentro da ficha.
+- **Os prédios 3D entram no mapa de calor.** Cada prédio usa a cor do setor em
+  que está. Se o setor estiver sob sigilo, usa a cor do bairro; se não houver
+  nenhum dos dois, usa a cor normal de prédio do tema.
+
+Os detalhes e os números medidos que sustentam essas escolhas (por que não
+loteamento, por que quantis, a correção do esgoto) estão em
+[`DECISOES-TECNICAS.md` §6](./DECISOES-TECNICAS.md#6--visualizações-e-mapas-de-calor).
+
+---
+
+## 13. Onde mexer para...
 
 | Quero... | Mexo em |
 |---|---|
@@ -421,6 +475,9 @@ exatamente a mesma cor por cima — sem esse problema.
 | Ajustar altura, zoom mínimo ou fonte dos prédios | `src/config/buildings.ts` |
 | Ajustar densidade, tipos ou aparência da vegetação | `src/config/vegetation.ts` |
 | Ajustar cor, ondulação ou brilho da água | `src/config/water.ts` |
+| Adicionar uma variável ao mapa de calor, ou um grupo novo ao menu Visualizações | `src/config/visualizacoes.ts` (`GRUPOS_VISUALIZACAO`) |
+| Mudar as cores, o número de faixas ou a opacidade do mapa de calor | `src/config/visualizacoes.ts` (`MATIZES`, `CHOROPLETH_CLASSES`, `RAMPA_INICIO`, `CHOROPLETH_OPACITY`) |
+| Mudar o cálculo das faixas ou da rampa de cores | `src/lib/map/choropleth.ts` |
 | Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
 | Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
 | Mudar os dados de bairro/loteamento/setor | `dados/etl/etl.ipynb` (rodar e copiar `dados/etl/output/*` para `public/data/`) |
@@ -436,7 +493,7 @@ foi distribuída em hooks especializados. Para hooks de estado/interação, veja
 `useMapLayerHandlers`. Para criação/visibilidade de camadas, veja `src/hooks/map/`.
 
 ---
-## 13. Para saber mais
+## 14. Para saber mais
 
 | Documento | Para quê |
 |---|---|

@@ -18,6 +18,7 @@
 * [§3 — Prédios 3D](#3--prédios-3d)
 * [§4 — Dependências evitadas](#4--dependências-evitadas)
 * [§5 — Armadilhas de manutenção](#5--armadilhas-de-manutenção)
+* [§6 — Visualizações e mapas de calor](#6--visualizações-e-mapas-de-calor)
 
 ---
 
@@ -312,8 +313,9 @@ dos tiles.
 
 ### A cor das extrusions
 
-As extrusions usam sempre `--building`, o último nível da rampa de granularidade
-do tema ativo.
+Sem mapa de calor ativo, as extrusions usam `--building`, o último nível da rampa
+de granularidade do tema ativo. Com um mapa de calor ativo, cada prédio passa a usar
+a cor da área em que está, com `--building` como fallback (§6).
 
 Antes, elas herdavam a cor do nível selecionado. Isso funcionava quando cada nível
 usava um hue diferente. Com os três temas convertidos em rampas de um único hue
@@ -346,12 +348,7 @@ geográfica completa.
 
 ---
 
-## §5 — Armadilhas de manutenção
-
-**A release do Overture é pinada de propósito.** Releases antigas saem do bucket
-com o tempo. Quando os prédios deixarem de aparecer, a manutenção esperada é
-atualizar a string em `config/buildings.ts`. O índice de releases está
-[nesse link](https://docs.overturemaps.org/examples/overture-tiles/).
+## §5 — Armadilhas de manutenção 
 
 **Registrar o protocolo PMTiles duas vezes é um erro no MapLibre.** O Fast Refresh
 do Next.js reexecuta módulos, então `ensurePMTilesProtocol()` precisa ser idempotente.
@@ -373,3 +370,161 @@ por props a partir de `MapView`.
 O `mapcn`, por padrão, fornece um código que permite usar elementos do MapLibre
 e Mapbox React. Ele não é uma biblioteca de mapas independente; por isso, o
 arquivo não deve ser editado diretamente.
+
+---
+
+## §6 — Visualizações e mapas de calor
+
+*Código relacionado: `src/config/visualizacoes.ts`, `src/lib/map/choropleth.ts`,
+`src/hooks/useChoropleth.ts`, `src/components/map/ChoroplethLayer.tsx`,
+`src/components/map/ChoroplethLegend.tsx`,
+`src/components/buttons/optionsList/VisualizacoesPopoverButton.tsx` e o trecho de
+cor em `src/components/map/Buildings3D.tsx`.*
+
+### "Mapa de calor" aqui é um coroplético
+
+O nome na interface é "mapa de calor", mas a técnica é um **coroplético**: cada
+polígono (setor ou bairro) é pintado pelo valor da sua variável. Não é um heatmap
+de densidade de pontos. O Censo entrega valores por área, não por endereço, e
+espalhar esses valores como pontos inventaria uma distribuição que o dado não tem.
+
+### Seleção única, garantida pelo próprio radio
+
+O menu "Visualizações" é organizado em grupos, e o primeiro é "Mapa de calor". Só
+uma visualização fica ativa por vez, de qualquer grupo. Isso não depende de lógica
+de estado: todas as opções, de todos os grupos, são `<input type="radio">` com o
+mesmo `name`. O navegador já garante que só uma fica marcada, e "Nenhuma" é a
+opção que desliga. Um grupo novo entra só como dado em `GRUPOS_VISUALIZACAO`.
+
+### Em que nível pintar
+
+Medido nos arquivos de `public/data`:
+
+| Nível | Unidades | Por que sim / por que não |
+| --- | ---: | --- |
+| **Setor censitário** | 664 | Maior detalhe, dado oficial do IBGE (não estimado), cobre o município inteiro. Mas tem sigilo: esgoto nulo em 155 setores (23%). |
+| **Bairro/distrito** | 36 | Sem nulos, mas grosso; os 12 distritos rurais são enormes e dominam a imagem. |
+| Loteamento | 166 | **Descartado.** São estimativas (alocação pelo CNEFE), 66 de 166 não são confiáveis (`is_reliable`) e não cobrem a cidade inteira (há sobras). |
+
+A regra: **setor por padrão; bairro quando o setor tem sigilo demais** (hoje, só o
+esgoto). Cada variável declara o próprio nível em `config/visualizacoes.ts`, e a
+legenda diz qual nível está pintado.
+
+### Só taxas e densidades, nunca contagens
+
+Uma contagem absoluta (população, domicílios) faria áreas grandes parecerem "mais",
+só por serem grandes. Toda variável é normalizada: hab/km², renda média, fração de
+domicílios. Para a densidade, o divisor é `area_domiciliada_km2` (onde há moradia).
+Os 119 setores rurais não têm esse campo e usam `area_km2`.
+
+### O esgoto usa a soma das categorias como denominador
+
+Os setores sob sigilo **somem do numerador** do bairro (`rede_ou_fossa_ligada`),
+mas não do total de domicílios (`dppo`). Com `1 − rede/dppo`, o Centro saía com
+**15,4%** dos domicílios sem rede; o valor real é **0,4%**. O denominador correto
+é a soma das categorias de esgoto que o IBGE reportou, o mesmo conjunto de
+domicílios do numerador. As categorias vêm de `SANEAMENTO.esgoto` em
+`config/indicadores.ts`, a mesma lista que a ficha usa.
+
+### Sigilo é cinza, nunca zero
+
+Área sem valor (sigilo do IBGE) fica num cinza neutro e ganha uma entrada própria
+na legenda ("Sem dado (sigilo IBGE)"). Pintar como a menor faixa afirmaria um valor
+baixo que ninguém mediu.
+
+### Quebras por quantil, com fallback
+
+Os dados são muito assimétricos. A densidade por setor tem p10 de 1.014, p50 de
+7.603 e p90 de 18.182 hab/km². Intervalos iguais poriam quase tudo na primeira
+faixa. Por isso as 5 faixas são por **quantil** (`quebrasQuantil`).
+
+Duas armadilhas:
+
+* O `step` do MapLibre exige quebras em ordem estrita, então quebras repetidas
+  são descartadas.
+* Quando muitos valores empatam no mínimo (ex.: quase todo bairro com 0%), os
+  quantis colapsam numa faixa só. Nesse caso a função cai em **intervalos
+  iguais**.
+
+### As cores partem da cor base do mapa
+
+Cada variável define só a cor do valor **máximo** por tema (`MATIZES`). A rampa é
+interpolada em OKLab (§1) da cor do terreno (`--map-land`) até essa cor. A primeira
+faixa fica em `RAMPA_INICIO` do caminho: perto do terreno, mas ainda distinguível
+dele.
+
+A ordem pedida para os temas sai sozinha dessa escolha, porque o terreno é claro no
+claro e no antigo e escuro no escuro:
+
+* **Claro e Antigo:** menor valor = mais claro, maior valor = mais escuro.
+* **Escuro:** menor valor = mais escuro, maior valor = mais claro. O valor alto
+  "acende", na mesma lógica da rampa de granularidade (§1).
+
+Os matizes seguem o tipo de variável. Densidade usa vermelho/laranja, renda usa
+verde e carência (quanto mais, pior, como no esgoto) usa vermelho. Cada variável é
+uma rampa de **um matiz só**, e nada de arco-íris: matizes misturados não têm ordem
+perceptível.
+
+### O MapLibre não lê propriedade aninhada
+
+Os GeoJSON do ETL guardam os indicadores em objetos aninhados
+(`renda_responsavel.rendimento_medio`). Expressions do MapLibre não alcançam esse
+nível. Por isso `useChoropleth` monta uma cópia só com geometria e um campo achatado
+`{ valor }`. Feature sem valor fica sem a chave, e a expression trata isso com
+`['has', 'valor']`.
+
+### Dados e cores são calculados separadamente
+
+`useChoropleth` tem dois `useMemo`:
+
+* **dados e quebras**, que dependem da variável e do arquivo;
+* **cores**, que dependem do tema e da cor base.
+
+Trocar o tema refaz só as cores. A geometria não é recopiada nem reenviada ao
+MapLibre (`ChoroplethLayer` só chama `setData` quando os dados mudam), e os prédios
+não refazem o point-in-polygon.
+
+### Onde a camada entra na pilha
+
+O preenchimento entra logo acima do fill de bairro, abaixo do halo e de todas as
+linhas (`beforeId` = halo do bairro). Limites, hover e 3D continuam legíveis por
+cima. Por isso `<ChoroplethLayer>` é renderizado **depois** de `<MapLayers>`: o
+`beforeId` precisa já existir. Como toda layer (§2), ela é recriada quando o tema
+recarrega o style.
+
+### Setores buscados sob demanda
+
+O arquivo de setores (2,4 MB) já é carregado pelo MapLibre por URL, para a camada
+de setores. O mapa de calor por setor faz uma segunda busca, só quando uma variável
+desse nível é escolhida (servida do cache HTTP). Passar o objeto já parseado para o
+MapLibre, como é feito com bairros e loteamentos, obrigaria o thread principal a
+parsear 2,4 MB em toda abertura do mapa, mesmo para quem nunca usa o mapa de calor.
+
+### Prédios 3D na cor da área
+
+Com um mapa de calor ativo, cada prédio usa a cor da área em que está o seu
+centroide:
+
+1. a faixa do **setor**;
+2. se o setor estiver sob sigilo, a do **bairro**, com as mesmas quebras e cores da
+   legenda (a legenda continua sendo do nível principal);
+3. se nenhum dos dois tiver valor, `--building`.
+
+Variáveis por bairro pulam o passo 1.
+
+A cor entra como propriedade `cor` em cada feature no momento de publicar o recorte,
+e o paint usa `['coalesce', ['get', 'cor'], <--building>]`. O recorte em cache (§3)
+continua só com geometria. Trocar de variável republica o último recorte com as
+cores novas, sem refazê-lo.
+
+O teste "em que setor está este prédio?" é uma busca linear com filtro de bbox mais
+point-in-polygon. Ele é guardado **por prédio**: pan e zoom republicam os mesmos
+prédios, então só prédio novo paga o teste. Se pesar em bairros muito grandes, o
+próximo passo é um índice espacial.
+
+### A legenda acompanha a ficha
+
+* **Desktop/tablet:** a legenda aparece no topo da ficha quando ela está aberta e
+  flutua no mapa, ao lado dos botões, quando a ficha está fechada ou recolhida.
+* **Mobile:** a legenda aparece **só na ficha**. Na tela pequena, um cartão
+  flutuante a mais cobriria o próprio mapa que ele explica.
