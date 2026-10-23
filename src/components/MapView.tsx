@@ -216,8 +216,8 @@ export function MapView() {
         </Map>
 
         <div className="pointer-events-none absolute inset-0 z-10">
-          <div className="pointer-events-auto absolute top-[18px] left-[18px] right-[18px] flex items-center gap-2">
-            <div className="w-[280px] max-md:w-[140px] shrink-0">
+          <div className="pointer-events-auto absolute top-4.5 left-4.5 right-4.5 flex items-center gap-2">
+            <div className="w-70 max-md:w-35 shrink-0">
               <SearchBox
                 bairros={bairros}
                 loteamentos={loteamentos}
@@ -241,14 +241,14 @@ export function MapView() {
             <button
               type="button"
               onClick={() => setSidebarCollapsed(false)}
-              className="pointer-events-auto absolute top-[76px] right-[18px] hidden min-h-11 max-w-[240px] items-center gap-2 rounded-full border border-cv-border bg-panel px-4 text-sm text-ink shadow-[0_4px_16px_rgba(0,0,0,.08)] hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex"
+              className="pointer-events-auto absolute top-19 right-4.5 hidden min-h-11 max-w-60 items-center gap-2 rounded-full border border-cv-border bg-panel px-4 text-sm text-ink shadow-[0_4px_16px_rgba(0,0,0,.08)] hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex"
             >
               <MostrarFichaIcon className="size-4 shrink-0" />
               <span className="truncate">{selection.name}</span>
             </button>
           )}
 
-          <div className="pointer-events-auto absolute bottom-[18px] left-[18px] flex items-end gap-2">
+          <div className="pointer-events-auto absolute bottom-4.5 left-4.5 flex items-end gap-2">
             <OptionsList {...optionsListProps} />
           </div>
         </div>
