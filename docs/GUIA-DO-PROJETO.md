@@ -304,6 +304,12 @@ esperar. Quem decide o que isso significa é o `MapView`, que atualiza seu estad
 é a mudança desse estado que faz a ficha abrir, o mapa se mover e os prédios subirem.
 Esse mesmo padrão se repete no hover e na busca.
 
+O botão **voltar** do navegador (e do celular) acompanha essa hierarquia: do
+loteamento volta ao bairro, do bairro volta ao mapa geral, e só então sai da página.
+Os botões "‹ voltar" e fechar da ficha fazem o mesmo caminho (hook
+`useSelectionHistory`; detalhes em
+[`DECISOES-TECNICAS.md` §2](./DECISOES-TECNICAS.md#2--o-mapa-e-suas-camadas)).
+
 Há uma regra de navegação embutida: o primeiro clique sempre seleciona o **bairro**,
 mesmo que o cursor esteja sobre um loteamento. Só depois de estar dentro de um bairro
 é que clicar num loteamento o seleciona. Isso dá uma hierarquia ("primeiro onde,
