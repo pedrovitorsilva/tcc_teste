@@ -1,8 +1,5 @@
 import type { Geometry, Position } from 'geojson';
 import {
-  BUILDING_AREA_DIVISOR,
-  BUILDING_BASE_HEIGHT,
-  BUILDING_EXTRA_HEIGHT,
   BUILDINGS_MIN_ZOOM,
   LOD_FULL_DETAIL_ZOOM,
   LOD_MIN_AREA_M2,
@@ -98,8 +95,7 @@ export function pointInPolygon(point: [number, number], geometry: Geometry): boo
 /**
  * PRNG determinístico (mulberry32) a partir de um seed numérico — não
  * `Math.random()` de propósito: o recorte de `Trees3D` roda de novo a cada
- * `moveend`, e árvores reamostradas aleatoriamente a cada pan "tremeriam"
- * (mesma preocupação documentada para `syntheticHeight`).
+ * `moveend`, e árvores reamostradas aleatoriamente a cada pan "tremeriam".
  */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -174,19 +170,6 @@ export function approxAreaM2(ring: Position[]): number {
     sum += x1 * y2 - x2 * y1;
   }
   return Math.abs(sum) / 2;
-}
-
-/**
- * MOCK (MVP): synthetic height — the source data carries almost no height. Grows
- * with footprint area and is deterministic, because the clip is recalculated on
- * each hover.
- */
-export function syntheticHeight(areaM2: number): number {
-  const extra = Math.min(
-    BUILDING_EXTRA_HEIGHT,
-    Math.sqrt(Math.max(areaM2, 0)) / BUILDING_AREA_DIVISOR
-  );
-  return Math.round((BUILDING_BASE_HEIGHT + extra) * 10) / 10;
 }
 
 /** LOD: minimum area to display a building at current zoom — decreases to 0 until
