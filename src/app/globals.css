@@ -313,4 +313,18 @@ body {
     color: var(--ink-soft);
     line-height: 1.6;
   }
+
+  /* Ilustração da landing (figures/MapasMaup): cada polígono é um tom do nível
+     (--nivel = --bairro, --loteamento ou --setor) misturado ao fundo da página,
+     então segue o tema — no escuro, os tons "acendem" sobre o fundo. */
+  .cv-maup path { stroke: var(--page); stroke-linejoin: round; }
+  .cv-maup .t0 { fill: color-mix(in oklab, var(--nivel) 22%, var(--page)); }
+  .cv-maup .t1 { fill: color-mix(in oklab, var(--nivel) 30%, var(--page)); }
+  .cv-maup .t2 { fill: color-mix(in oklab, var(--nivel) 38%, var(--page)); }
+  .cv-maup .t3 { fill: color-mix(in oklab, var(--nivel) 46%, var(--page)); }
+  .cv-maup .t4 { fill: color-mix(in oklab, var(--nivel) 54%, var(--page)); }
+  .cv-maup .t5 { fill: color-mix(in oklab, var(--nivel) 62%, var(--page)); }
+  .cv-maup .t6 { fill: color-mix(in oklab, var(--nivel) 70%, var(--page)); }
+  .cv-maup .t7 { fill: color-mix(in oklab, var(--nivel) 78%, var(--page)); }
+  .cv-maup .contorno { fill: none; stroke: var(--ink); stroke-width: 2.6; }
 }
