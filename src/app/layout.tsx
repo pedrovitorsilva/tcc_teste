@@ -21,7 +21,7 @@ const ebGaramond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Cadastro Vivo",
+  title: "AtlasVDC",
   description:
     "Descubra de onde vem a população do seu quarteirão. Um mapa interativo que desagrega dados do IBGE em loteamentos — o pedaço da cidade onde você realmente mora.",
 };
@@ -41,7 +41,7 @@ export default function RootLayout({
   const antiFlashScript = `( 
     function () {
       try {
-        var s = window.localStorage.getItem('cadastro-vivo-theme');
+        var s = window.localStorage.getItem('atlasvdc-theme');
         var t = (s==='light'||s==='dark'||s==='vintage') ? s:'light';
         var r = document.documentElement; 
         r.dataset.theme = t;

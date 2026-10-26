@@ -265,7 +265,7 @@ Além desses arquivos locais, duas coisas vêm de fora, prontas:
 
 ```mermaid
 flowchart LR
-    carto["CARTO<br/>mapa de fundo: ruas, quadras, água"] --> app["Cadastro Vivo"]
+    carto["CARTO<br/>mapa de fundo: ruas, quadras, água"] --> app["AtlasVDC"]
     overture["Overture Maps<br/>vegetação, água e vias (prédios vêm de tiles próprios)"] --> app
 ```
 

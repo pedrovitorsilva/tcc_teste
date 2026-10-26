@@ -21,7 +21,7 @@ const OVERPASS_URLS = [
   'https://z.overpass-api.de/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const USER_AGENT = 'cadastro-vivo-tcc/0.1 (prepare-lamps; build-time)';
+const USER_AGENT = 'atlasvdc-tcc/0.1 (prepare-lamps; build-time)';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const SPACING_M = 55;
 const SIDEWALK_OFFSET_M = 1.5;

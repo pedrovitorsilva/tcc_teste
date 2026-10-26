@@ -27,7 +27,7 @@ const THEME_TO_MAPCN_CLASS: Record<ThemeName, 'light' | 'dark'> = {
   vintage: 'light',
 };
 
-const STORAGE_KEY = 'cadastro-vivo-theme';
+const STORAGE_KEY = 'atlasvdc-theme';
 
 export function isThemeName(value: unknown): value is ThemeName {
   return typeof value === 'string' && (THEMES as string[]).includes(value);
