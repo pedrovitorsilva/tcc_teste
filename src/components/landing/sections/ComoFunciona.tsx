@@ -5,17 +5,19 @@ import { Rotulo, Titulo } from '../Tipografia';
 // É uma sequência de verdade (cada passo usa o anterior), por isso numerada.
 const PASSOS = [
   {
-    titulo: 'Partimos de quem o Censo contou',
-    texto: 'Cada setor do IBGE tem uma população conhecida. Esse total não muda: ninguém é inventado.',
-  },
-  {
-    titulo: 'Dividimos pelo número de casas',
+    titulo: 'Partimos do que já é público',
     texto:
-      'Contamos os endereços de moradia de cada loteamento no cadastro de endereços do IBGE. Mais casas, maior a parte da população.',
+      'Tudo começa com os dados abertos do Censo 2022. Ninguém é inventado: usamos as pessoas que o IBGE já contou em cada bairro e setor da cidade.',
   },
   {
-    titulo: 'Mostramos o que sobra',
-    texto: 'Quem não cabe em nenhum loteamento aparece à parte no mapa, em vez de sumir na média dos vizinhos.',
+    titulo: 'Adaptamos os números para os loteamentos',
+    texto:
+      'Quando a área é maior que o loteamento, como o bairro, repartimos os dados pelo número de casas de cada parte. Quando é menor, como muitos setores, somamos os setores que ficam dentro do loteamento.',
+  },
+  {
+    titulo: 'Organizamos os resultados no mapa',
+    texto:
+      'Cada loteamento tem uma ficha com população, idade, moradias e renda estimadas. As cores do mapa ajudam a comparar áreas, e quem não cabe em nenhum loteamento aparece à parte.',
   },
 ];
 
@@ -34,7 +36,7 @@ export function ComoFunciona() {
 
       <div className="bg-loteamento px-5 py-20 text-page md:px-14 md:py-28 lg:px-20">
         <Rotulo className="opacity-85">Como funciona</Rotulo>
-        <Titulo linha1="Repartimos quem" linha2="o Censo já contou." className="mt-5" />
+        <Titulo linha1="É assim que obtemos nossos dados:" linha2='' className="mt-5" />
         <ol className="mt-10 max-w-120 space-y-8">
           {PASSOS.map((passo, i) => (
             <li key={passo.titulo} className="grid grid-cols-[2.25rem_1fr] gap-x-3">

@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/buttons/themeSwitcher/ThemeSwitcher';
+import { AtlasVdcLogo } from '@/components/icons';
 import { CtaButton } from './CtaButton';
 import { CONTAINER, Titulo } from './Tipografia';
 
@@ -8,6 +8,7 @@ export function LandingFooter() {
   return (
     <footer className="bg-ink pt-24 text-page md:pt-32">
       <div className={CONTAINER}>
+        <AtlasVdcLogo className="mb-2 size-14" />
         <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
           <Titulo linha1="Pronto para ver" linha2="o seu pedaço da cidade?" />
           <CtaButton text="Abrir o mapa" href="/map" variant="claro" className="self-start md:self-auto" />
@@ -18,14 +19,7 @@ export function LandingFooter() {
             Pedro Vitor Oliveira da Silva, IFBA - Vitória da Conquista, Pós Graduação em Desenvolvimento Web - 2026.
           </p>
           <div className="flex items-center gap-6">
-            <Link
-              href="/api/projeto"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current"
-            >
-              Projeto completo (PDF)
-            </Link>
+            <CtaButton text="Ler Projeto" href="/api/projeto" variant="contorno" target="_blank" />
             <ThemeSwitcher />
           </div>
         </div>

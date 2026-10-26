@@ -15,7 +15,7 @@ export function Problema() {
         {/* No celular o texto vem antes dos mapas; no desktop ocupa a coluna da direita inteira. */}
         <div className="md:col-start-2 md:row-span-2 md:row-start-1">
           <Titulo
-            linha1="Zabelê ou na Vila Serrana?"
+            linha1="Zabelê ou Vila Serrana?"
             linha2="Diferenças entre bairros e loteamentos."
           />
           <div className="mt-8 space-y-5">

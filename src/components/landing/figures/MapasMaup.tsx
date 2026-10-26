@@ -43,7 +43,7 @@ export function MapasMaup() {
         ))}
       </div>
       <figcaption className="mt-6 text-center text-[14px] text-ink-soft md:mt-4 md:text-[12px]">
-        A mesma cidade dividida por bairros, loteamentos e setores censitários. Ilustração.
+        Exemplo de cidade dividida por bairros, loteamentos e setores censitários. Ilustração.
       </figcaption>
     </figure>
   );

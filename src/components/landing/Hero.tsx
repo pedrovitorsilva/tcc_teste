@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import { CtaButton } from './CtaButton';
 import { PALETA_TOPO } from './paleta';
 import { CONTAINER, Texto, Titulo } from './Tipografia';
@@ -37,14 +36,7 @@ export function Hero({ id }: { id: string }) {
         </Texto>
         <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4">
           <CtaButton text="Abrir o mapa" href="/map" variant="claro" />
-          <Link
-            href="/api/projeto"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[15px] underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current"
-          >
-            Ler Artigo (PDF)
-          </Link>
+          <CtaButton text="Ler Artigo (PDF)" href="/api/projeto" variant="contorno" target="_blank" />
         </div>
         <p className="mt-4 text-[14px] text-ink-soft">Grátis, sem cadastro, abre no navegador.</p>
       </div>

@@ -17,9 +17,9 @@ const COLUNA_1 = [
 ];
 const COLUNA_2 = [
   {
-    titulo: "Bairros e distritos",
-    descricao: "As áreas urbana e rural que compõe a cidade.",
-    valor: "24 bairros + 12 distritos",
+    titulo: "Bairros/Distritos",
+    descricao: "As áreas urbanas e rurais que compõem a cidade.",
+    valor: "36",
   },
   {
     titulo: "Setores censitários",
