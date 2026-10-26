@@ -39,13 +39,21 @@ function loadSetores(): Promise<FeatureCollection> {
   return setoresRequest;
 }
 
-/** Cópia de `fc` só com geometria + `{ valor }` da visualização (sem valor = sigilo). */
-function comValor(fc: FeatureCollection, visualizacao: Visualizacao): FeatureCollection {
+/** Chave do código de cada nível no ETL — os prédios (tiles) trazem o mesmo código. */
+const CODIGO = { setor: 'cd_setor', bairro: 'cd_unidade' } as const;
+
+/**
+ * Cópia de `fc` só com geometria, `codigo` da área e `{ valor }` da
+ * visualização (sem valor = sigilo).
+ */
+function comValor(fc: FeatureCollection, visualizacao: Visualizacao, nivel: keyof typeof CODIGO): FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: fc.features.map((feature) => {
-      const valor = visualizacao.valor(feature.properties ?? {});
-      return { type: 'Feature', geometry: feature.geometry, properties: valor == null ? {} : { valor } };
+      const props = feature.properties ?? {};
+      const valor = visualizacao.valor(props);
+      const codigo = props[CODIGO[nivel]] as string;
+      return { type: 'Feature', geometry: feature.geometry, properties: valor == null ? { codigo } : { codigo, valor } };
     }),
   };
 }
@@ -82,13 +90,13 @@ export function useChoropleth(
     const fonte = visualizacao.nivel === 'setor' ? setores : bairrosData;
     if (!fonte) return null;
 
-    const data = comValor(fonte, visualizacao);
+    const data = comValor(fonte, visualizacao, visualizacao.nivel);
     // Quebras só do nível principal: a legenda é dele.
     const valores = data.features.flatMap((f) => (f.properties?.valor != null ? [f.properties.valor as number] : []));
     return {
       visualizacao,
       data,
-      bairros: visualizacao.nivel === 'setor' && bairrosData ? comValor(bairrosData, visualizacao) : null,
+      bairros: visualizacao.nivel === 'setor' && bairrosData ? comValor(bairrosData, visualizacao, 'bairro') : null,
       quebras: quebrasQuantil(valores, CHOROPLETH_CLASSES),
       temSemDado: valores.length < data.features.length,
     };

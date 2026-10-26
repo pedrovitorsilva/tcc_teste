@@ -1,10 +1,10 @@
-// Source of 3D buildings: Overture Maps, via HTTP range request.
-
-// Chosen dynamic requests by area — nothing is stored in the project as the file is ~180 GB. 
+// Source of 3D buildings: static vector tiles in public/tiles/predios, generated
+// once by scripts/prepare-buildings.mjs from Overture Maps (height, area and
+// bairro/setor/loteamento codes are precomputed there). Vegetation, water and
+// cars still read Overture remotely, hence the release constants below.
 
 /**
- * Overture Maps release used as the source for buildings, vegetation and water
- * (`src/config/vegetation.ts`, `src/config/water.ts` reuse this — one release
+ * Overture Maps release for the remote layers (vegetation, water, cars).
  * Placeholder: o handler `pmtiles://` (lib/map/pmtilesProtocol.ts) troca
  * `/tiles/latest/` pela release mais nova listada no bucket — ele só mantém as
  * ~2 últimas, então uma data fixa dava 404 a cada ~2 meses.
@@ -17,48 +17,27 @@ export const OVERTURE_BUCKET_URL = 'https://overturemaps-extras-us-west-2.s3.us-
 /** Usada se a listagem do bucket falhar. */
 export const OVERTURE_FALLBACK_RELEASE = '2026-10-21.0';
 
-/**
- * URL of the Overture Maps PMTiles file for buildings.
- * Data is accessed remotely via HTTP Range Request.
- */
-export const BUILDINGS_PMTILES_URL =
-  `pmtiles://https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/${OVERTURE_RELEASE}/buildings.pmtiles`;
+/** Building tiles (z13–z14; MapLibre overzooms z14 above that). Missing tile = no buildings (404 is silent). */
+export const BUILDINGS_TILES_URL = '/tiles/predios/{z}/{x}/{y}.pbf';
+export const BUILDINGS_TILES_MAX_ZOOM = 14;
+
+/** Release used and building count per bairro/distrito and loteamento. */
+export const BUILDINGS_METADATA_URL = '/tiles/predios/metadados.json';
 
 /** Identifier of the building vector source in MapLibre. */
-export const BUILDINGS_SOURCE_ID = 'overture-buildings';
+export const BUILDINGS_SOURCE_ID = 'predios';
 
-/** Name of the building layer within the Overture Maps vector source. */
-export const BUILDINGS_SOURCE_LAYER = 'building';
-
-/**
- * Auxiliary layer used to force tile loading from the source.
- * Has no relevant visual content.
- */
-export const BUILDINGS_PROBE_LAYER_ID = 'overture-buildings-probe';
-
-/** Identifier of the GeoJSON source containing buildings clipped to target. */
-export const BUILDINGS_CLIP_SOURCE_ID = 'buildings-clip-source';
+/** Source-layer name inside the generated tiles. */
+export const BUILDINGS_SOURCE_LAYER = 'predios';
 
 /** Identifier of the layer responsible for 3D extrusion of buildings. */
-export const BUILDINGS_CLIP_LAYER_ID = 'buildings-clip-extrusion';
+export const BUILDINGS_LAYER_ID = 'predios-extrusion';
 
 /**
  * Minimum zoom level to display 3D buildings.
  * Avoids processing and rendering large amounts of geometry at low zoom levels.
  */
 export const BUILDINGS_MIN_ZOOM = 13;
-
-/** Minimum height assigned to buildings, in meters. */
-export const BUILDING_BASE_HEIGHT = 5;
-
-/** Maximum additional height applied to larger buildings, in meters. */
-export const BUILDING_EXTRA_HEIGHT = 13;
-
-/**
- * Factor used to convert footprint area to approximate height.
- * Produces smaller heights for small buildings and larger heights for large ones.
- */
-export const BUILDING_AREA_DIVISOR = 3.2;
 
 /** Opacity of 3D building extrusions. */
 export const BUILDING_EXTRUSION_OPACITY = 0.92;

@@ -9,6 +9,8 @@ export interface ClipTarget {
   geometry: Geometry;
   /** BBox usada como filtro antes do teste espacial. */
   bbox?: [number, number, number, number];
+  /** Propriedades do ETL da área (`cd_unidade`, `cd_loteamento`…) — os prédios filtram por código. */
+  properties: Record<string, unknown>;
 }
 
 /**
@@ -39,6 +41,6 @@ export function useClipTarget(
       return null;
     }
     if (!feature?.geometry) return null;
-    return { key, geometry: feature.geometry, bbox: feature.bbox };
+    return { key, geometry: feature.geometry, bbox: feature.bbox, properties: feature.properties };
   }, [enabled, selection, hoveredBairro, bairros, loteamentos]);
 }

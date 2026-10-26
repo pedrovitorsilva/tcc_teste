@@ -6,6 +6,38 @@
 
 ---
 
+## 0. Onde mexer para...
+
+| Quero... | Mexo em |
+|---|---|
+| Mudar a cor de um nível num tema | `src/app/globals.css` (o bloco do tema) |
+| Mudar as paletas do seletor de cores | `src/lib/color/palette.ts` |
+| Mudar espessura de traço ou nome de um nível | `src/config/levels.ts` |
+| Mudar quais camadas começam ligadas | `src/config/levels.ts` (`DEFAULT_LAYER_TOGGLES`) |
+| Ajustar altura, área ou o que vai em cada prédio | `scripts/prepare-buildings.mjs` (e rodar `npm run prepare-data`) |
+| Ajustar zoom mínimo, LOD ou opacidade dos prédios | `src/config/buildings.ts` |
+| Regenerar os prédios (nova release do Overture, dados do ETL mudaram) | `npm run prepare-data` e commitar `public/tiles/predios` (só baixa se precisar; `PREDIOS_FORCE=1` força) |
+| Ajustar densidade, tipos ou aparência da vegetação | `src/config/vegetation.ts` |
+| Ajustar cor, ondulação ou brilho da água | `src/config/water.ts` |
+| Adicionar uma variável ao mapa de calor, ou um grupo novo ao menu Visualizações | `src/config/visualizacoes.ts` (`GRUPOS_VISUALIZACAO`) |
+| Mudar as cores, o número de faixas ou a opacidade do mapa de calor | `src/config/visualizacoes.ts` (`MATIZES`, `CHOROPLETH_CLASSES`, `RAMPA_INICIO`, `CHOROPLETH_OPACITY`) |
+| Mudar o cálculo das faixas ou da rampa de cores | `src/lib/map/choropleth.ts` |
+| Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
+| Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
+| Mudar os dados de bairro/loteamento/setor | `dados/etl/etl.ipynb` (rodar e copiar `dados/etl/output/*` para `public/data/`) |
+| Mudar rótulos e formatação da ficha | `src/config/indicadores.ts` e `src/components/panel/FichaSecoes.tsx` |
+| Mudar visibilidade de camadas (bairro/loteamento/setor) | `src/hooks/map/use*Layer.ts` (Fase 3) |
+| Adicionar um novo controle flutuante | `src/components/MapView.tsx` (é ele que posiciona todos) |
+
+> ⚠️ **Nunca edite `src/components/ui/map.tsx`.** É código padrão da lib map-cn e MapLibre, baixado de um registro externo, e é sobrescrito quando reinstalado. 
+> Toda customização do mapa é feita passando propriedades a partir do `MapView`.
+
+**Nota sobre Fase 3 (refatoração de MapLayers):** A lógica que costumava estar toda em `MapLayers.tsx`
+foi distribuída em hooks especializados. Para hooks de estado/interação, veja `useMapInteraction` e
+`useMapLayerHandlers`. Para criação/visibilidade de camadas, veja `src/hooks/map/`.
+
+---
+
 ## 1. O que é o o Projeto
 
 É um **mapa interativo** da cidade de Vitória da Conquista. A tela é um mapa que
@@ -218,7 +250,8 @@ O frontend lê as chaves do ETL direto (`nome`, `nm_bairro`, `tipo`, `is_reliabl
 As áreas de ponderação não têm camada nem entram na busca: só aparecem como
 indicadores na ficha do loteamento, cruzadas pelo `cd_ap`.
 
-`npm run prepare-data` agora só gera `postes.json` (`scripts/prepare-lamps.mjs`).
+`npm run prepare-data` gera `postes.json` (`scripts/prepare-lamps.mjs`) e os tiles de
+prédios (`scripts/prepare-buildings.mjs`, seção 9).
 
 **Quando houver banco de dados, a cópia para `public/data/` deixa de ser necessária.**
 
@@ -233,7 +266,7 @@ Além desses arquivos locais, duas coisas vêm de fora, prontas:
 ```mermaid
 flowchart LR
     carto["CARTO<br/>mapa de fundo: ruas, quadras, água"] --> app["Cadastro Vivo"]
-    overture["Overture Maps<br/>contorno dos prédios"] --> app
+    overture["Overture Maps<br/>vegetação, água e vias (prédios vêm de tiles próprios)"] --> app
 ```
 
 **O que é inventado ou aproximado (e por quê).** Sendo um MVP:
@@ -333,25 +366,32 @@ duas listas de cores em lugares diferentes.
 
 ```mermaid
 flowchart LR
-    pm["Overture Maps<br/>arquivo remoto de prédios"] --> tiles["contornos da área visível"]
-    sel["bairro ou loteamento<br/>selecionado"] --> clip
-    tiles --> clip["quais contornos caem<br/>dentro do polígono?"]
-    clip --> ext["sobem em 3D<br/>com altura estimada"]
+    subgraph prep["npm run prepare-data (de vez em quando)"]
+        ov["Overture Maps<br/>contorno dos prédios"] --> script["prepare-buildings.mjs<br/>altura, área, bairro, setor, loteamento"]
+        script --> tiles["public/tiles/predios<br/>tiles prontos"]
+    end
+    tiles --> mapa["MapLibre"]
+    mapa --> ext["todos os prédios da tela<br/>sobem em 3D, com altura estimada"]
 ```
 
-Os prédios não ficam guardados no projeto: o arquivo de origem tem centenas de
-gigabytes e mora num servidor público. O mapa baixa só o pedaço correspondente à
-área visível, e apenas a partir de um certo nível de zoom — de longe, seriam dezenas
-de milhares de formas ilegíveis.
+Os prédios vêm do Overture Maps, mas o site não lê o arquivo deles enquanto roda.
+Um script baixa só o pedaço do município e calcula, para cada um dos ~190 mil
+prédios, a altura estimada, a área e em qual bairro, setor e loteamento ele está. O
+resultado vira um conjunto de arquivos prontos (*tiles*) em `public/tiles/predios/`,
+de ~11 MB.
 
-Os prédios também não aparecem todos: só os que estão **dentro do bairro ou
-loteamento selecionado**. Esse recorte é feito em JavaScript, **um pedaço (tile) do
-mapa por vez**, e o resultado de cada pedaço fica guardado. Arrastar ou dar zoom só
-processa os pedaços que ainda não tinham aparecido, e o resto vem pronto da memória.
-Prédios muito pequenos só aparecem quando o zoom está bem próximo, porque de longe
-seriam pontinhos ilegíveis (*level of detail*, ou LOD). Quem esconde esses prédios
-é o próprio MapLibre, por filtro, sem refazer o recorte a cada zoom. A altura, como
-dito na seção 6, é estimada a partir da área.
+Esses arquivos **ficam no Git**, então o deploy não baixa nada. O script só baixa o
+Overture de novo quando os dados do ETL mudam ou quando a versão usada fica mais de
+90 dias atrás da mais nova; fora disso, `npm run prepare-data` termina em segundos.
+Quando ele regenerar, é só commitar `public/tiles/predios`.
+
+O mapa mostra **todos os prédios que estão na tela**: o MapLibre já só carrega os
+pedaços visíveis, e a triangulação de cada pedaço roda uma vez, fora da thread
+principal. Selecionar um bairro não recarrega prédios; a seleção aparece no contorno
+e na ficha. Prédios muito pequenos só aparecem com o zoom bem
+próximo, porque de longe seriam pontinhos ilegíveis (*level of detail*, ou LOD). Isso
+também é filtro. A ficha mostra quantos prédios a área tem, número que vem pronto do
+mesmo script.
 
 ---
 
@@ -465,36 +505,7 @@ loteamento, por que quantis, a correção do esgoto) estão em
 
 ---
 
-## 13. Onde mexer para...
-
-| Quero... | Mexo em |
-|---|---|
-| Mudar a cor de um nível num tema | `src/app/globals.css` (o bloco do tema) |
-| Mudar as paletas do seletor de cores | `src/lib/color/palette.ts` |
-| Mudar espessura de traço ou nome de um nível | `src/config/levels.ts` |
-| Mudar quais camadas começam ligadas | `src/config/levels.ts` (`DEFAULT_LAYER_TOGGLES`) |
-| Ajustar altura, zoom mínimo ou fonte dos prédios | `src/config/buildings.ts` |
-| Ajustar densidade, tipos ou aparência da vegetação | `src/config/vegetation.ts` |
-| Ajustar cor, ondulação ou brilho da água | `src/config/water.ts` |
-| Adicionar uma variável ao mapa de calor, ou um grupo novo ao menu Visualizações | `src/config/visualizacoes.ts` (`GRUPOS_VISUALIZACAO`) |
-| Mudar as cores, o número de faixas ou a opacidade do mapa de calor | `src/config/visualizacoes.ts` (`MATIZES`, `CHOROPLETH_CLASSES`, `RAMPA_INICIO`, `CHOROPLETH_OPACITY`) |
-| Mudar o cálculo das faixas ou da rampa de cores | `src/lib/map/choropleth.ts` |
-| Mudar o que a ficha mostra | `src/components/panel/FeatureDetails.tsx` |
-| Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
-| Mudar os dados de bairro/loteamento/setor | `dados/etl/etl.ipynb` (rodar e copiar `dados/etl/output/*` para `public/data/`) |
-| Mudar rótulos e formatação da ficha | `src/config/indicadores.ts` e `src/components/panel/FichaSecoes.tsx` |
-| Mudar visibilidade de camadas (bairro/loteamento/setor) | `src/hooks/map/use*Layer.ts` (Fase 3) |
-| Adicionar um novo controle flutuante | `src/components/MapView.tsx` (é ele que posiciona todos) |
-
-> ⚠️ **Nunca edite `src/components/ui/map.tsx`.** É código padrão da lib map-cn e MapLibre, baixado de um registro externo, e é sobrescrito quando reinstalado. 
-> Toda customização do mapa é feita passando propriedades a partir do `MapView`.
-
-**Nota sobre Fase 3 (refatoração de MapLayers):** A lógica que costumava estar toda em `MapLayers.tsx`
-foi distribuída em hooks especializados. Para hooks de estado/interação, veja `useMapInteraction` e
-`useMapLayerHandlers`. Para criação/visibilidade de camadas, veja `src/hooks/map/`.
-
----
-## 14. Para saber mais
+## 13. Para saber mais
 
 | Documento | Para quê |
 |---|---|

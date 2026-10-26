@@ -183,8 +183,8 @@ adicionar cada elemento e pode ser executada novamente quando `isLoaded` muda.
 
 ## §3 — Prédios 3D
 
-*Código relacionado: `src/components/map/Buildings3D.tsx`,
-`src/lib/map/buildingClip.ts` e `src/config/buildings.ts`.*
+*Código relacionado: `scripts/prepare-buildings.mjs`,
+`src/components/map/Buildings3D.tsx` e `src/config/buildings.ts`.*
 
 ### Por que Overture, e não o basemap ou o OSM
 
@@ -204,8 +204,9 @@ a cidade por meio de detecção automática, combinando Google Open Buildings,
 Microsoft ML e OSM. Isso fornece a grande quantidade de footprints usada como
 referência visual.
 
-Nada disso é armazenado no projeto: o arquivo tem cerca de 180 GB e fica na AWS.
-O protocolo PMTiles busca somente os bytes dos tiles necessários por range request.
+O arquivo do Overture tem cerca de 180 GB e fica na AWS. O projeto não o guarda nem
+o lê em tempo de execução. Um script baixa só os tiles do município e gera
+tiles próprios, já com tudo calculado (ver "Tiles próprios, versionados no Git").
 
 ### Fonte alternativa avaliada e rejeitada: Global Building Atlas
 
@@ -234,18 +235,90 @@ Se o GBA for reavaliado no futuro, o próximo passo não é mexer no código —
 é conferir se a cobertura melhorou para o Brasil/Bahia antes de repetir a
 troca.
 
-### Por que o recorte é feito em JavaScript
+### Tiles próprios, versionados no Git
 
-O MapLibre não possui um predicado espacial em expressions de style:
-`within` avalia apenas features `Point` e `LineString`, não polígonos.
+Os prédios são tiles vetoriais estáticos em `public/tiles/predios/{z}/{x}/{y}.pbf`,
+gerados por `scripts/prepare-buildings.mjs`. O script:
 
-Por isso, não é possível filtrar pelo `filter` de uma layer para obter apenas
-os footprints "dentro do bairro X". O caminho é consultar as features e fazer
-o recorte em JavaScript.
+1. baixa os tiles z14 do Overture que tocam alguma unidade do município (804
+   tiles, ~65 MB). A release é a mais nova do bucket, pela mesma regra de
+   `lib/map/overtureRelease.ts`;
+2. deduplica os prédios pelo `id` do Overture. O tile corta o prédio na borda (com
+   buffer), e fica a maior das partes;
+3. calcula **uma vez**, pelo centroide: `height` (altura sintética, abaixo),
+   `area`, `cd_bairro` (`cd_unidade`, inclui distritos), `cd_setor` e
+   `cd_loteamento`. Loteamentos podem se sobrepor; vence o primeiro do arquivo
+   que contém o centroide;
+4. grava tiles MVT z13–z14 só com essas propriedades, mais
+   `metadados.json` (release usada e contagem de prédios por bairro/distrito e
+   loteamento, que a ficha mostra).
 
-A geometria usada no recorte vem do índice do GeoJSON completo. A geometria do
-evento do mapa é evitada porque vem recortada por tile e poderia deixar buracos
-no resultado.
+O resultado, para 190.253 prédios no município, é de **11,8 MB em 811 arquivos**
+(~5,5 MB comprimidos; maior arquivo com 989 KB). O `id` do Overture **não** vai
+para os tiles: seriam ~36 bytes únicos por prédio, uns 5 MB só disso, e nada em
+tempo de execução precisa dele.
+
+**A saída é versionada no Git**: o repositório faz o papel de cache, e o deploy não
+baixa nada. São ~5,5 MB no Git (comprimidos por arquivo; maior arquivo com 446 KB),
+e `.gitattributes` marca `public/tiles/**` como binário. A geração é
+**determinística** (prédios ordenados por `id` antes de virar tile), então
+regenerar sem mudança não gera diff.
+
+O script só baixa o Overture quando precisa, lendo o `metadados.json` versionado:
+
+* as **entradas mudaram**: o `metadados.json` guarda o hash SHA-256 dos três
+  GeoJSON do ETL e do próprio script;
+* ou a release gravada está **mais de 90 dias** (`MAX_ATRASO_DIAS`) atrás da mais
+  nova do bucket. O Overture publica ~1 por mês, e prédio muda devagar.
+
+Fora disso, `npm run prepare-data` termina em ~1 s com "tiles atuais". `PREDIOS_FORCE=1`
+ignora a regra. Sem rede, mantém o que existe e avisa.
+
+Fluxo de manutenção: de ~3 em ~3 meses, ou quando o ETL mudar, rodar
+`npm run prepare-data` e commitar `public/tiles/predios`. Cada regeneração soma até
+~5,5 MB ao histórico (~22 MB/ano).
+
+Em tempo de execução, `Buildings3D` é uma source vetorial e uma layer
+`fill-extrusion`. LOD, altura e cor são filtro e expressões do MapLibre, avaliados
+no worker. Não há `querySourceFeatures`, recorte em JavaScript, source GeoJSON
+intermediária nem dependência do bucket do Overture para os prédios.
+
+**Mostra todos os prédios que estão na tela.** O MapLibre só carrega os tiles
+visíveis, então "o que está na view" já é o recorte; o filtro da layer é fixo (só o
+LOD), e selecionar um bairro não faz o worker refazer nenhum tile. A seleção é
+marcada pelo contorno e pela ficha, sem destacar os prédios.
+
+Custo medido nos tiles gerados, no pior bloco 3×3 de tiles z14:
+
+| Medida | Valor |
+| --- | ---: |
+| Prédios | 91.624 |
+| Triângulos | ~1,26 milhão |
+| Triangulação (earcut), no worker, **uma vez por tile** | ~106 ms |
+| Rede | 3,2 MB |
+
+Tile mediano: 39 prédios. Pan e zoom só pagam os tiles novos, e a thread principal
+não faz nada por prédio. O pior caso é o zoom 13 com a câmera inclinada, que carrega
+mais tiles; a válvula de segurança é o LOD (`LOD_MIN_AREA_STEPS`) ou subir
+`BUILDINGS_MIN_ZOOM` para 14, ambos constantes em `config/buildings.ts`. A estimativa
+de memória de vídeo (~40 MB no pior caso) é grosseira e deve ser conferida no
+DevTools.
+
+### Por que o recorte é um código pré-calculado, e não `within`
+
+O MapLibre não possui um predicado espacial de polígono em expressions de style:
+`within` avalia apenas features `Point` e `LineString`. Não dá para filtrar
+"footprints dentro do bairro X" pela geometria.
+
+Antes, isso obrigava a consultar as features e recortar em JavaScript a cada pan,
+zoom ou tile novo. Agora o point-in-polygon roda **uma vez**, no script, e cada
+prédio carrega o código da área em que está (`cd_bairro`, `cd_setor`,
+`cd_loteamento`). Esses códigos servem à **cor** do mapa de calor (§6) e à
+**contagem** da ficha (`metadados.json`, pelo alvo de `useClipTarget`); o mapa em
+si não filtra por eles.
+
+Um prédio na divisa pertence a uma única área, a do centroide. É a mesma regra
+que o recorte em JavaScript usava.
 
 ### A altura é sintética
 
@@ -260,70 +333,52 @@ O divisor é calibrado para que uma casa de cerca de 100 m² (lado próximo de 1
 fique perto da base e um galpão de cerca de 2.500 m² (lado próximo de 50 m) chegue
 perto do teto.
 
-A fórmula é **determinística**: a mesma footprint sempre gera a mesma altura.
-O recorte é recalculado a cada hover, e alturas instáveis fariam a cidade
-"tremer".
+A fórmula é **determinística** e mora só no script de preparo. O mapa apenas lê
+`height` do tile.
 
-### Zoom mínimo e cache
+### Zoom mínimo e tiles z13–z14
 
-Abaixo do zoom 13, nenhum prédio é exibido. No zoom de cidade inteira (11), seriam
-dezenas de milhares de extrusions pouco legíveis, e cada tile z14 custa cerca de
-500 KB comprimido. O `fitBounds` de uma seleção já leva o mapa para acima desse
-limite.
+Abaixo do zoom 13, nenhum prédio é exibido: no zoom de cidade inteira (11), seriam
+dezenas de milhares de extrusions pouco legíveis. O `fitBounds` de uma seleção já
+leva o mapa para acima desse limite.
 
-Os recortes já calculados ficam em cache por alvo, para que um novo hover no mesmo
-bairro não repita a varredura.
+O script grava z13 e z14. Acima do 14, o MapLibre amplia o z14, que já é o detalhe
+máximo do Overture. O z13 leva **só os prédios com ≥ 60 m²**, porque é o que o LOD
+mostra nele. Os menores nunca apareceriam, e cortá-los tirou ~2,4 MB.
 
-**Só entram no cache resultados calculados quando a source está totalmente
-carregada**. Um recorte parcial armazenado em cache continuaria parcial nas próximas
-execuções.
-
-### Recorte por tile canônico, com cache — pan e zoom quase de graça
-
-O recorte (`recortarPorTile`, em `src/lib/map/buildingTiles.ts`) trabalha por
-**tile canônico** (o tile z14 de origem de cada feature) e guarda o resultado por
-`(alvo, tile)`. A tela mostra a união dos tiles presentes, sem duplicata de borda.
-
-Antes, o recorte descartava o que estava fora da tela (*frustum culling* pelo
-centroide) e aplicava o LOD dentro do próprio cálculo. O resultado dependia da
-câmera, e todo `moveend` refazia tudo. Agora o resultado de um tile não depende de
-onde a câmera está: pan e zoom só pagam os tiles **novos**, e descartar o que está
-fora da tela fica com a GPU, que já faz isso.
-
-Três atalhos evitam converter a geometria (`feature.geometry` é preguiçosa no
-MapLibre, e converter é a parte cara):
-
-* **Tile já cacheado** para o alvo: pulado inteiro.
-* **Tile fora da bbox do alvo**: pulado inteiro, comparando só a bbox do tile.
-* **Cópias de tile ampliado**: acima do z14, cada tile ampliado devolve o tile
-  canônico inteiro de novo, na mesma ordem. Rever o primeiro prédio do tile
-  significa que começou uma cópia já processada.
-
-Medido em 9 tiles em volta do Centro, cada um repetido 3 vezes como no zoom 16:
-
-* o recorte converteu **55,7 mil** geometrias em vez de 226 mil e devolveu o mesmo
-  conjunto de 5.202 prédios;
-* repetir com os mesmos tiles (um pan) converteu **zero** geometrias e levou ~23 ms.
-
-O cache guarda os tiles dos últimos 3 alvos. A publicação também é incremental:
-`updateData({ add, remove })` manda ao worker só os prédios que entraram e saíram.
-`setData` completo fica para a source recém-criada (inclusive na troca de tema) e
-para a troca de cores do mapa de calor (§6).
+Tile sem prédio não vira arquivo. O MapLibre trata o 404 de tile vetorial em
+silêncio, sem disparar evento de erro.
 
 ### LOD (level of detail) por área — prédios pequenos somem em zoom baixo
 
 Um prédio muito pequeno custa praticamente a mesma tessellation 3D que um grande,
 mas não é perceptível de longe.
 
-O LOD é o `filter` da layer de extrusão, não o recorte:
+O LOD é parte do `filter` da layer:
 `['>=', ['get', 'area'], ['step', ['zoom'], …LOD_MIN_AREA_STEPS]]`. Os degraus
 (`config/buildings.ts`) são 60 m² abaixo do z14, 40 m² no z14, 20 m² no z15 e
 todos a partir do z16. É a mesma curva do `lodMinAreaM2`, discretizada por zoom
-inteiro, porque o MapLibre avalia filtros pelo zoom de cada tile. Assim, mudar o
-zoom não refaz o recorte. A área de cada prédio vai como propriedade (`area`) na
-feature publicada.
+inteiro, porque o MapLibre avalia filtros pelo zoom de cada tile.
+
+### Histórico: a Fase 1 (recorte por tile em JavaScript)
+
+Antes dos tiles próprios, uma primeira otimização (`perf/predios`) manteve a
+fonte remota:
+
+* recorte por tile canônico com cache por alvo;
+* atalhos antes de converter a geometria (tile já cacheado, tile fora da bbox,
+  cópias de tile ampliado);
+* LOD por filtro;
+* publicação incremental com `updateData`.
+
+Em 9 tiles do Centro (×3 cópias), o recorte caiu de 226 mil para 55,7 mil
+conversões de geometria, e um pan passou a não converter nenhuma (~23 ms). A Fase 2
+tornou todo esse código desnecessário. O registro do plano está em
+`CODIGO-MELHORIAS.md`.
 
 ### A layer-sonda invisível
+
+*Vale para vegetação, água e carros, que continuam lendo o Overture remotamente.*
 
 O MapLibre só baixa os tiles de uma source quando alguma layer a referencia.
 Layers com `visibility: none` não baixam os tiles, mas uma layer com
@@ -334,10 +389,8 @@ dos tiles.
 
 A sonda tem um `filter` que nunca casa (`['has', '__sonda__']`). O
 `querySourceFeatures` lê o **tile bruto** (`rawTileData`), não a geometria da layer.
-Sem o filtro, o worker triangulava e subia para a GPU cada polígono do tile (até
-~17 mil prédios por tile z14) só para pintá-lo com opacidade 0. O mesmo helper
-(`addProbedVectorSource`) serve vegetação, água e carros, que ganham o mesmo
-corte.
+Sem o filtro, o worker triangulava e subia para a GPU cada polígono do tile só
+para pintá-lo com opacidade 0.
 
 ### A cor das extrusions
 
@@ -354,8 +407,8 @@ edificações ficariam no nível mais escuro, embora sejam o elemento mais detal
 
 `MapLayers.tsx` já concentra as três layers administrativas e passa de 900 linhas.
 
-`Buildings3D` tem uma responsabilidade única: fonte de edificações, recorte para
-o alvo e extrusão.
+`Buildings3D` tem uma responsabilidade única: source de edificações, filtro pelo
+alvo e extrusão.
 
 ---
 
@@ -384,8 +437,8 @@ do Next.js reexecuta módulos, então `ensurePMTilesProtocol()` precisa ser idem
 **Esse registro deve acontecer antes de `new maplibregl.Map(...)`.** Por isso,
 a chamada fica no escopo do módulo em `MapView.tsx`, e não dentro de um effect.
 O componente `<Map>` de terceiros cria a instância durante o effect de montagem,
-e a source de prédios falharia ao resolver a URL se o protocolo ainda não estivesse
-registrado.
+e as sources remotas (vegetação, água e carros) falhariam ao resolver a URL se o
+protocolo ainda não estivesse registrado.
 
 **O MapLibre não resolve `var()` em propriedades de `paint`.** As cores precisam
 chegar como valores hex/rgba. Essa é a razão de existir o hook `useThemeTokens`:
@@ -540,15 +593,12 @@ centroide:
 
 Variáveis por bairro pulam o passo 1.
 
-A cor entra como propriedade `cor` em cada feature no momento de publicar o recorte,
-e o paint usa `['coalesce', ['get', 'cor'], <--building>]`. O recorte em cache (§3)
-continua só com geometria. Trocar de variável republica o último recorte com as
-cores novas, sem refazê-lo.
-
-O teste "em que setor está este prédio?" é uma busca linear com filtro de bbox mais
-point-in-polygon. Ele é guardado **por prédio**: pan e zoom republicam os mesmos
-prédios, então só prédio novo paga o teste. Se pesar em bairros muito grandes, o
-próximo passo é um índice espacial.
+Nada disso é calculado por prédio em tempo de execução. Cada prédio já traz
+`cd_setor` e `cd_bairro` no tile (§3), e a cor é uma única expressão:
+`['match', ['get', 'cd_setor'], <setor>, <cor>, …, ['match', ['get', 'cd_bairro'], …, <--building>]]`.
+Ela é montada a partir das mesmas quebras e cores da legenda: `useChoropleth` guarda
+o `codigo` de cada área junto do `valor`. Trocar de variável ou de tema é só um
+`setPaintProperty`.
 
 ### A legenda acompanha a ficha
 
