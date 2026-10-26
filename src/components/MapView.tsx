@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Map, MapControls } from "@/components/ui/map";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useThemeTokens } from "@/hooks/useThemeTokens";
@@ -31,7 +32,7 @@ import { FloatingTitle } from "./map/FloatingTitle";
 import { ThemeSwitcher } from "./buttons/themeSwitcher/ThemeSwitcher";
 import { ThemeSwitcherPopoverButton } from "./buttons/themeSwitcher/ThemeSwitcherPopoverButton";
 import { SearchBox } from "./SearchBox";
-import { MostrarFichaIcon } from "./icons";
+import { AtlasVdcLogo, MostrarFichaIcon } from "./icons";
 import { Sidebar } from "./panel/Sidebar";
 import { BottomSheet } from "./panel/BottomSheet";
 
@@ -230,6 +231,13 @@ export function MapView() {
 
         <div className="pointer-events-none absolute inset-0 z-10">
           <div className="pointer-events-auto absolute top-4.5 left-4.5 right-4.5 flex items-center gap-2">
+            <Link
+              href="/"
+              aria-label="Página inicial do AtlasVDC"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-cv-border bg-panel text-ink shadow-[0_4px_16px_rgba(0,0,0,.08)] hover:bg-panel-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              <AtlasVdcLogo className="size-6" />
+            </Link>
             <div className="w-70 max-md:w-35 shrink-0">
               <SearchBox
                 bairros={bairros}

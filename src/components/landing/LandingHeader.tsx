@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AtlasVdcLogo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { CtaButton } from './CtaButton';
 import { PALETA_TOPO } from './paleta';
@@ -43,8 +44,9 @@ export function LandingHeader({ heroId }: { heroId: string }) {
       <div className={cn(CONTAINER, 'flex h-full items-center justify-between gap-6')}>
         <Link
           href="/"
-          className="font-(family-name:--font-display) text-[22px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current"
+          className="inline-flex items-center gap-2 font-(family-name:--font-display) text-[22px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current"
         >
+          <AtlasVdcLogo className="size-7 shrink-0" />
           AtlasVDC
         </Link>
         <nav aria-label="Seções da página" className="hidden items-center gap-8 md:flex">

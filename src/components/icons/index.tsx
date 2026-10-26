@@ -112,3 +112,38 @@ export const IncertoIcon = createIcon(CircleDashed);
 export const RecolherIcon = createIcon(PanelRightClose);
 export const MostrarFichaIcon = createIcon(PanelRightOpen);
 export const CentralizarIcon = createIcon(LocateFixed);
+
+/**
+ * Marca do projeto: globo sem o quarto superior direito, com o arco, a cruz e a
+ * joia da bandeira de Vitória da Conquista. Mesmos traços de src/app/icon.svg.
+ */
+export const AtlasVdcLogo = (props: ComponentProps<'svg'>) => (
+  <svg viewBox="166 259 648 644" fill="none" stroke="currentColor" aria-hidden="true" {...props}>
+    <g strokeWidth={25}>
+      <path d="M490 283A298 298 0 1 0 788 581H490Z" />
+      <path d="M490 581V879" />
+      <path d="M192 581H490" />
+      <path d="M490 283A137 298 0 0 0 490 879A137 298 0 0 0 627 581" />
+      <path d="M260 392Q379 434 490 434" />
+      <path d="M260 770Q490 688 720 770" />
+    </g>
+    <g transform="translate(515.3 277.3) scale(1.814)" strokeWidth={6.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 34C22 16 62 16 73 34" />
+      <path d="M10 23L42 50L74 23" />
+      <path d="M42 3V56" />
+      <path d="M35 10L42 2L49 10" />
+      <path d="M35 62L42 55L49 62" />
+    </g>
+    <path
+      transform="translate(656.6 275) scale(2.094)"
+      fill="currentColor"
+      stroke="none"
+      d="M8.5 57Q23.5 45 34 37V17H28V8H34V0H43V8H50V17H43V37Q53.5 45 68.5 57Z"
+    />
+    <g transform="translate(611 425.4) scale(2.926)" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 0.5H21L27.5 8V31L21 38.5H7L0.5 31V8Z" strokeWidth={4} />
+      <path d="M7 8H21V31H7Z" />
+      <path d="M7 0.5V8H0.5M21 0.5V8H27.5M7 38.5V31H0.5M21 38.5V31H27.5" />
+    </g>
+  </svg>
+);
