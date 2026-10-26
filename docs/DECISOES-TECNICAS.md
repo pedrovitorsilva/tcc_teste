@@ -171,6 +171,39 @@ como volume em um ângulo inclinado. De cima, elas parecem apenas um preenchimen
 plano. Ao fechar a seleção, o mapa volta para a vista superior, que é a leitura
 cartográfica padrão do projeto.
 
+### O botão voltar do navegador percorre a hierarquia
+
+Voltar (botão do navegador, botão ou gesto do celular) sobe a hierarquia antes de
+sair da página: loteamento → bairro-pai → mapa geral → página anterior. Vale também
+para um loteamento aberto direto pela busca: o voltar passa pelo bairro.
+
+A seleção vive no histórico como até 2 entradas por cima da entrada-base da página,
+sem mudar a URL:
+
+```
+base (sem seleção)  →  E1 [bairro]  →  E2 [bairro, loteamento]
+```
+
+Cada entrada guarda a cadeia em `history.state.cvChain` (só `{ level, featureId }`, o
+objeto completo vem do índice). O Next 14.2 aceita `history.pushState` nativo: ele
+copia o próprio estado interno e trata o `popstate` só reaplicando a mesma URL.
+
+A regra (`lib/map/selectionHistory.ts`, pura) minimiza as entradas:
+
+* trocar de bairro ou de loteamento no mesmo nível **substitui** a entrada, não empilha;
+* descer empilha só o que falta;
+* subir (estava no loteamento e clicou em outro bairro) faz `history.go` e substitui a
+  entrada onde chegou, sem a seleção piscar no bairro intermediário.
+
+Fechar a ficha (X, Esc, arrastar a folha) e o "‹ voltar" usam o mesmo caminho: fechar
+faz `history.go(-profundidade)` e o "‹ voltar para [bairro]" é um `history.back()`.
+Assim o histórico nunca fica com entradas sobrando.
+
+Limites conhecidos: popovers, busca e a ficha recolhida não ganham entrada de
+histórico, e a URL não carrega a seleção (sem link direto para um bairro). Depois de
+subir de nível, a entrada antiga continua como "avançar", como em qualquer navegador.
+Recarregar a página limpa a entrada atual (o estado React da seleção se perde).
+
 ### Toda layer é recriável
 
 Trocar o tema recarrega o style inteiro do MapLibre. Isso remove sources e layers
