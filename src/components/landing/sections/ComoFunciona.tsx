@@ -25,7 +25,7 @@ const PASSOS = [
 export function ComoFunciona() {
   return (
     <section id="como-funciona" className="grid scroll-mt-16 md:grid-cols-2">
-      <div className="flex items-center justify-center bg-panel-2 px-10 py-16 md:py-24">
+      <div className="order-last flex items-center justify-center bg-panel-2 px-10 py-16 md:order-none md:py-24">
         <figure className="w-full max-w-sm">
           <MapImage className="w-full" />
           <figcaption className="mt-5 text-center text-[14px] text-ink-soft">
