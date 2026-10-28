@@ -30,8 +30,18 @@ import type { ThemeTokens } from "@/hooks/useThemeTokens";
 import type { HoveredBairro, Selection } from "@/types/map";
 
 /** LOD nativo: prédio pequeno some em zoom baixo (o MapLibre avalia o filtro por zoom de tile). */
-const filtroLod = (mobile: boolean) =>
-  [">=", ["get", "area"], ["step", ["zoom"], ...(mobile ? LOD_MIN_AREA_STEPS_MOBILE : LOD_MIN_AREA_STEPS)]] as unknown as FilterSpecification;
+function filtroPredios(mobile: boolean, cdBairro: string | null): FilterSpecification {
+  const lod = [">=", ["get", "area"], ["step", ["zoom"], ...(mobile ? LOD_MIN_AREA_STEPS_MOBILE : LOD_MIN_AREA_STEPS)]];
+  if (!mobile) return lod as unknown as FilterSpecification;
+  // Celular: só o bairro da seleção; sem seleção, nenhum prédio. Trocar de bairro refaz os tiles no worker.
+  return ["all", lod, ["==", ["get", "cd_bairro"], cdBairro ?? ""]] as unknown as FilterSpecification;
+}
+
+/** Bairro/distrito da seleção, no código dos tiles: bairro e setor têm `cd_unidade`; loteamento, o `cd_bairro` do pai. */
+function bairroDaSelecao(selection: Selection | null): string | null {
+  const code = selection?.properties.cd_unidade ?? selection?.properties.cd_bairro;
+  return code == null ? null : String(code);
+}
 
 interface Metadados {
   por_unidade: Record<string, number>;
@@ -84,7 +94,7 @@ interface Buildings3DProps {
   choropleth: Choropleth | null;
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
   enabled: boolean;
-  /** Celular: LOD mais agressivo (`LOD_MIN_AREA_STEPS_MOBILE`). */
+  /** Celular: LOD mais agressivo e só os prédios do bairro selecionado (loteamento → bairro-pai). */
   mobile: boolean;
   selection: Selection | null;
   hoveredBairro: HoveredBairro | null;
@@ -112,6 +122,8 @@ export function Buildings3D({
   const [metadados, setMetadados] = useState<Metadados | null>(null);
 
   const target = useClipTarget(enabled, selection, hoveredBairro, bairros, loteamentos);
+  // Só a seleção, nunca o hover: cada troca de bairro refaz os tiles.
+  const cdBairro = mobile ? bairroDaSelecao(selection) : null;
 
   // Cor: setor → bairro → tema, toda numa expressão (o código de cada prédio vem no tile).
   const corPaint = useMemo((): ExpressionSpecification | string => {
@@ -157,7 +169,7 @@ export function Buildings3D({
         source: BUILDINGS_SOURCE_ID,
         "source-layer": BUILDINGS_SOURCE_LAYER,
         minzoom: BUILDINGS_MIN_ZOOM,
-        filter: filtroLod(mobile),
+        filter: filtroPredios(mobile, cdBairro),
         paint: {
           "fill-extrusion-color": corPaint,
           "fill-extrusion-base": 0,
@@ -183,11 +195,11 @@ export function Buildings3D({
     onCountChangeRef.current?.(target ? contagemDoAlvo(target, metadados) : 0);
   }, [enabled, target, metadados]);
 
-  // Cruzou o breakpoint (girar o celular, redimensionar): troca só o LOD.
+  // Cruzou o breakpoint (girar o celular, redimensionar) ou, no celular, mudou o bairro.
   useEffect(() => {
     if (!map || !isLoaded || !enabled || !map.getLayer(BUILDINGS_LAYER_ID)) return;
-    map.setFilter(BUILDINGS_LAYER_ID, filtroLod(mobile));
-  }, [map, isLoaded, enabled, mobile]);
+    map.setFilter(BUILDINGS_LAYER_ID, filtroPredios(mobile, cdBairro));
+  }, [map, isLoaded, enabled, mobile, cdBairro]);
 
   // Tema ou mapa de calor mudou: só a expressão de cor (nenhum dado a reprocessar).
   useEffect(() => {

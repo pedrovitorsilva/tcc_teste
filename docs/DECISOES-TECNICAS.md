@@ -414,8 +414,19 @@ inclinada e a tela 3× pesavam junto. Quatro ajustes, todos em `config/buildings
 * **Inclinação 35° em vez de 50°** ao enquadrar no celular
   (`SELECTION_PITCH_MOBILE`): menos horizonte, menos tiles.
 
-Se ainda não bastar: filtrar pelo `cd_bairro` da seleção (≤ 13,9 mil prédios, mas
-cada seleção refaz os tiles) ou desenhar os prédios em 2D até o z15.
+* **Só o bairro selecionado.** No celular, o filtro da layer soma
+  `cd_bairro == bairro da seleção` ao LOD. Um loteamento usa o bairro-pai (`cd_bairro`
+  dele); bairro e setor usam `cd_unidade`. Sem seleção, nenhum prédio. Desenha no
+  máximo 13,9 mil prédios (o maior bairro; mediana 4,4 mil), seja qual for o
+  enquadramento.
+
+O custo do último item é a exceção à regra acima ("selecionar não faz o worker refazer
+nenhum tile"): no celular, trocar de bairro faz o worker refazer os tiles carregados a
+partir do dado já baixado, sem rede. Trocar de loteamento dentro do mesmo bairro não
+muda o filtro. Por isso o filtro usa só a seleção, nunca o hover. Os tiles continuam
+sendo baixados sem seleção; o filtro só evita triangulá-los.
+
+Se ainda não bastar: desenhar os prédios em 2D até o z15.
 
 ### Histórico: a Fase 1 (recorte por tile em JavaScript)
 
