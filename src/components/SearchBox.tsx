@@ -32,7 +32,11 @@ export function SearchBox({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = query
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
     if (!normalizedQuery) {
       return [];
