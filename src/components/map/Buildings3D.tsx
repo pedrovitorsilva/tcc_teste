@@ -92,7 +92,7 @@ interface Buildings3DProps {
    * valor → a do bairro; nenhum → `tokens.building`. `null` = cor do tema.
    */
   choropleth: Choropleth | null;
-  /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
+  /** Liga/desliga a exibição — on por padrão; desligado, nenhum request de tile. */
   enabled: boolean;
   /** Celular: LOD mais agressivo e só os prédios do bairro selecionado (loteamento → bairro-pai). */
   mobile: boolean;

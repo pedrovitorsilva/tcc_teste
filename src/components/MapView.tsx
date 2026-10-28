@@ -69,7 +69,7 @@ export function MapView() {
   );
   const [buildingCount, setBuildingCount] = useState(0);
   const [vehiclesCount, setVehiclesCount] = useState(0);
-  const [buildingsEnabled, setBuildingsEnabled] = useState(false);
+  const [buildingsEnabled, setBuildingsEnabled] = useState(true);
   const [vegetationEnabled, setVegetationEnabled] = useState(false);
   const [waterEnabled, setWaterEnabled] = useState(false);
   const [carsEnabled, setCarsEnabled] = useState(false);
