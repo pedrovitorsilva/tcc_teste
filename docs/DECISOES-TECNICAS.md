@@ -188,6 +188,12 @@ Cada entrada guarda a cadeia em `history.state.cvChain` (só `{ level, featureId
 objeto completo vem do índice). O Next 14.2 aceita `history.pushState` nativo: ele
 copia o próprio estado interno e trata o `popstate` só reaplicando a mesma URL.
 
+Por isso a `cvChain` é **mesclada** ao estado da entrada, nunca o substitui. O Next só
+intercepta `pushState`/`replaceState` num `useEffect` do `AppRouter`, que roda depois
+dos efeitos do mapa. Ao abrir `/map` direto (URL, F5), o `replaceState` da montagem
+apagava o `__NA` do Next, e o `popstate` do fechar caía no `window.location.reload()`
+dele. Entrando pela landing (`<Link>`) o problema não aparecia.
+
 A regra (`lib/map/selectionHistory.ts`, pura) minimiza as entradas:
 
 * trocar de bairro ou de loteamento no mesmo nível **substitui** a entrada, não empilha;

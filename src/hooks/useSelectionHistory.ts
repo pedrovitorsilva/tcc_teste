@@ -35,7 +35,7 @@ export function useSelectionHistory(restore: (chain: Chain) => void): SelectionH
 
   useEffect(() => {
     // Recarregar com a entrada de uma seleção deixaria o histórico dizendo "bairro" com o estado React vazio.
-    window.history.replaceState({ cvChain: [] as Chain }, '');
+    aplicarOps([{ type: 'replace', chain: [] }], window.history);
 
     const onPopState = (event: PopStateEvent) => {
       if (pendingRef.current) {

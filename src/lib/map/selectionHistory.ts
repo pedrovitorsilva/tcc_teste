@@ -68,7 +68,8 @@ export function planejar(cur: Chain, next: Chain): HistoryPlan {
 
 export function aplicarOps(ops: HistoryOp[], h: HistoryLike): void {
   for (const op of ops) {
-    const state = { cvChain: op.chain };
+    // Mescla, não substitui: sem o `__NA` do Next, o `popstate` dele recarrega a página (DECISOES-TECNICAS §2).
+    const state = { ...(h.state as object | null), cvChain: op.chain };
     if (op.type === 'push') h.pushState(state, '');
     else h.replaceState(state, '');
   }
