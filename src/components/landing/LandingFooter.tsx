@@ -19,7 +19,7 @@ export function LandingFooter() {
             Pedro Vitor Oliveira da Silva, IFBA - Vitória da Conquista, Pós Graduação em Desenvolvimento Web - 2026.
           </p>
           <div className="flex items-center gap-6">
-            <CtaButton text="Ler Projeto" href="/api/projeto" variant="contorno" target="_blank" />
+            <CtaButton text="Ler Projeto" href="/docs/Projeto_Pesquisa_Pedro_Silva_PGDW2026.pdf" variant="contorno" target="_blank" />
             <ThemeSwitcher />
           </div>
         </div>

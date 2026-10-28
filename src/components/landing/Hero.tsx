@@ -36,7 +36,7 @@ export function Hero({ id }: { id: string }) {
         </Texto>
         <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4">
           <CtaButton text="Abrir o mapa" href="/map" variant="claro" />
-          <CtaButton text="Ler Artigo (PDF)" href="/api/projeto" variant="contorno" target="_blank" />
+          <CtaButton text="Ler Artigo (PDF)" href="/docs/Projeto_Pesquisa_Pedro_Silva_PGDW2026.pdf" variant="contorno" target="_blank" />
         </div>
         <p className="mt-4 text-[14px] text-ink-soft">Grátis, sem cadastro, abre no navegador.</p>
       </div>

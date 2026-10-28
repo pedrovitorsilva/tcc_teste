@@ -21,7 +21,7 @@ export function Dados() {
           </Texto>
           <CtaButton
             text="Ler o projeto completo (PDF)"
-            href="/api/projeto"
+            href="/docs/Projeto_Pesquisa_Pedro_Silva_PGDW2026.pdf"
             variant="contorno"
             target="_blank"
             className="mt-6"
