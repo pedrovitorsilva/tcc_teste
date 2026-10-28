@@ -6,10 +6,11 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 
 /**
  * Painel acima do botão, alinhado à esquerda; em tablet e celular (< lg) fica
- * centralizado na vertical da tela, com rolagem se não couber.
+ * centralizado na horizontal da tela, logo acima da fileira de botões do mapa
+ * (`bottom-4.5` + botão `h-11` + 8px, em MapView), com rolagem se não couber.
  */
 export const PANEL_ABOVE_CENTERED_BELOW_LG =
-  "bottom-[calc(100%+8px)] left-0 max-lg:fixed max-lg:bottom-auto max-lg:left-4.5 max-lg:top-1/2 max-lg:-translate-y-1/2 max-lg:max-h-[calc(100dvh-2rem)] max-lg:overflow-y-auto";
+  "bottom-[calc(100%+8px)] left-0 max-lg:fixed max-lg:bottom-[calc(1.125rem+2.75rem+8px)] max-lg:left-1/2 max-lg:-translate-x-1/2 max-lg:max-h-[calc(100dvh-1.125rem-2.75rem-8px-1rem)] max-lg:overflow-y-auto";
 
 interface IconPopoverButtonProps {
   icon: ReactNode;
