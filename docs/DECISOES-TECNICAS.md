@@ -19,6 +19,7 @@
 * [§4 — Dependências evitadas](#4--dependências-evitadas)
 * [§5 — Armadilhas de manutenção](#5--armadilhas-de-manutenção)
 * [§6 — Visualizações e mapas de calor](#6--visualizações-e-mapas-de-calor)
+* [§7 — O clipe do Recreio na landing](#7--o-clipe-do-recreio-na-landing)
 
 ---
 
@@ -674,3 +675,71 @@ o `codigo` de cada área junto do `valor`. Trocar de variável ou de tema é só
   flutua no mapa, ao lado dos botões, quando a ficha está fechada ou recolhida.
 * **Mobile:** a legenda aparece **só na ficha**. Na tela pequena, um cartão
   flutuante a mais cobriria o próprio mapa que ele explica.
+
+---
+
+## §7 — O clipe do Recreio na landing
+
+*Código relacionado: `src/components/landing/figures/RecreioClip.tsx`,
+`RecreioClipPlayer.tsx`, `recreioClipDados.ts`, bloco `.cv-clip` em
+`src/app/globals.css` e `public/videos/`.*
+
+A seção "Como funciona" mostra o método num bairro real. O Recreio foi escolhido
+por ter poucos setores e loteamentos (12 e 5), casos dos dois tipos (setor repartido
+e loteamento que soma setores) e nenhum loteamento vindo de bairro vizinho.
+
+### Pontos de verdade, não ilustração
+
+Cada ponto vale 10 pessoas (620 no total). Ele **nasce** num lugar sorteado dentro
+do seu setor (o IBGE diz quantas pessoas há no setor, não onde) e **vai** para uma
+casa real do CNEFE (domicílio particular) do mesmo setor. A divisão é
+estratificada: em cada setor, os pontos se repartem entre os loteamentos na
+proporção das casas, que é o próprio método. Só a casa de destino é sorteada.
+
+Os rótulos do ato 3 mostram a parte de cada loteamento que vem dos setores do
+Recreio (`alocacao` dos setores). O total do loteamento no ETL também soma setores
+de bairros vizinhos (N. Sra. de Fátima: 1.563 no Recreio, 1.767 no total, que é o
+que a ficha do app mostra).
+
+Do CNEFE só vai para o repositório a posição projetada de cada ponto, arredondada
+a 0,1 px. Nenhum endereço ou código.
+
+### SVG no servidor, animação em CSS
+
+`recreioClipDados.ts` foi gerado uma vez, a partir da prévia validada
+(`temp/gerar-previa-recreio.mjs`, fora do repositório). Não há script de
+preparo: os dados só mudam se o recorte ou o ETL do Recreio mudarem.
+
+O SVG é renderizado no servidor, como a `MapasMaup`. Cada ponto é um `<circle>`
+com `--x0/--y0/--x1/--y1/--d`, e o movimento é um keyframe de `transform`. Não há
+biblioteca de animação nem JavaScript por ponto. O `RecreioClipPlayer` só:
+
+* põe `.on` quando a figura aparece (IntersectionObserver, 40%) e tira ao sair;
+  voltar à figura recomeça do zero;
+* só então define `src` do vídeo: antes de rolar até a seção, nada de `/videos/`
+  é baixado, e só o vídeo do tema ativo;
+* dá `play()` no vídeo perto do fim da parte em CSS, e recomeça 2 s depois que ele
+  termina;
+* com movimento reduzido, não anima: mostra o último quadro do vídeo
+  (`-fim.webp`).
+
+A duração (10,4 s) está em `--t` e em `T` do player; as porcentagens dos keyframes
+valem para 10,4 s. Mudou a duração, refaça as porcentagens.
+
+### O vídeo encaixa no SVG
+
+O vídeo é o app de verdade (390×844, layout de celular), um por tema. A câmera foi
+fixada antes de gravar: selecionar o Recreio pela busca, fechar com Esc (a
+inclinação volta a 0 e centro/zoom ficam) e então gravar a segunda seleção. Assim
+o primeiro quadro é plano, com o Recreio no mesmo lugar do SVG, e no vídeo só a
+inclinação anima enquanto a folha sobe.
+
+O SVG usa a mesma projeção (Web Mercator, tile 512, centro
+`[-40.83622, -14.86957]`, zoom 13,7791, padding 0), conferida contra
+`map.project()` nos cantos da bbox do bairro.
+
+Gravação: `temp/gravar-recreio.js` pelo Playwright, com o `npm run dev` no ar.
+A página sai a 1,25× no quadro do vídeo, então o ffmpeg recorta
+`crop=488:1054:0:0`. No dev, o StrictMode faz o `ThemeProvider` regravar "light"
+no `localStorage` antes de ler o tema salvo; o script de gravação força a chave.
+Regravar só faz sentido se a interface do mapa mudar de forma visível.
