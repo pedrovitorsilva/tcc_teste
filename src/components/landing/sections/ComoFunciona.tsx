@@ -1,5 +1,5 @@
 import { CtaButton } from '../CtaButton';
-import { MapImage } from '../figures/MapImage';
+import { RecreioClip } from '../figures/RecreioClip';
 import { Rotulo, Titulo } from '../Tipografia';
 
 // É uma sequência de verdade (cada passo usa o anterior), por isso numerada.
@@ -21,15 +21,15 @@ const PASSOS = [
   },
 ];
 
-/** O método em três passos, ao lado do mapa da cidade. */
+/** O método em três passos, ao lado do clipe do Recreio. */
 export function ComoFunciona() {
   return (
     <section id="como-funciona" className="grid scroll-mt-16 md:grid-cols-2">
-      <div className="order-last flex items-center justify-center bg-panel-2 px-10 py-16 md:order-none md:py-24">
-        <figure className="w-full max-w-sm">
-          <MapImage className="w-full" />
+      <div className="order-last flex items-center justify-center bg-panel-2 px-10 py-16 md:order-0 md:py-24">
+        <figure className="w-full max-w-[320px]">
+          <RecreioClip />
           <figcaption className="mt-5 text-center text-[14px] text-ink-soft">
-            Vitória da Conquista, dividida em bairros.
+            A animação acima mostra como as 6.176 pessoas do bairro Recreio foram divididas, cmo base nos endereços do Censo.
           </figcaption>
         </figure>
       </div>
