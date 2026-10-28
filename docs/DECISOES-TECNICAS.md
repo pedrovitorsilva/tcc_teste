@@ -399,6 +399,24 @@ O LOD é parte do `filter` da layer:
 todos a partir do z16. É a mesma curva do `lodMinAreaM2`, discretizada por zoom
 inteiro, porque o MapLibre avalia filtros pelo zoom de cada tile.
 
+### Desempenho no celular
+
+O pior tile z13 tem 27.362 prédios (~337 mil triângulos). No celular, a câmera
+inclinada e a tela 3× pesavam junto. Quatro ajustes, todos em `config/buildings.ts`:
+
+* **Opacidade 1.** Com `fill-extrusion-opacity` < 1, o MapLibre desenha toda
+  extrusion duas vezes por frame (passada de profundidade e de cor). Em 1, uma só.
+* **`pixelRatio` até 2** (`MAX_PIXEL_RATIO`). Telas 3× pintam 9 pixels por pixel
+  CSS; 2× pinta 4. Vale para qualquer tela, mas na prática só limita celulares.
+* **LOD mais forte abaixo de 768 px** (`LOD_MIN_AREA_STEPS_MOBILE`): 150 m² no z13
+  (o pior tile cai para ~9 mil prédios) e 100 m² no z14. Do z15 em diante é igual
+  ao desktop.
+* **Inclinação 35° em vez de 50°** ao enquadrar no celular
+  (`SELECTION_PITCH_MOBILE`): menos horizonte, menos tiles.
+
+Se ainda não bastar: filtrar pelo `cd_bairro` da seleção (≤ 13,9 mil prédios, mas
+cada seleção refaz os tiles) ou desenhar os prédios em 2D até o z15.
+
 ### Histórico: a Fase 1 (recorte por tile em JavaScript)
 
 Antes dos tiles próprios, uma primeira otimização (`perf/predios`) manteve a

@@ -18,6 +18,7 @@ import type {
   LayerToggles,
 } from "@/types/map";
 import { ensurePMTilesProtocol } from "@/lib/map/pmtilesProtocol";
+import { MAX_PIXEL_RATIO, SELECTION_PITCH, SELECTION_PITCH_MOBILE } from "@/config/buildings";
 import { MapLayers } from "./map/MapLayers";
 import { Buildings3D } from "./map/Buildings3D";
 import { Trees3D } from "./map/Trees3D";
@@ -162,6 +163,8 @@ export function MapView() {
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
           maxBounds={MAX_BOUNDS}
+          // Lido só na criação do mapa (client-side); na prática só limita telas 3× de celular.
+          pixelRatio={typeof window === "undefined" ? undefined : Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO)}
           styles={mapStyles}
           className="h-full w-full"
         >
@@ -181,12 +184,14 @@ export function MapView() {
             onSelect={handleSelect}
             fitPadding={fitPadding}
             recenterKey={recenterKey}
+            selectionPitch={isMobile ? SELECTION_PITCH_MOBILE : SELECTION_PITCH}
           />
           <ChoroplethLayer choropleth={choropleth} />
           <Buildings3D
             tokens={tokens}
             choropleth={choropleth}
             enabled={buildingsEnabled}
+            mobile={isMobile}
             selection={selection}
             hoveredBairro={hoveredBairro}
             bairros={bairros}

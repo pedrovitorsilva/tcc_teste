@@ -20,6 +20,7 @@ import {
   BUILDINGS_TILES_URL,
   BUILDING_EXTRUSION_OPACITY,
   LOD_MIN_AREA_STEPS,
+  LOD_MIN_AREA_STEPS_MOBILE,
 } from "@/config/buildings";
 import { corDoValor } from "@/lib/map/choropleth";
 import { useClipTarget, type ClipTarget } from "@/hooks/map/useClipTarget";
@@ -29,7 +30,8 @@ import type { ThemeTokens } from "@/hooks/useThemeTokens";
 import type { HoveredBairro, Selection } from "@/types/map";
 
 /** LOD nativo: prédio pequeno some em zoom baixo (o MapLibre avalia o filtro por zoom de tile). */
-const FILTRO_LOD = [">=", ["get", "area"], ["step", ["zoom"], ...LOD_MIN_AREA_STEPS]] as unknown as FilterSpecification;
+const filtroLod = (mobile: boolean) =>
+  [">=", ["get", "area"], ["step", ["zoom"], ...(mobile ? LOD_MIN_AREA_STEPS_MOBILE : LOD_MIN_AREA_STEPS)]] as unknown as FilterSpecification;
 
 interface Metadados {
   por_unidade: Record<string, number>;
@@ -82,6 +84,8 @@ interface Buildings3DProps {
   choropleth: Choropleth | null;
   /** Liga/desliga a exibição — off por padrão, sem nenhum request de tile. */
   enabled: boolean;
+  /** Celular: LOD mais agressivo (`LOD_MIN_AREA_STEPS_MOBILE`). */
+  mobile: boolean;
   selection: Selection | null;
   hoveredBairro: HoveredBairro | null;
   bairros: IndexedFeature[];
@@ -95,6 +99,7 @@ export function Buildings3D({
   tokens,
   choropleth,
   enabled,
+  mobile,
   selection,
   hoveredBairro,
   bairros,
@@ -152,7 +157,7 @@ export function Buildings3D({
         source: BUILDINGS_SOURCE_ID,
         "source-layer": BUILDINGS_SOURCE_LAYER,
         minzoom: BUILDINGS_MIN_ZOOM,
-        filter: FILTRO_LOD,
+        filter: filtroLod(mobile),
         paint: {
           "fill-extrusion-color": corPaint,
           "fill-extrusion-base": 0,
@@ -177,6 +182,12 @@ export function Buildings3D({
     if (!enabled) return;
     onCountChangeRef.current?.(target ? contagemDoAlvo(target, metadados) : 0);
   }, [enabled, target, metadados]);
+
+  // Cruzou o breakpoint (girar o celular, redimensionar): troca só o LOD.
+  useEffect(() => {
+    if (!map || !isLoaded || !enabled || !map.getLayer(BUILDINGS_LAYER_ID)) return;
+    map.setFilter(BUILDINGS_LAYER_ID, filtroLod(mobile));
+  }, [map, isLoaded, enabled, mobile]);
 
   // Tema ou mapa de calor mudou: só a expressão de cor (nenhum dado a reprocessar).
   useEffect(() => {

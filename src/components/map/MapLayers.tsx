@@ -44,6 +44,8 @@ interface MapLayersProps {
   fitPadding?: number | { top: number; bottom: number; left: number; right: number };
   /** Muda a cada clique em "centralizar": reenquadra a seleção depois de pan/zoom. */
   recenterKey?: number;
+  /** Inclinação ao enquadrar uma seleção (menor no celular). */
+  selectionPitch?: number;
 }
 
 export function MapLayers({
@@ -61,6 +63,7 @@ export function MapLayers({
   onSelect,
   fitPadding = 40,
   recenterKey = 0,
+  selectionPitch = SELECTION_PITCH,
 }: MapLayersProps) {
   const { map, isLoaded } = useMap();
 
@@ -140,11 +143,11 @@ export function MapLayers({
     map.fitBounds(selection.bbox, {
       padding: fitPadding,
       duration: 800,
-      pitch: SELECTION_PITCH,
+      pitch: selectionPitch,
     });
     // `recenterKey` só existe para disparar o efeito de novo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, selection, fitPadding, recenterKey]);
+  }, [map, isLoaded, selection, fitPadding, recenterKey, selectionPitch]);
 
   return null;
 }

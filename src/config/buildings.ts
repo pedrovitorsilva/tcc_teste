@@ -39,8 +39,8 @@ export const BUILDINGS_LAYER_ID = 'predios-extrusion';
  */
 export const BUILDINGS_MIN_ZOOM = 13;
 
-/** Opacity of 3D building extrusions. */
-export const BUILDING_EXTRUSION_OPACITY = 0.92;
+/** Opacity of 3D building extrusions. Must stay 1: below that MapLibre draws every extrusion twice per frame (depth pass + color pass). */
+export const BUILDING_EXTRUSION_OPACITY = 1;
 
 /** Minimum area (m²) for a building to get 3D extrusion at minimum zoom — decreases
  * linearly to 0 at LOD_FULL_DETAIL_ZOOM, where all appear. */
@@ -56,6 +56,9 @@ export const LOD_FULL_DETAIL_ZOOM = 16;
  */
 export const LOD_MIN_AREA_STEPS = [60, 14, 40, 15, 20, 16, 0] as const;
 
+/** Mobile LOD: z13 150 m² (worst tile 27k → ~9k buildings), z14 100 m²; z15+ as desktop. */
+export const LOD_MIN_AREA_STEPS_MOBILE = [150, 14, 100, 15, 20, 16, 0] as const;
+
 /**
  * Required attribution for the data source.
  * Displayed automatically by the map attribution control.
@@ -68,3 +71,9 @@ export const BUILDINGS_ATTRIBUTION =
  * Enhances the perception of buildings as 3D volumes.
  */
 export const SELECTION_PITCH = 50;
+
+/** Lower on mobile: less horizon in view means fewer building tiles loaded and drawn. */
+export const SELECTION_PITCH_MOBILE = 35;
+
+/** Cap on the map's pixel ratio: 3× phone screens render 9 pixels per CSS pixel, 2× renders 4. */
+export const MAX_PIXEL_RATIO = 2;
