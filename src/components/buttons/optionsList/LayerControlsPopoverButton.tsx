@@ -1,6 +1,6 @@
 'use client';
 
-import { IconPopoverButton } from '../IconPopoverButton';
+import { IconPopoverButton, PANEL_ABOVE_CENTERED_BELOW_LG } from '../IconPopoverButton';
 import { LayersIcon } from '@/components/icons';
 import { LayerControls, type Camada3D } from './LayerControls';
 import type { LayerToggles } from '@/types/map';
@@ -40,7 +40,7 @@ export function LayerControlsPopoverButton({
       }
       ariaLabel={ativas3D > 0 ? `Camadas do mapa (${ativas3D} em 3D ligadas)` : 'Camadas do mapa'}
       title="Camadas"
-      panelPosition="bottom-[calc(100%+8px)] left-0"
+      panelPosition={PANEL_ABOVE_CENTERED_BELOW_LG}
       className={className}
     >
       <LayerControls toggles={toggles} onChange={onChange} camadas3D={camadas3D} />

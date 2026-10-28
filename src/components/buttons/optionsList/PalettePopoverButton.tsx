@@ -1,6 +1,6 @@
 'use client';
 
-import { IconPopoverButton } from '../IconPopoverButton';
+import { IconPopoverButton, PANEL_ABOVE_CENTERED_BELOW_LG } from '../IconPopoverButton';
 import { PaletteIcon } from '@/components/icons';
 import { PaletteControls } from './PaletteControls';
 
@@ -13,7 +13,7 @@ export function PalettePopoverButton({ className }: { className?: string }) {
       icon={<PaletteIcon className="h-4 w-4" />}
       ariaLabel="Cores das camadas"
       title="Cores das camadas"
-      panelPosition="bottom-[calc(100%+8px)] left-0"
+      panelPosition={PANEL_ABOVE_CENTERED_BELOW_LG}
       className={className}
     >
       <PaletteControls />

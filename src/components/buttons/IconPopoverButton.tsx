@@ -4,6 +4,13 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useClickOutside } from "@/hooks/useClickOutside";
 
+/**
+ * Painel acima do botão, alinhado à esquerda; em tablet e celular (< lg) fica
+ * centralizado na vertical da tela, com rolagem se não couber.
+ */
+export const PANEL_ABOVE_CENTERED_BELOW_LG =
+  "bottom-[calc(100%+8px)] left-0 max-lg:fixed max-lg:bottom-auto max-lg:left-4.5 max-lg:top-1/2 max-lg:-translate-y-1/2 max-lg:max-h-[calc(100dvh-2rem)] max-lg:overflow-y-auto";
+
 interface IconPopoverButtonProps {
   icon: ReactNode;
   ariaLabel: string;

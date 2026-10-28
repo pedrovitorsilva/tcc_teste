@@ -1,6 +1,6 @@
 'use client';
 
-import { IconPopoverButton } from '../IconPopoverButton';
+import { IconPopoverButton, PANEL_ABOVE_CENTERED_BELOW_LG } from '../IconPopoverButton';
 import { Caixa } from './LayerControls';
 import { MapIcon } from '@/components/icons';
 import { GRUPOS_VISUALIZACAO, type VisualizacaoId } from '@/config/visualizacoes';
@@ -23,7 +23,7 @@ export function VisualizacoesPopoverButton({
       icon={<MapIcon className="h-4 w-4" />}
       ariaLabel="Visualizações do mapa"
       title="Visualizações"
-      panelPosition="bottom-[calc(100%+8px)] left-0"
+      panelPosition={PANEL_ABOVE_CENTERED_BELOW_LG}
       className={className}
     >
       <div className="w-64 rounded-[10px] border border-cv-border bg-panel p-2 shadow-[0_4px_16px_rgba(0,0,0,.08)]">
