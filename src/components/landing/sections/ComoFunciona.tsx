@@ -25,11 +25,11 @@ const PASSOS = [
 export function ComoFunciona() {
   return (
     <section id="como-funciona" className="grid scroll-mt-16 md:grid-cols-2">
-      <div className="order-last flex items-center justify-center bg-panel-2 px-10 py-16 md:order-none md:py-24">
+      <div className="order-last flex items-center justify-center bg-panel-2 px-10 py-16 md:order-0 md:py-24">
         <figure className="w-full max-w-[320px]">
           <RecreioClip />
           <figcaption className="mt-5 text-center text-[14px] text-ink-soft">
-            Recreio: as 6.176 pessoas do Censo levadas às casas do cadastro de endereços. Cada ponto, 10 pessoas.
+            A animação acima mostra como as 6.176 pessoas do bairro Recreio foram divididas, cmo base nos endereços do Censo.
           </figcaption>
         </figure>
       </div>
