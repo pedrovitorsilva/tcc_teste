@@ -73,6 +73,8 @@ export interface UnidadeProperties extends BlocosCenso {
   enderecos_cnefe: Record<string, number>;
   escolas: Escolas;
   contem_sigilo: string[];
+  /** Só bairros: população fora de qualquer loteamento (Eq. 2 somada); `tem_area` = virou sobra hachurada. */
+  residuo?: { pop: number; pct: number; tem_area: boolean };
 }
 
 export interface LoteamentoProperties {
@@ -95,6 +97,8 @@ export interface LoteamentoProperties {
     enderecos_compartilhados: number;
     contem_sigilo: string[];
     pct_coord_precisas: number | null;
+    /** Erro absoluto percentual mediano da validação do método (igual em todos os loteamentos). */
+    erro_tipico_metodo?: number;
   };
 }
 

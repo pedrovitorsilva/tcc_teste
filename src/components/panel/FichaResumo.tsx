@@ -12,15 +12,18 @@ import type { Resumo } from "@/lib/resumo";
 interface Kpi {
   rotulo: string;
   valor: string;
+  /** Linha menor sob o valor (ex.: erro típico de uma estimativa). */
+  detalhe?: string;
 }
 
 export function NumerosChave({ itens }: { itens: Kpi[] }) {
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-      {itens.map(({ rotulo, valor }) => (
+      {itens.map(({ rotulo, valor, detalhe }) => (
         <div key={rotulo} className="min-w-0">
           <dt className="cv-kicker not-italic">{rotulo}</dt>
           <dd className="cv-kpi">{valor}</dd>
+          {detalhe && <dd className="cv-note-body">{detalhe}</dd>}
         </div>
       ))}
     </dl>

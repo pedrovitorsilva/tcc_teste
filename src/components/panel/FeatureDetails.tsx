@@ -7,6 +7,10 @@ import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
 import { Models3DNote } from "@/components/panel/Models3DNote";
 import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
+import { Selo } from "@/components/panel/Selo";
+import { HachuraAmostra } from "@/components/panel/HachuraAmostra";
+import { ComoLer } from "@/components/panel/ComoLer";
+import { LinhaComAmostra } from "@/components/panel/LinhaComAmostra";
 import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
@@ -23,6 +27,7 @@ import { rotuloUnidade } from "@/config/levels";
 import { fmt } from "@/config/indicadores";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import { resumir, type Resumo } from "@/lib/resumo";
+import { textoSobra } from "@/lib/qualidade";
 import type {
   AreaPonderacaoProperties,
   LevelId,
@@ -188,6 +193,7 @@ function BairroBody({
   const children = loteamentos.filter((l) => l.parentBairro === bairroName);
   const resumo = resumir([unidade]);
   const tipo = rotuloUnidade(unidade.tipo);
+  const sobra = textoSobra(unidade.residuo);
   const series: Serie[] = [
     { rotulo: tipo === "distrito" ? "Este distrito" : "Este bairro", resumo, cor: "var(--bairro)" },
     ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)", referencia: true }] : []),
@@ -205,9 +211,18 @@ function BairroBody({
           { rotulo: "Área", valor: fmt.km2(unidade.area_km2) },
         ]}
       />
+      <LinhaComAmostra className="mt-2" amostra={<Selo tipo="oficial" />}>
+        Censo 2022, soma dos setores do IBGE.
+      </LinhaComAmostra>
+      {sobra && (
+        <LinhaComAmostra className="mt-1" amostra={unidade.residuo?.tem_area && <HachuraAmostra espelhada />}>
+          {sobra}
+        </LinhaComAmostra>
+      )}
       <Comparacao series={series} />
 
       <div className="mt-5">
+        <ComoLer />
         {children.length > 0 && (
           <Secao
             titulo={`Loteamentos (${children.length})`}
@@ -270,6 +285,8 @@ function LoteamentoBody({
 }) {
   const lot = selection.properties as unknown as LoteamentoProperties;
   const isReliable = lot.is_reliable !== false;
+  const erro = lot.qualidade.erro_tipico_metodo;
+  const detalhe = erro != null ? `erro típico ±${fmt.pct(erro)}` : undefined;
   const resumo = lot.estimativas ? resumir([lot.estimativas]) : null;
   const series: Serie[] = [
     ...(resumo ? [{ rotulo: "Este loteamento", resumo, cor: "var(--loteamento)" }] : []),
@@ -285,15 +302,16 @@ function LoteamentoBody({
         <>
           <NumerosChave
             itens={[
-              { rotulo: "Moradores", valor: aprox(resumo.pop) },
-              { rotulo: "Domicílios", valor: aprox(resumo.domicilios) },
+              { rotulo: "Moradores", valor: aprox(resumo.pop), detalhe },
+              { rotulo: "Domicílios", valor: aprox(resumo.domicilios), detalhe },
               { rotulo: "Densidade", valor: densidade(resumo.pop, lot.area_km2) },
               { rotulo: "Área", valor: fmt.km2(lot.area_km2) },
             ]}
           />
-          <p className="cv-note-body mt-2">
-            ≈ estimativa: Censo por setor repartido pelos endereços do CNEFE.
-          </p>
+          <LinhaComAmostra className="mt-2" amostra={<Selo tipo="estimado" />}>
+            Censo por setor repartido pelos endereços do CNEFE.
+            {erro != null && ` Erro típico do método: ±${fmt.pct(erro)}.`}
+          </LinhaComAmostra>
           <Comparacao series={series} />
         </>
       ) : (
@@ -307,6 +325,7 @@ function LoteamentoBody({
       )}
 
       <div className="mt-5">
+        <ComoLer erroTipico={erro} />
         {lot.estimativas && (
           <SecoesCenso
             dados={lot.estimativas}
@@ -318,7 +337,7 @@ function LoteamentoBody({
         <SecaoEscolas escolas={lot.escolas} foraEscola={lot.estimativas_sinteticas} />
         <SecaoEnderecos enderecos={lot.enderecos_cnefe} />
         <SecaoAreaPonderacao aps={lot.aps} areas={areasPonderacao} />
-        <SecaoQualidade qualidade={lot.qualidade} />
+        <SecaoQualidade qualidade={lot.qualidade} isReliable={isReliable} />
         {notes}
       </div>
       <NotaSigilo blocos={lot.qualidade.contem_sigilo} />

@@ -1,6 +1,6 @@
 {
  "_id": "metadados",
- "gerado_em": "2026-10-05T11:27:30",
+ "gerado_em": "2026-10-29T11:51:41",
  "municipio": {
   "cd_mun": "2933307",
   "nm_mun": "Vitória da Conquista",
@@ -47,15 +47,17 @@
   "max_variaveis_cruzadas": 2,
   "sigilo_ibge": "X → null; somas que incluem setor em sigilo listam o bloco em contem_sigilo",
   "alocacao": "peso = endereços residenciais do CNEFE (espécies 1 e 2) na interseção setor × loteamento / endereços do setor; resíduo = 1 − Σ peso",
+  "sobra": "bairro menos a união dos loteamentos; abertura de 3 m e peças < 2.500 m² descartadas; pop_sem_loteamento = resíduo somado por bairro",
   "estimativa_sintetica": "população alocada da faixa etária × taxa pct_fora_escola_<faixa> da AP do setor",
+  "erro_metodo": "validação agregar-desagregar: bairro → setores pelos endereços do CNEFE (ver validacao.erro_metodo)",
   "crs": "EPSG:4326, 6 casas decimais"
  },
  "validacao": {
   "pop_total_setores": 370879,
-  "pop_alocada_loteamentos": 294160.4,
-  "pop_residuo_bairros": 24578.6,
+  "pop_alocada_loteamentos": 297920.0,
+  "pop_residuo_bairros": 20819.0,
   "pop_sem_alocacao_distritos_zona_rural": 52140.0,
-  "enderecos_em_loteamentos_fora_de_bairro": 79.5,
+  "enderecos_em_loteamentos_fora_de_bairro": 84.0,
   "pares_loteamentos_sobrepostos": [],
   "escolas_excluidas": {
    "ESCOLA PARALISADA": 169,
@@ -70,7 +72,15 @@
   },
   "setores_sem_area_domiciliada": 119,
   "setores_sem_agregado_tematico": 5,
-  "indicadores_ap_suprimidos": 4
+  "indicadores_ap_suprimidos": 4,
+  "erro_metodo": {
+   "mdape": 0.079,
+   "p90_ape": 0.2904,
+   "wape": 0.1116,
+   "n_setores": 522,
+   "n_bairros": 24,
+   "descricao": "População oficial do bairro redistribuída aos seus setores pela proporção de endereços residenciais do CNEFE e comparada com a população oficial de cada setor. mdape = erro absoluto percentual mediano."
+  }
  },
  "descartes": [
   {
