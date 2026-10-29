@@ -782,7 +782,8 @@ de cada setor, que é conhecida.
 
 O "erro típico" mostrado na ficha é o erro absoluto percentual **mediano** desses
 setores (`mdape`): metade errou menos que isso. `p90_ape` e `wape` ficam em
-`metadados.json` (`validacao.erro_metodo`), para o texto do trabalho.
+`metadados.json` (`validacao.erro_metodo`), para o texto do trabalho. Na rodada
+de 2026-10-29: 522 setores em 24 bairros, mdape 7,9%, p90 29,0%, wape 11,2%.
 
 O que ela **mede**: a premissa "população proporcional a endereços". O que ela
 **não mede**: a geometria dos loteamentos. Um limite errado põe endereços no
@@ -794,9 +795,10 @@ loteamento vizinho, e isso aparece só na linha "Limites do loteamento".
   CNEFE: 7.082 códigos, 14.249 registros (mesmo ponto com casa e fazenda, ou dois
   domicílios). Agrupar pelo código dava ½ a cada registro repetido, mesmo dentro
   de um só loteamento. Como a `fracao` é o numerador da Eq. 1 e o denominador
-  conta registros, cerca de 1.490 endereços residenciais ficavam de fora dos
-  loteamentos, e uns 3.760 moradores caíam no resíduo. Agora a conta é por
-  registro (índice da linha).
+  conta registros, endereços residenciais ficavam de fora dos loteamentos e os
+  seus moradores caíam no resíduo. Agora a conta é por registro (índice da
+  linha). Efeito medido: população alocada de 294.160 para 297.920 e resíduo
+  urbano de 24.579 para 20.819.
 * **Coordenada precisa inclui o nível 2.** O nível 2 do `NV_GEO_COORD` é o ponto
   do prédio para apartamentos no mesmo número: 98% desses registros estão
   empilhados no mesmo ponto, com complementos como "APARTAMENTO 101". Para saber
@@ -826,9 +828,11 @@ loteamento (era o efeito do bug da `fracao`).
 
 `residuo` (ETL, Etapa 8) é a Eq. 2 somada por bairro, para **todo** bairro.
 A sobra hachurada (11.1) só existe onde o vazio entre loteamentos forma uma área
-contínua; em 8 bairros (Centro, Cruzeiro…) o resíduo está em trechos pequenos
-demais e não há hachura. `tem_area` diz qual dos dois casos é, e a frase da
-ficha muda para não mandar procurar uma hachura que não existe.
+contínua; `tem_area` diz se há hachura, e a frase da ficha muda para não mandar
+procurar uma hachura que não existe. Nos dados de 2026-10-29, os 8 bairros sem
+sobra (Centro, Cruzeiro, Recreio…) têm resíduo **zero**: o que eles tinham antes
+era efeito do bug da `fracao`. Para eles a ficha diz "Todos os moradores do
+bairro estão em algum loteamento.", em vez de "≈ 0 moradores (0,0%)".
 
 Como a sobra só é calculada na 11.1, depois que `bairros_e_distritos.geojson`
 já foi gravado, a 11.1 marca `tem_area` e regrava o arquivo.
