@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test scripts/check-transparencia.mjs",
     "prepare-data": "node scripts/prepare-lamps.mjs && node scripts/prepare-buildings.mjs"
   },
   "dependencies": {
