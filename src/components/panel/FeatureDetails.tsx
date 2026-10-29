@@ -9,6 +9,7 @@ import { Models3DNote } from "@/components/panel/Models3DNote";
 import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
 import { Selo } from "@/components/panel/Selo";
 import { HachuraAmostra } from "@/components/panel/HachuraAmostra";
+import { ComoLer } from "@/components/panel/ComoLer";
 import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
@@ -221,6 +222,7 @@ function BairroBody({
       <Comparacao series={series} />
 
       <div className="mt-5">
+        <ComoLer />
         {children.length > 0 && (
           <Secao
             titulo={`Loteamentos (${children.length})`}
@@ -323,6 +325,7 @@ function LoteamentoBody({
       )}
 
       <div className="mt-5">
+        <ComoLer erroTipico={erro} />
         {lot.estimativas && (
           <SecoesCenso
             dados={lot.estimativas}
