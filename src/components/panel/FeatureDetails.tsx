@@ -8,6 +8,7 @@ import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
 import { Models3DNote } from "@/components/panel/Models3DNote";
 import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
 import { Selo } from "@/components/panel/Selo";
+import { HachuraAmostra } from "@/components/panel/HachuraAmostra";
 import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
@@ -24,6 +25,7 @@ import { rotuloUnidade } from "@/config/levels";
 import { fmt } from "@/config/indicadores";
 import type { IndexedFeature } from "@/hooks/useGeoIndex";
 import { resumir, type Resumo } from "@/lib/resumo";
+import { textoSobra } from "@/lib/qualidade";
 import type {
   AreaPonderacaoProperties,
   LevelId,
@@ -189,6 +191,7 @@ function BairroBody({
   const children = loteamentos.filter((l) => l.parentBairro === bairroName);
   const resumo = resumir([unidade]);
   const tipo = rotuloUnidade(unidade.tipo);
+  const sobra = textoSobra(unidade.residuo);
   const series: Serie[] = [
     { rotulo: tipo === "distrito" ? "Este distrito" : "Este bairro", resumo, cor: "var(--bairro)" },
     ...(municipio ? [{ rotulo: "Município", resumo: municipio, cor: "var(--ink-faint)", referencia: true }] : []),
@@ -209,6 +212,12 @@ function BairroBody({
       <p className="cv-note-body mt-2">
         <Selo tipo="oficial" /> Censo 2022, soma dos setores do IBGE.
       </p>
+      {sobra && (
+        <p className="cv-note-body mt-1 flex items-start gap-2">
+          {unidade.residuo?.tem_area && <HachuraAmostra espelhada />}
+          <span>{sobra}</span>
+        </p>
+      )}
       <Comparacao series={series} />
 
       <div className="mt-5">
