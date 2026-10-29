@@ -7,6 +7,7 @@ import { CarsNote } from "@/components/panel/CarsNote";
 import { StreetLampsNote } from "@/components/panel/StreetLampsNote";
 import { Models3DNote } from "@/components/panel/Models3DNote";
 import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
+import { Selo } from "@/components/panel/Selo";
 import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
@@ -205,6 +206,9 @@ function BairroBody({
           { rotulo: "Área", valor: fmt.km2(unidade.area_km2) },
         ]}
       />
+      <p className="cv-note-body mt-2">
+        <Selo tipo="oficial" /> Censo 2022, soma dos setores do IBGE.
+      </p>
       <Comparacao series={series} />
 
       <div className="mt-5">
@@ -292,7 +296,7 @@ function LoteamentoBody({
             ]}
           />
           <p className="cv-note-body mt-2">
-            ≈ estimativa: Censo por setor repartido pelos endereços do CNEFE.
+            <Selo tipo="estimado" /> Censo por setor repartido pelos endereços do CNEFE.
           </p>
           <Comparacao series={series} />
         </>

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { NoteCard } from "@/components/panel/NoteCard";
+import { Selo } from "@/components/panel/Selo";
+import type { Procedencia } from "@/config/procedencia";
 import {
   AcessibilidadeIcon,
   AguaAbastecimentoIcon,
@@ -89,13 +91,25 @@ export function Linha({
  * Seção recolhível (`<details>` nativo: teclado e leitor de tela de graça).
  * Começa fechada: a ficha é longa e cada um abre só o que procura.
  */
-export function Secao({ titulo, icone, children }: { titulo: string; icone?: ReactNode; children: ReactNode }) {
+export function Secao({
+  titulo,
+  icone,
+  selo,
+  children,
+}: {
+  titulo: string;
+  icone?: ReactNode;
+  /** De onde vêm os números da seção — visível com ela fechada. */
+  selo?: Procedencia;
+  children: ReactNode;
+}) {
   return (
     <details className="group mt-3">
       <summary className="cv-sec-title flex min-h-11 cursor-pointer list-none items-center justify-between focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2">
           {icone}
           {titulo}
+          {selo && <Selo tipo={selo} />}
         </span>
         <span aria-hidden className="text-base transition-transform group-open:rotate-90">›</span>
       </summary>
@@ -205,10 +219,11 @@ export function SecoesCenso({
   const { demografia: dem, domicilios: dom, alfabetizacao: alf, renda_responsavel: renda } = dados;
   const densidade = dem.pop != null && areaDensidadeKm2 ? dem.pop / areaDensidadeKm2 : null;
   const alfTotal = (alf.alfabetizados_15_mais ?? 0) + (alf.nao_alfabetizados_15_mais ?? 0);
+  const selo: Procedencia = estimado ? "estimado" : "oficial";
 
   return (
     <>
-      <Secao titulo="População" icone={<PopulacaoIcon className="size-4 shrink-0" />}>
+      <Secao titulo="População" icone={<PopulacaoIcon className="size-4 shrink-0" />} selo={selo}>
         <Linha rotulo="Moradores" valor={qtd(dem.pop, estimado)} />
         <Linha rotulo={rotuloDensidade} valor={densidade == null ? fmt.int(null) : `${fmt.int(densidade)} hab/km²`} />
         <Linha rotulo="Homens" valor={qtd(dem.homens, estimado)} />
@@ -217,7 +232,7 @@ export function SecoesCenso({
         <PiramideEtaria dados={dem.idade} estimado={estimado} />
       </Secao>
 
-      <Secao titulo="Domicílios" icone={<DomiciliosIcon className="size-4 shrink-0" />}>
+      <Secao titulo="Domicílios" icone={<DomiciliosIcon className="size-4 shrink-0" />} selo={selo}>
         <Linha rotulo="Total" valor={qtd(dom.total, estimado)} />
         <Linha rotulo="Ocupados" valor={qtd(dom.ocupados, estimado)} />
         <Linha rotulo="De uso ocasional" valor={qtd(dom.uso_ocasional, estimado)} />
@@ -228,7 +243,7 @@ export function SecoesCenso({
         <Distribuicao rotulos={TIPO_DOMICILIO} dados={dom.tipo} estimado={estimado} />
       </Secao>
 
-      <Secao titulo="Saneamento" icone={<SaneamentoIcon className="size-4 shrink-0" />}>
+      <Secao titulo="Saneamento" icone={<SaneamentoIcon className="size-4 shrink-0" />} selo={selo}>
         {Object.entries(SANEAMENTO).map(([bloco, { titulo, itens }]) => (
           <div key={bloco}>
             <Subtitulo icone={ICONE_SANEAMENTO[bloco]}>{titulo}</Subtitulo>
@@ -237,13 +252,13 @@ export function SecoesCenso({
         ))}
       </Secao>
 
-      <Secao titulo="Alfabetização" icone={<AlfabetizacaoIcon className="size-4 shrink-0" />}>
+      <Secao titulo="Alfabetização" icone={<AlfabetizacaoIcon className="size-4 shrink-0" />} selo={selo}>
         <Linha rotulo="Taxa de alfabetização (15 anos ou mais)" valor={fmt.pct(alfTotal ? (alf.alfabetizados_15_mais ?? 0) / alfTotal : null)} />
         <Linha rotulo="Alfabetizados (15 anos ou mais)" valor={qtd(alf.alfabetizados_15_mais, estimado)} />
         <Linha rotulo="Não alfabetizados (15 anos ou mais)" valor={qtd(alf.nao_alfabetizados_15_mais, estimado)} />
       </Secao>
 
-      <Secao titulo="Renda" icone={<RendaIcon className="size-4 shrink-0" />}>
+      <Secao titulo="Renda" icone={<RendaIcon className="size-4 shrink-0" />} selo={selo}>
         <Linha rotulo="Rendimento médio do responsável" valor={fmt.brl(renda.rendimento_medio)} />
         <Linha rotulo="Responsáveis por domicílio" valor={qtd(renda.responsaveis, estimado)} />
       </Secao>
@@ -261,12 +276,14 @@ export function SecaoEscolas({
 }) {
   const soma = (r: Record<string, number>) => Object.values(r).reduce((s, n) => s + n, 0);
   return (
-    <Secao titulo="Escolas" icone={<EscolasIcon className="size-4 shrink-0" />}>
+    <Secao titulo="Escolas" icone={<EscolasIcon className="size-4 shrink-0" />} selo="oficial">
       <Linha rotulo="Escolas públicas" valor={fmt.int(soma(escolas.publicas))} />
       <Linha rotulo="Escolas particulares" valor={fmt.int(soma(escolas.particulares))} />
       {foraEscola && (
         <>
-          <Subtitulo icone={<ForaEscolaIcon className={ICONE_SUB} />}>Fora da escola (estimativa)</Subtitulo>
+          <Subtitulo icone={<ForaEscolaIcon className={ICONE_SUB} />}>
+            Fora da escola <Selo tipo="estimado" />
+          </Subtitulo>
           {Object.entries(FORA_ESCOLA_SINTETICA).map(([k, rotulo]) => (
             <Linha key={k} rotulo={rotulo} valor={qtd(foraEscola[k]?.valor, true)} />
           ))}
@@ -281,7 +298,7 @@ export function SecaoEscolas({
 
 export function SecaoEnderecos({ enderecos }: { enderecos: Record<string, number> }) {
   return (
-    <Secao titulo="Endereços" icone={<EnderecosIcon className="size-4 shrink-0" />}>
+    <Secao titulo="Endereços" icone={<EnderecosIcon className="size-4 shrink-0" />} selo="oficial">
       <p className="cv-note-body mt-1">Cadastro de endereços do IBGE (CNEFE 2022).</p>
       {Object.entries(ENDERECOS_CNEFE).map(([k, rotulo]) => (
         <Linha key={k} rotulo={rotulo} valor={fmt.int(enderecos[k] ?? 0)} />
@@ -314,7 +331,7 @@ export function SecaoAreaPonderacao({
   const principal = ordenadas[0] && areas.get(ordenadas[0].cd_ap);
 
   return (
-    <Secao titulo="Outros Dados - Área de Ponderação do IBGE" icone={<AreaPonderacaoIcon className="size-4 shrink-0" />}>
+    <Secao titulo="Outros Dados - Área de Ponderação do IBGE" icone={<AreaPonderacaoIcon className="size-4 shrink-0" />} selo="amostral">
       <p className="cv-note-body mt-1">
         Area de Ponderação é uma regiao do município onde o IBGE pesquisou uma amostra de
         domicílios. Os números abaixo valem para a área toda, e servem de referência para
