@@ -26,6 +26,8 @@
 | Mudar o comportamento de clique/hover no mapa | `src/hooks/useMapLayerHandlers.ts` (Fase 3) ou `src/hooks/useMapInteraction.ts` |
 | Mudar os dados de bairro/loteamento/setor | `dados/etl/etl.ipynb` (rodar e copiar `dados/etl/output/*` para `public/data/`) |
 | Mudar rótulos e formatação da ficha | `src/config/indicadores.ts` e `src/components/panel/FichaSecoes.tsx` |
+| Mudar os textos dos selos de procedência (oficial/estimado/amostral) | `src/config/procedencia.ts` |
+| Mudar os limiares das faixas de qualidade ou a frase da sobra | `src/lib/qualidade.ts` (e rodar `npm run check`) |
 | Mudar visibilidade de camadas (bairro/loteamento/setor) | `src/hooks/map/use*Layer.ts` (Fase 3) |
 | Adicionar um novo controle flutuante | `src/components/MapView.tsx` (é ele que posiciona todos) |
 
@@ -247,6 +249,9 @@ Quando o ETL roda de novo, basta copiar os arquivos. Isso **não** roda junto co
 site: é um passo manual, feito quando o dado de origem muda.
 
 O frontend lê as chaves do ETL direto (`nome`, `nm_bairro`, `tipo`, `is_reliable`…).
+A ficha também lê `residuo` (população do bairro fora de loteamentos) e
+`qualidade.erro_tipico_metodo` (erro típico da estimativa do loteamento), que
+alimentam os sinais de procedência ([`DECISOES-TECNICAS.md` §8](./DECISOES-TECNICAS.md#8--transparência-de-procedência)).
 As áreas de ponderação não têm camada nem entram na busca: só aparecem como
 indicadores na ficha do loteamento, cruzadas pelo `cd_ap`.
 

@@ -20,6 +20,7 @@
 * [§5 — Armadilhas de manutenção](#5--armadilhas-de-manutenção)
 * [§6 — Visualizações e mapas de calor](#6--visualizações-e-mapas-de-calor)
 * [§7 — O clipe do Recreio na landing](#7--o-clipe-do-recreio-na-landing)
+* [§8 — Transparência de procedência](#8--transparência-de-procedência)
 
 ---
 
@@ -743,3 +744,97 @@ A página sai a 1,25× no quadro do vídeo, então o ffmpeg recorta
 `crop=488:1054:0:0`. No dev, o StrictMode faz o `ThemeProvider` regravar "light"
 no `localStorage` antes de ler o tema salvo; o script de gravação força a chave.
 Regravar só faz sentido se a interface do mapa mudar de forma visível.
+
+---
+
+## §8 — Transparência de procedência
+
+*Código relacionado: `src/config/procedencia.ts`, `src/lib/qualidade.ts`,
+`src/components/panel/Selo.tsx`, `ComoLer.tsx`, `HachuraAmostra.tsx`,
+`SecaoQualidade` em `FichaSecoes.tsx` e as seções 4.4, 7.4, 8, 9 e 11.1 do ETL
+(`dados/etl/etl.ipynb`). Check: `npm run check`.*
+
+A ficha diz de onde vem cada número e quanto ele pode errar. São cinco sinais,
+reunidos em "Como ler os números":
+
+* **Selo de procedência** (`oficial`, `estimado`, `amostral`), com borda sólida,
+  tracejada ou pontilhada e o rótulo escrito: nada só por cor.
+* **"≈" com erro típico** nas estimativas do loteamento.
+* **"—"** para sigilo do IBGE ou amostra com menos de 30 respostas.
+* **Hachuras** de limite aproximado e de sobra, com amostra na ficha.
+* **Qualidade da estimativa** em faixa (boa, média, baixa).
+
+### Selo por seção, não por linha
+
+Dentro de uma seção todos os números têm a mesma origem: a população de um
+loteamento é toda estimada, a da área de ponderação é toda amostral. Um selo por
+linha repetiria a mesma palavra dezenas de vezes. O selo fica no título da seção,
+visível com ela fechada. A exceção é "Fora da escola", estimativa dentro de uma
+seção oficial (Escolas): ganha selo próprio no subtítulo.
+
+### Erro típico: validação agregar e desagregar (ETL 7.4)
+
+A Eq. 1 reparte a população do setor pelos endereços do CNEFE. Na escala do
+loteamento não há população verdadeira para comparar. A validação aplica a mesma
+regra **um nível acima**: a população oficial de cada bairro é repartida entre
+os seus setores pela proporção de endereços e comparada com a população oficial
+de cada setor, que é conhecida.
+
+O "erro típico" mostrado na ficha é o erro absoluto percentual **mediano** desses
+setores (`mdape`): metade errou menos que isso. `p90_ape` e `wape` ficam em
+`metadados.json` (`validacao.erro_metodo`), para o texto do trabalho.
+
+O que ela **mede**: a premissa "população proporcional a endereços". O que ela
+**não mede**: a geometria dos loteamentos. Um limite errado põe endereços no
+loteamento vizinho, e isso aparece só na linha "Limites do loteamento".
+
+### Duas correções no ETL que mudaram números publicados
+
+* **A `fracao` era por código de endereço.** `COD_UNICO_ENDERECO` se repete no
+  CNEFE: 7.082 códigos, 14.249 registros (mesmo ponto com casa e fazenda, ou dois
+  domicílios). Agrupar pelo código dava ½ a cada registro repetido, mesmo dentro
+  de um só loteamento. Como a `fracao` é o numerador da Eq. 1 e o denominador
+  conta registros, cerca de 1.490 endereços residenciais ficavam de fora dos
+  loteamentos, e uns 3.760 moradores caíam no resíduo. Agora a conta é por
+  registro (índice da linha).
+* **Coordenada precisa inclui o nível 2.** O nível 2 do `NV_GEO_COORD` é o ponto
+  do prédio para apartamentos no mesmo número: 98% desses registros estão
+  empilhados no mesmo ponto, com complementos como "APARTAMENTO 101". Para saber
+  em que loteamento o endereço está, é tão bom quanto o nível 1. Contar só o 1
+  punha conjuntos verticais na faixa baixa sem motivo.
+
+### Faixas de qualidade
+
+`avaliarQualidade` olha duas linhas e a geral é **a pior** delas:
+
+| Linha | Boa | Média | Baixa |
+| --- | --- | --- | --- |
+| Limites do loteamento | confirmados | — | aproximados (`is_reliable = false`) |
+| Endereços com coordenada precisa (níveis 1 e 2) | ≥ 95% | ≥ 80% | < 80% |
+
+Simulado em 2026-10-29 com a correção do nível 2: coordenadas 155 boa, 8 média
+e 2 baixa; geral **94 boa, 4 média e 68 baixa**, 66 delas só por limites
+aproximados. A leitura é intencional: o elo fraco da estimativa é o contorno
+dos loteamentos, não o endereço.
+
+Saíram da ficha duas linhas que valem 0 nos 166 loteamentos: área sobreposta a
+outros loteamentos (a validação continua em
+`metadados.validacao.pares_loteamentos_sobrepostos`) e endereços em mais de um
+loteamento (era o efeito do bug da `fracao`).
+
+### População fora de loteamentos na ficha do bairro
+
+`residuo` (ETL, Etapa 8) é a Eq. 2 somada por bairro, para **todo** bairro.
+A sobra hachurada (11.1) só existe onde o vazio entre loteamentos forma uma área
+contínua; em 8 bairros (Centro, Cruzeiro…) o resíduo está em trechos pequenos
+demais e não há hachura. `tem_area` diz qual dos dois casos é, e a frase da
+ficha muda para não mandar procurar uma hachura que não existe.
+
+Como a sobra só é calculada na 11.1, depois que `bairros_e_distritos.geojson`
+já foi gravado, a 11.1 marca `tem_area` e regrava o arquivo.
+
+### Dica de amostra visível, não `title`
+
+O "—" de indicador suprimido explicava o motivo num `title`, que só aparece com
+mouse. No celular não havia como ler. Agora o motivo vai numa linha visível sob
+o valor (`Linha.nota`).
