@@ -283,6 +283,8 @@ function LoteamentoBody({
 }) {
   const lot = selection.properties as unknown as LoteamentoProperties;
   const isReliable = lot.is_reliable !== false;
+  const erro = lot.qualidade.erro_tipico_metodo;
+  const detalhe = erro != null ? `erro típico ±${fmt.pct(erro)}` : undefined;
   const resumo = lot.estimativas ? resumir([lot.estimativas]) : null;
   const series: Serie[] = [
     ...(resumo ? [{ rotulo: "Este loteamento", resumo, cor: "var(--loteamento)" }] : []),
@@ -298,14 +300,15 @@ function LoteamentoBody({
         <>
           <NumerosChave
             itens={[
-              { rotulo: "Moradores", valor: aprox(resumo.pop) },
-              { rotulo: "Domicílios", valor: aprox(resumo.domicilios) },
+              { rotulo: "Moradores", valor: aprox(resumo.pop), detalhe },
+              { rotulo: "Domicílios", valor: aprox(resumo.domicilios), detalhe },
               { rotulo: "Densidade", valor: densidade(resumo.pop, lot.area_km2) },
               { rotulo: "Área", valor: fmt.km2(lot.area_km2) },
             ]}
           />
           <p className="cv-note-body mt-2">
             <Selo tipo="estimado" /> Censo por setor repartido pelos endereços do CNEFE.
+            {erro != null && ` Erro típico do método: ±${fmt.pct(erro)}.`}
           </p>
           <Comparacao series={series} />
         </>
