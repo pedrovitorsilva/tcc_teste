@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { NoteCard } from "@/components/panel/NoteCard";
 import { Selo } from "@/components/panel/Selo";
 import type { Procedencia } from "@/config/procedencia";
+import { avaliarQualidade, ROTULO_FAIXA, type Faixa } from "@/lib/qualidade";
 import {
   AcessibilidadeIcon,
   AguaAbastecimentoIcon,
@@ -56,26 +57,34 @@ export function Linha({
   rotulo,
   valor,
   incerto,
-  titulo,
+  nota,
   proporcao,
 }: {
   rotulo: ReactNode;
   valor: ReactNode;
   incerto?: boolean;
-  /** Dica no hover do valor (ex.: por que está "—"). */
-  titulo?: string;
+  /** Texto sob a linha (ex.: por que está "—"). Visível, não `title`: no toque não há hover. */
+  nota?: string;
   /** Fração 0–1: barra fina sob a linha, para ver a forma da distribuição sem ler os números. */
   proporcao?: number | null;
 }) {
   const conteudo = (
     <>
       <span className="cv-rec-label">{rotulo}</span>
-      <span className={cn("cv-rec-value shrink-0 text-right", incerto && "text-uncertain")} title={titulo}>
+      <span className={cn("cv-rec-value shrink-0 text-right", incerto && "text-uncertain")}>
         {valor}
       </span>
     </>
   );
-  if (proporcao === undefined) return <div className="cv-rec-row gap-3">{conteudo}</div>;
+  if (proporcao === undefined && nota === undefined) return <div className="cv-rec-row gap-3">{conteudo}</div>;
+  if (proporcao === undefined) {
+    return (
+      <div className="cv-rec-row flex-col gap-0.5">
+        <div className="flex justify-between gap-3">{conteudo}</div>
+        <span className="cv-note-body">{nota}</span>
+      </div>
+    );
+  }
   return (
     // A barra já separa as linhas: sem o pontilhado e com menos respiro, a lista fica compacta.
     <div className="cv-rec-row flex-col gap-1 border-b-0 py-1.5">
@@ -360,7 +369,7 @@ export function SecaoAreaPonderacao({
                     key={chave}
                     rotulo={rotulo}
                     valor={fmt[formato](ind?.suprimido ? null : ind?.valor)}
-                    titulo={ind?.suprimido ? `Suprimido: só ${ind.n} respostas na amostra (mínimo 30)` : undefined}
+                    nota={ind?.suprimido ? `menos de 30 respostas na amostra (n = ${ind.n})` : undefined}
                   />
                 );
               })}
@@ -375,12 +384,39 @@ export function SecaoAreaPonderacao({
   );
 }
 
-export function SecaoQualidade({ qualidade }: { qualidade: LoteamentoProperties["qualidade"] }) {
+/** Forma de cada faixa, para a ordem não depender só do texto nem da cor. */
+const FORMA_FAIXA: Record<Faixa, string> = { boa: "●●●", media: "●●○", baixa: "●○○" };
+
+function ValorFaixa({ texto, faixa }: { texto: string; faixa: Faixa | null }) {
+  if (!faixa) return <>{texto}</>;
   return (
-    <Secao titulo="Qualidade do dado" icone={<QualidadeIcon className="size-4 shrink-0" />}>
-      <Linha rotulo="Área sobreposta a outros loteamentos" valor={fmt.pct(qualidade.sobreposicao_pct)} />
-      <Linha rotulo="Endereços em mais de um loteamento" valor={fmt.int(qualidade.enderecos_compartilhados)} />
-      <Linha rotulo="Endereços com coordenada precisa" valor={fmt.pct(qualidade.pct_coord_precisas)} />
+    <span className="inline-flex items-center gap-1.5">
+      {texto} · {ROTULO_FAIXA[faixa]}
+      <span aria-hidden className="text-[10px] tracking-[-1px] text-ink-soft">{FORMA_FAIXA[faixa]}</span>
+    </span>
+  );
+}
+
+export function SecaoQualidade({
+  qualidade,
+  isReliable,
+}: {
+  qualidade: LoteamentoProperties["qualidade"];
+  isReliable: boolean;
+}) {
+  const { geral, itens } = avaliarQualidade(qualidade, isReliable);
+  const [limites, coordenadas] = itens;
+  return (
+    <Secao titulo={`Qualidade da estimativa: ${ROTULO_FAIXA[geral]}`} icone={<QualidadeIcon className="size-4 shrink-0" />}>
+      <Linha
+        rotulo="Limites do loteamento"
+        valor={<ValorFaixa texto={isReliable ? "confirmados" : "aproximados"} faixa={limites.faixa} />}
+      />
+      <Linha
+        rotulo="Endereços com coordenada precisa"
+        valor={<ValorFaixa texto={fmt.pct(coordenadas.valor)} faixa={coordenadas.faixa} />}
+      />
+      <p className="cv-note-body mt-2">A qualidade geral é a pior das duas linhas.</p>
     </Secao>
   );
 }

@@ -334,7 +334,7 @@ function LoteamentoBody({
         <SecaoEscolas escolas={lot.escolas} foraEscola={lot.estimativas_sinteticas} />
         <SecaoEnderecos enderecos={lot.enderecos_cnefe} />
         <SecaoAreaPonderacao aps={lot.aps} areas={areasPonderacao} />
-        <SecaoQualidade qualidade={lot.qualidade} />
+        <SecaoQualidade qualidade={lot.qualidade} isReliable={isReliable} />
         {notes}
       </div>
       <NotaSigilo blocos={lot.qualidade.contem_sigilo} />
