@@ -33,3 +33,8 @@ test('textoSobra', () => {
   assert.equal(textoSobra(null), null);
   assert.equal(textoSobra(undefined), null);
 });
+test('textoSobra sem resíduo: bairro todo coberto, sem "≈ 0 moradores"', () => {
+  const todos = 'Todos os moradores do bairro estão em algum loteamento.';
+  assert.equal(textoSobra({ pop: 0, pct: 0, tem_area: false }), todos);
+  assert.equal(textoSobra({ pop: 0.4, pct: 0, tem_area: false }), todos);   // arredonda para 0
+});

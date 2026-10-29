@@ -46,6 +46,8 @@ const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maxim
 /** Frase da ficha do bairro; `null` para distrito (não tem loteamentos nem `residuo`). */
 export function textoSobra(residuo: UnidadeProperties['residuo'] | null | undefined): string | null {
   if (!residuo) return null;
+  // Abaixo de meio morador a frase diria "≈ 0 moradores (0,0%)"
+  if (residuo.pop < 0.5) return 'Todos os moradores do bairro estão em algum loteamento.';
   const onde = residuo.tem_area ? 'na área hachurada do mapa' : 'em trechos pequenos entre eles';
   return `≈ ${inteiro.format(residuo.pop)} moradores (${decimal.format(residuo.pct * 100)}%) vivem fora de qualquer loteamento, ${onde}.`;
 }
