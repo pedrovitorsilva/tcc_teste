@@ -15,6 +15,10 @@ interface SearchBoxProps {
   placeholder?: string;
 }
 
+/** Lowercase e sem acentos, para comparar "São" com "sao". */
+const normalize = (text: string) =>
+  text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
 /**
  * Busca por nome em bairros, distritos e loteamentos (áreas de ponderação ficam de fora).
 */
@@ -32,18 +36,14 @@ export function SearchBox({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => {
-    const normalizedQuery = query
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    const normalizedQuery = normalize(query.trim());
 
     if (!normalizedQuery) {
       return [];
     }
 
     return [...bairros, ...loteamentos]
-      .filter((feature) => feature.name.toLowerCase().includes(normalizedQuery))
+      .filter((feature) => normalize(feature.name).includes(normalizedQuery))
       .slice(0, 20);
   }, [query, bairros, loteamentos]);
 
