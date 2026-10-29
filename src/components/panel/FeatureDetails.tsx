@@ -10,6 +10,7 @@ import { ChoroplethLegend } from "@/components/map/ChoroplethLegend";
 import { Selo } from "@/components/panel/Selo";
 import { HachuraAmostra } from "@/components/panel/HachuraAmostra";
 import { ComoLer } from "@/components/panel/ComoLer";
+import { LinhaComAmostra } from "@/components/panel/LinhaComAmostra";
 import type { Choropleth } from "@/hooks/useChoropleth";
 import {
   NotaSigilo,
@@ -210,14 +211,13 @@ function BairroBody({
           { rotulo: "Área", valor: fmt.km2(unidade.area_km2) },
         ]}
       />
-      <p className="cv-note-body mt-2">
-        <Selo tipo="oficial" /> Censo 2022, soma dos setores do IBGE.
-      </p>
+      <LinhaComAmostra className="mt-2" amostra={<Selo tipo="oficial" />}>
+        Censo 2022, soma dos setores do IBGE.
+      </LinhaComAmostra>
       {sobra && (
-        <p className="cv-note-body mt-1 flex items-start gap-2">
-          {unidade.residuo?.tem_area && <HachuraAmostra espelhada />}
-          <span>{sobra}</span>
-        </p>
+        <LinhaComAmostra className="mt-1" amostra={unidade.residuo?.tem_area && <HachuraAmostra espelhada />}>
+          {sobra}
+        </LinhaComAmostra>
       )}
       <Comparacao series={series} />
 
@@ -308,10 +308,10 @@ function LoteamentoBody({
               { rotulo: "Área", valor: fmt.km2(lot.area_km2) },
             ]}
           />
-          <p className="cv-note-body mt-2">
-            <Selo tipo="estimado" /> Censo por setor repartido pelos endereços do CNEFE.
+          <LinhaComAmostra className="mt-2" amostra={<Selo tipo="estimado" />}>
+            Censo por setor repartido pelos endereços do CNEFE.
             {erro != null && ` Erro típico do método: ±${fmt.pct(erro)}.`}
-          </p>
+          </LinhaComAmostra>
           <Comparacao series={series} />
         </>
       ) : (

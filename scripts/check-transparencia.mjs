@@ -2,7 +2,7 @@
 // Roda sem bundler: `npm run check` (Node lê o .ts direto, só com tipos a apagar).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { avaliarQualidade, textoSobra } from '../src/lib/qualidade.ts';
+import { avaliarQualidade, ROTULO_FAIXA, textoSobra } from '../src/lib/qualidade.ts';
 
 const q = (coord) => ({ sobreposicao_pct: 0, enderecos_compartilhados: 0, contem_sigilo: [], pct_coord_precisas: coord });
 
@@ -15,6 +15,9 @@ test('limites aproximados levam a geral para baixa, mas a linha de coordenadas s
   const a = avaliarQualidade(q(0.99), false);
   assert.equal(a.geral, 'baixa');
   assert.deepEqual(a.itens.map((i) => [i.chave, i.faixa]), [['limites', 'baixa'], ['coordenadas', 'boa']]);
+});
+test('a pior faixa se lê "provável", não "baixa"', () => {
+  assert.equal(ROTULO_FAIXA[avaliarQualidade(q(0.99), false).geral], 'provável');
 });
 test('limiares inclusivos', () => {
   assert.equal(avaliarQualidade(q(0.95), true).geral, 'boa');

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { HachuraAmostra } from "@/components/panel/HachuraAmostra";
+import { LinhaComAmostra } from "@/components/panel/LinhaComAmostra";
 import { Selo } from "@/components/panel/Selo";
 import { Secao } from "@/components/panel/FichaSecoes";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -12,10 +13,11 @@ import { COR_SEM_DADO } from "@/config/visualizacoes";
 /** Uma linha da legenda: amostra visual à esquerda, explicação à direita. */
 function Item({ amostra, children }: { amostra: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-1.5">
-      <dt className="flex w-16 shrink-0 justify-center pt-0.5">{amostra}</dt>
-      <dd className="cv-note-body">{children}</dd>
-    </div>
+    <li>
+      <LinhaComAmostra className="py-1.5" amostra={amostra}>
+        {children}
+      </LinhaComAmostra>
+    </li>
   );
 }
 
@@ -30,7 +32,7 @@ export function ComoLer({ erroTipico }: { erroTipico?: number | null }) {
   const semDado = COR_SEM_DADO[theme === "dark" ? "escuro" : "claro"];
   return (
     <Secao titulo="Como ler os números">
-      <dl className="pt-1">
+      <ul className="pt-1">
         {(Object.keys(PROCEDENCIA) as Procedencia[]).map((tipo) => (
           <Item key={tipo} amostra={<Selo tipo={tipo} />}>
             {PROCEDENCIA[tipo].descricao}
@@ -50,7 +52,7 @@ export function ComoLer({ erroTipico }: { erroTipico?: number | null }) {
         <Item amostra={<span aria-hidden className="inline-block h-3 w-5 rounded-[2px]" style={{ background: semDado }} />}>
           No mapa de calor: área sem dado, nunca zero.
         </Item>
-      </dl>
+      </ul>
     </Secao>
   );
 }

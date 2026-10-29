@@ -8,7 +8,8 @@ import type { LoteamentoProperties, UnidadeProperties } from '@/types/map';
 
 export type Faixa = 'boa' | 'media' | 'baixa';
 
-export const ROTULO_FAIXA: Record<Faixa, string> = { boa: 'boa', media: 'média', baixa: 'baixa' };
+/** "Provável", não "baixa": quase sempre é o limite do loteamento que não está garantido, não o número. */
+export const ROTULO_FAIXA: Record<Faixa, string> = { boa: 'boa', media: 'média', baixa: 'provável' };
 
 export const LIMIARES = {
   /** Fração de endereços com coordenada precisa (nv_geo_coord 1 ou 2): ≥ boa, ≥ média, abaixo baixa. */

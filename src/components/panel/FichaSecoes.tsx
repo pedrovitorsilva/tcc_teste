@@ -417,6 +417,15 @@ export function SecaoQualidade({
         valor={<ValorFaixa texto={fmt.pct(coordenadas.valor)} faixa={coordenadas.faixa} />}
       />
       <p className="cv-note-body mt-2">A qualidade geral é a pior das duas linhas.</p>
+      {!isReliable && (
+        <NoteCard className="mt-3 px-3 py-2">
+          <p className="cv-note-body">
+            A qualidade é provável porque os limites deste loteamento não são garantidos: o contorno
+            vem de fonte não oficial, sem confirmação em cadastro. Endereços perto da divisa podem
+            pertencer ao loteamento vizinho.
+          </p>
+        </NoteCard>
+      )}
     </Secao>
   );
 }

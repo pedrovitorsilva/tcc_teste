@@ -762,7 +762,7 @@ reunidos em "Como ler os números":
 * **"≈" com erro típico** nas estimativas do loteamento.
 * **"—"** para sigilo do IBGE ou amostra com menos de 30 respostas.
 * **Hachuras** de limite aproximado e de sobra, com amostra na ficha.
-* **Qualidade da estimativa** em faixa (boa, média, baixa).
+* **Qualidade da estimativa** em faixa (boa, média, provável).
 
 ### Selo por seção, não por linha
 
@@ -809,7 +809,7 @@ loteamento vizinho, e isso aparece só na linha "Limites do loteamento".
 
 `avaliarQualidade` olha duas linhas e a geral é **a pior** delas:
 
-| Linha | Boa | Média | Baixa |
+| Linha | Boa | Média | Provável |
 | --- | --- | --- | --- |
 | Limites do loteamento | confirmados | — | aproximados (`is_reliable = false`) |
 | Endereços com coordenada precisa (níveis 1 e 2) | ≥ 95% | ≥ 80% | < 80% |
@@ -818,6 +818,12 @@ Simulado em 2026-10-29 com a correção do nível 2: coordenadas 155 boa, 8 méd
 e 2 baixa; geral **94 boa, 4 média e 68 baixa**, 66 delas só por limites
 aproximados. A leitura é intencional: o elo fraco da estimativa é o contorno
 dos loteamentos, não o endereço.
+
+A pior faixa se chama **provável**, não "baixa" (internamente continua `baixa`):
+em 66 dos 68 casos o número não é ruim, o que falta é garantia do limite. Por
+isso, num loteamento com limites aproximados, a seção de qualidade traz uma nota
+dizendo exatamente isso: o contorno vem de fonte não oficial, e endereços perto
+da divisa podem ser do vizinho.
 
 Saíram da ficha duas linhas que valem 0 nos 166 loteamentos: área sobreposta a
 outros loteamentos (a validação continua em
