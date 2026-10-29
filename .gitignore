@@ -1,6 +1,7 @@
 node_modules
 .next
 /CLAUDE.md
+/skills.md
 /.claude/
 temp/
 /public/data/postes.json
