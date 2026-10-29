@@ -19,7 +19,7 @@
 * [§4 — Dependências evitadas](#4--dependências-evitadas)
 * [§5 — Armadilhas de manutenção](#5--armadilhas-de-manutenção)
 * [§6 — Visualizações e mapas de calor](#6--visualizações-e-mapas-de-calor)
-* [§7 — O clipe do Recreio na landing](#7--o-clipe-do-recreio-na-landing)
+* [§7 — O video do Bairro Recreio na landing](#7--o-clipe-do-recreio-na-landing)
 * [§8 — Transparência de procedência](#8--transparência-de-procedência)
 
 ---
